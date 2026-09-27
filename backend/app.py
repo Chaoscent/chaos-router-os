@@ -1,12 +1,41 @@
-from flask import Flask, render_template, abort, jsonify
+import os
+
+from flask import (
+    Flask,
+    render_template,
+    abort,
+    jsonify,
+    request,
+    session,
+    redirect,
+    url_for
+)
+
+from auth import verify_login, login_required
+
 from services.system import (
     get_hostname,
+    set_hostname,
     get_ip,
     get_uptime,
     get_cpu_temp,
     get_ram,
-    get_time
+    get_time,
+    get_ping
 )
+
+from services.network import (
+    get_default_interface,
+    get_gateway,
+    get_dns,
+    get_connection_type,
+    get_ip as get_network_ip,
+    get_connected_clients,
+    get_clients
+)
+
+from services.modem import get_modem_data
+from services.traffic import get_traffic, get_history
 
 app = Flask(
     __name__,
@@ -14,15 +43,52 @@ app = Flask(
     static_folder="../frontend/static"
 )
 
-# Permanent shell
+# Development secret key (will be replaced by the installer later)
+app.secret_key = os.getenv("SECRET_KEY", "chaos-router-dev")
+
+
+# -------------------------------------------------------------------
+# Authentication
+# -------------------------------------------------------------------
+
 @app.route("/")
-def index():
+def home():
+    if "user" not in session:
+        return redirect(url_for("login_page"))
+
     return render_template("base.html")
 
-# HTML fragments for the SPA
+
+@app.route("/login")
+def login_page():
+    return render_template("login.html")
+
+
+@app.route("/api/login", methods=["POST"])
+def api_login():
+    data = request.get_json()
+
+    if verify_login(data["username"], data["password"]):
+        session["user"] = data["username"]
+        return jsonify({"success": True})
+
+    return jsonify({"success": False}), 401
+
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login_page"))
+
+
+# -------------------------------------------------------------------
+# SPA Fragments
+# -------------------------------------------------------------------
+
 VALID_PAGES = {
     "dashboard",
     "network",
+    "clients",
     "vpn",
     "modem",
     "logs",
@@ -30,22 +96,109 @@ VALID_PAGES = {
     "apps"
 }
 
+
 @app.route("/fragment/<page>")
+@login_required
 def fragment(page):
     if page not in VALID_PAGES:
         abort(404)
+
     return render_template(f"{page}.html")
 
+
+# -------------------------------------------------------------------
+# APIs
+# -------------------------------------------------------------------
+
 @app.route("/api/dashboard")
+@login_required
 def dashboard_api():
+
+    traffic = get_traffic()
+
     return jsonify({
         "hostname": get_hostname(),
         "ip": get_ip(),
         "uptime": get_uptime(),
         "cpu_temp": get_cpu_temp(),
         "ram": get_ram(),
-        "time": get_time()
+        "time": get_time(),
+        "clients": get_connected_clients(),
+        "active": max(1 if traffic["rx"] > 0 or traffic["tx"] > 0 else 0, 0),
+        "download": traffic["rx"],
+        "upload": traffic["tx"],
+        "history": get_history()
     })
+
+
+@app.route("/api/network")
+@login_required
+def network_api():
+    interface = get_default_interface()
+
+    return jsonify({
+        "interface": interface,
+        "gateway": get_gateway(),
+        "ip": get_network_ip(interface),
+        "dns": get_dns(),
+        "connection": get_connection_type(interface),
+        "wan": "Connected" if interface != "Unknown" else "Disconnected"
+    })
+
+
+@app.route("/api/modem")
+@login_required
+def modem_api():
+    return jsonify(get_modem_data())
+
+
+@app.route("/api/header")
+@login_required
+def header_api():
+    traffic = get_traffic()
+    modem = get_modem_data()
+
+    return jsonify({
+        "network": modem["network"],
+        "model": modem["model"],
+        "carrier": modem["carrier"],
+        "ping": get_ping(),
+        "time": get_time(),
+        "user": session["user"],
+        "rx": traffic["rx"],
+        "tx": traffic["tx"]
+    })
+
+
+@app.route("/api/clients")
+@login_required
+def clients_api():
+    return jsonify(get_clients())
+
+
+@app.route("/api/system/hostname", methods=["POST"])
+@login_required
+def update_hostname():
+
+    data = request.get_json()
+
+    success, message = set_hostname(data["hostname"])
+
+    if success:
+        return jsonify({
+            "success": True,
+            "hostname": message
+        })
+
+    return jsonify({
+        "success": False,
+        "message": message
+    }), 400
+
+
+# -------------------------------------------------------------------
+# Development
+# -------------------------------------------------------------------
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5000, debug=True)

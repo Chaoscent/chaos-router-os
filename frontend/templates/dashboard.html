@@ -2,39 +2,95 @@
 
     <div class="page-header">
         <h1>Dashboard</h1>
-        <p>Overview of your router</p>
+        <p>Overview of your router.</p>
     </div>
+
+    <div class="card-grid">
+        <a href="#/clients" class="card-link">
+            <div class="card">
+                <span>Connected Clients</span>
+                <div class="card-metric" id="clients">--</div>
+            </div>
+        </a>
+
+        <div class="card">
+            <span>Active Clients</span>
+            <div class="card-metric" id="active">--</div>
+        </div>
+
+        <div class="card">
+            <span>Download</span>
+            <div class="card-metric" id="download">-- Mbps</div>
+        </div>
+
+        <div class="card">
+            <span>Upload</span>
+            <div class="card-metric" id="upload">-- Mbps</div>
+        </div>
+
+    </div>
+
+    <div style="height:20px"></div>
+
+    <div class="card">
+
+        <span>Network Activity (60 seconds)</span>
+
+        <svg id="trafficGraph"
+             viewBox="0 0 600 180"
+             width="100%"
+             height="180">
+
+            <polyline id="downloadLine"
+                fill="none"
+                stroke="#4ea1ff"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"/>
+
+            <polyline id="uploadLine"
+                fill="none"
+                stroke="#6ee7b7"
+                stroke-width="3"
+                stroke-linecap="round"
+                stroke-linejoin="round"/>
+
+        </svg>
+
+    </div>
+
+    <div style="height:20px"></div>
 
     <div class="card-grid">
 
         <div class="card">
             <span>Hostname</span>
-            <h2 id="hostname">--</h2>
+            <div class="card-value" id="hostname">--</div>
         </div>
 
         <div class="card">
             <span>IP Address</span>
-            <h2 id="ip">--</h2>
+            <div class="card-value" id="ip">--</div>
         </div>
 
         <div class="card">
             <span>CPU Temp</span>
-            <h2 id="cpu_temp">--</h2>
+            <div class="card-value" id="cpu">--</div>
         </div>
 
         <div class="card">
             <span>RAM</span>
-            <h2 id="ram">--</h2>
+            <div class="card-value" id="ram">--</div>
         </div>
 
         <div class="card">
             <span>Uptime</span>
-            <h2 id="uptime">--</h2>
+            <div class="card-value" id="uptime">--</div>
         </div>
 
         <div class="card">
             <span>System Time</span>
-            <h2 id="time">--</h2>
+            <div class="card-value" id="time">--</div>
         </div>
 
     </div>

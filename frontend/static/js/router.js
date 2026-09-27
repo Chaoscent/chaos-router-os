@@ -12,6 +12,12 @@ async function loadPage(route){
 
         const response = await fetch(`/fragment/${route}`);
 
+        // Session expired
+        if(response.status === 401){
+            window.location.href = "/login";
+            return;
+        }
+
         if(!response.ok){
             throw new Error();
         }
@@ -34,8 +40,8 @@ async function loadPage(route){
 
     }catch{
 
-        if(route!==DEFAULT_ROUTE){
-            location.hash=`#/${DEFAULT_ROUTE}`;
+        if(route !== DEFAULT_ROUTE){
+            location.hash = `#/${DEFAULT_ROUTE}`;
         }
 
     }
@@ -44,7 +50,7 @@ async function loadPage(route){
 
 async function loadController(route){
 
-    const existing=document.getElementById("page-controller");
+    const existing = document.getElementById("page-controller");
 
     if(existing){
         existing.remove();
@@ -52,13 +58,13 @@ async function loadController(route){
 
     return new Promise(resolve=>{
 
-        const script=document.createElement("script");
+        const script = document.createElement("script");
 
-        script.id="page-controller";
-        script.src=`/static/js/${route}.js`;
+        script.id = "page-controller";
+        script.src = `/static/js/${route}.js`;
 
-        script.onload=resolve;
-        script.onerror=resolve;
+        script.onload = resolve;
+        script.onerror = resolve;
 
         document.body.appendChild(script);
 
@@ -81,13 +87,9 @@ window.addEventListener("hashchange",()=>{
 window.addEventListener("DOMContentLoaded",()=>{
 
     if(!location.hash){
-
-        location.hash=`#/${DEFAULT_ROUTE}`;
-
+        location.hash = `#/${DEFAULT_ROUTE}`;
     }else{
-
         loadPage(getRoute());
-
     }
 
 });

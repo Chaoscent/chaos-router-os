@@ -1,0 +1,87 @@
+<section class="page">
+
+    <div class="page-header">
+        <h1>Clients</h1>
+        <p>Connected devices on your network.</p>
+    </div>
+
+    <div class="clients-layout">
+
+        <div class="card">
+
+            <table class="client-table">
+
+                <thead>
+                    <tr>
+                        <th>Device</th>
+                        <th>IP</th>
+                        <th>Interface</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody id="clientTable"></tbody>
+
+            </table>
+
+        </div>
+
+        <aside id="clientInspector" class="client-inspector">
+
+            <div class="inspector-header">
+
+                <div>
+                    <h2 id="inspectorName">No client selected</h2>
+                    <p id="inspectorIP">Select a device</p>
+                </div>
+
+                <button id="closeInspector" class="icon-btn">×</button>
+
+            </div>
+
+            <div class="inspector-body">
+
+                <div class="info-row">
+                    <span>MAC</span>
+                    <strong id="inspectorMAC">—</strong>
+                </div>
+
+                <div class="info-row">
+                    <span>Vendor</span>
+                    <strong id="inspectorVendor">Unknown</strong>
+                </div>
+
+                <div class="info-row">
+                    <span>Interface</span>
+                    <strong id="inspectorInterface">—</strong>
+                </div>
+
+                <div class="info-row">
+                    <span>Status</span>
+                    <strong id="inspectorStatus">—</strong>
+                </div>
+
+                <div class="info-row">
+                    <span>Traffic</span>
+                    <strong id="inspectorTraffic">Coming Soon</strong>
+                </div>
+
+            </div>
+
+            <div class="inspector-actions">
+
+                <button class="action-btn" disabled>
+                    Reserve DHCP IP
+                </button>
+
+                <button class="action-btn danger" disabled>
+                    Block Device
+                </button>
+
+            </div>
+
+        </aside>
+
+    </div>
+
+</section>

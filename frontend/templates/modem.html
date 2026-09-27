@@ -1,3 +1,81 @@
 <section class="page">
-    <h1>Modem</h1>
+
+    <div class="page-header">
+        <h1>Modem</h1>
+        <p>5G modem status and cellular connectivity.</p>
+    </div>
+
+    <div class="card-grid">
+
+        <div class="card">
+            <span>Carrier</span>
+            <div class="card-metric" id="carrier">--</div>
+        </div>
+
+        <div class="card">
+            <span>Network</span>
+            <div class="card-metric" id="network">--</div>
+        </div>
+
+        <div class="card">
+            <span>Signal</span>
+            <div class="card-metric" id="signal">--%</div>
+        </div>
+
+    </div>
+
+    <div style="height:20px"></div>
+
+    <div class="card">
+
+        <span>Signal Quality</span>
+
+        <div class="signal-grid">
+
+            <div class="signal-box">
+                <label>RSRP</label>
+                <strong id="rsrp">--</strong>
+            </div>
+
+            <div class="signal-box">
+                <label>RSRQ</label>
+                <strong id="rsrq">--</strong>
+            </div>
+
+            <div class="signal-box">
+                <label>SINR</label>
+                <strong id="sinr">--</strong>
+            </div>
+
+        </div>
+
+    </div>
+
+    <div style="height:20px"></div>
+
+    <div class="card">
+
+        <span>Modem Information</span>
+
+        <div class="info-grid">
+
+            <div class="info-row">
+                <label>Band</label>
+                <strong id="band">--</strong>
+            </div>
+
+            <div class="info-row">
+                <label>SIM Status</label>
+                <strong id="sim">--</strong>
+            </div>
+
+            <div class="info-row">
+                <label>IMEI</label>
+                <strong id="imei">--</strong>
+            </div>
+
+        </div>
+
+    </div>
+
 </section>

@@ -1,3 +1,91 @@
 <section class="page">
-    <h1>Network</h1>
+
+    <div class="page-header">
+        <h1>Network</h1>
+        <p>Configure your router's network interfaces and LAN settings.</p>
+    </div>
+
+    <!-- Live Status -->
+
+    <div class="card-grid">
+
+        <div class="card">
+            <span>WAN Status</span>
+            <h2 id="wan" class="card-metric">--</h2>
+        </div>
+
+        <div class="card">
+            <span>Connection Type</span>
+            <h2 id="connection" class="card-metric">--</h2>
+        </div>
+
+        <div class="card">
+            <span>Primary Interface</span>
+            <h2 id="interface" class="card-value">--</h2>
+        </div>
+
+        <div class="card">
+            <span>Current LAN IP</span>
+            <h2 id="currentIp" class="card-value">--</h2>
+        </div>
+
+    </div>
+
+    <div style="margin-top:24px;"></div>
+
+    <!-- LAN Configuration -->
+
+    <div class="card">
+
+        <span>LAN Configuration</span>
+
+        <div class="settings-grid">
+
+            <div class="setting-field">
+                <label>LAN IP</label>
+                <input id="lanIpInput" class="setting-input" type="text">
+            </div>
+
+            <div class="setting-field">
+                <label>Subnet Mask</label>
+                <input id="subnetInput" class="setting-input" type="text">
+            </div>
+
+            <div class="setting-field">
+                <label>Gateway</label>
+                <input id="gatewayInput" class="setting-input" type="text">
+            </div>
+
+            <div class="setting-field">
+                <label>Primary DNS</label>
+                <input id="dnsInput" class="setting-input" type="text">
+            </div>
+
+        </div>
+
+    </div>
+
+    <div style="margin-top:18px;"></div>
+
+    <!-- Pending Changes -->
+
+    <div id="pendingBar" class="pending-bar hidden">
+
+        <div class="pending-info">
+            <strong id="pendingCount">0</strong>
+            <span>Pending Changes</span>
+        </div>
+
+        <div class="pending-actions">
+            <button id="discardChanges" class="secondary-btn">
+                Discard
+            </button>
+
+            <button id="applyChanges" class="save-btn" disabled>
+                Apply Changes
+            </button>
+        </div>
+
+    </div>
+
 </section>

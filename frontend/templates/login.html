@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Chaos Router OS</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+<style>
+body{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    height:100vh;
+}
+
+.login-card{
+    width:380px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:20px;
+    padding:32px;
+}
+
+.login-card h1{
+    margin-bottom:8px;
+}
+
+.login-card p{
+    margin-bottom:24px;
+    color:var(--muted);
+}
+
+.login-card input{
+    width:100%;
+    padding:14px;
+    margin-bottom:16px;
+    background:var(--panel2);
+    border:1px solid var(--border);
+    border-radius:12px;
+    color:white;
+}
+
+.login-card button{
+    width:100%;
+    padding:14px;
+    border:none;
+    border-radius:12px;
+    background:var(--accent);
+    color:white;
+    font-weight:600;
+    cursor:pointer;
+}
+
+#error{
+    margin-top:12px;
+    color:#ff7b7b;
+    display:none;
+}
+</style>
+</head>
+
+<body>
+
+<div class="login-card">
+
+<h1>Chaos Router OS</h1>
+<p>Sign in to manage your router.</p>
+
+<input id="username" value="admin" placeholder="Username">
+<input id="password" type="password" placeholder="Password">
+
+<button onclick="login()">Sign In</button>
+
+<div id="error">Invalid username or password.</div>
+
+</div>
+
+<script>
+async function login(){
+
+    const res = await fetch("/api/login",{
+        method:"POST",
+        headers:{
+            "Content-Type":"application/json"
+        },
+        body:JSON.stringify({
+            username:username.value,
+            password:password.value
+        })
+    });
+
+    if(res.ok){
+        location.href="/";
+    }else{
+        error.style.display="block";
+    }
+}
+
+password.addEventListener("keydown",e=>{
+    if(e.key==="Enter") login();
+});
+</script>
+
+</body>
+</html>
