@@ -26,7 +26,7 @@ body{
 }
 
 .sidebar{
-    width:240px;
+    width:208px;
     background:var(--panel);
     border-right:1px solid var(--border);
     padding:24px;
@@ -58,11 +58,71 @@ body{
 }
 
 .sidebar a.active{
-    background:var(--accent);
+    background:rgba(78,161,255,.18);
     color:white;
 }
 
 main{
     flex:1;
-    padding:36px;
+    padding:42px;
+}
+
+.page{
+    max-width:1500pxL;
+}
+
+.page-header{
+    margin-bottom:32px;
+}
+
+.page-header h1{
+    font-size:34px;
+    margin-bottom:8px;
+}
+
+.page-header p{
+    color:var(--muted);
+}
+
+.card-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+    gap:18px;
+}
+
+.card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:16px;
+    padding:22px;
+    transition:.18s ease;
+    min-height:140px;
+}
+
+.card:hover{
+    transform:translateY(-2px);
+    border-color:#3f4b61;
+}
+
+.card span{
+    color:var(--muted);
+    font-size:14px;
+    margin-bottom:8px;
+    display:block;
+}
+
+.card h2{
+    margin-top:12px;
+    font-size:clamp(24px,2vw,32px;
+    font-weight:700;
+    line-height:1.2;
+    overflow-wrap:anywhere;
+    word-break:break-word;
+}
+
+.card-value{
+    font-size:clamp(24px,2vw,32px);
+    font-weight:700;
+    line-height:1.2;
+    overflow-wrap:anywhere;
 }

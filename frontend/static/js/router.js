@@ -10,6 +10,10 @@ async function loadPage(route) {
 
         const html = await response.text();
         document.getElementById("content").innerHTML = html;
+	const routeScript = document.createElement("script");
+	routeScript.src = `/static/js/${route}.js`;
+	routeScript.onerror = () => {};
+	document.body.appendChild(routeScript);
 
         document.querySelectorAll(".sidebar a").forEach(link => {
             link.classList.toggle(
