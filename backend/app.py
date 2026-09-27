@@ -31,7 +31,9 @@ from services.network import (
     get_connection_type,
     get_ip as get_network_ip,
     get_connected_clients,
-    get_clients
+    get_clients,
+    get_lan_config,
+    validate_lan_config
 )
 
 from services.modem import get_modem_data
@@ -45,6 +47,12 @@ app = Flask(
 
 # Development secret key (will be replaced by the installer later)
 app.secret_key = os.getenv("SECRET_KEY", "chaos-router-dev")
+
+# -------------------------------------------------------------------
+# Pending Configuration Store (M14)
+# -------------------------------------------------------------------
+
+NETWORK_PENDING = {}
 
 
 # -------------------------------------------------------------------
@@ -146,6 +154,53 @@ def network_api():
     })
 
 
+@app.route("/api/network/config")
+@login_required
+def network_config_api():
+    return jsonify(get_lan_config())
+
+
+@app.route("/api/network/pending")
+@login_required
+def network_pending_api():
+    return jsonify(NETWORK_PENDING)
+
+
+@app.route("/api/network/stage", methods=["POST"])
+@login_required
+def network_stage_api():
+
+    global NETWORK_PENDING
+
+    data = request.get_json()
+
+    ok, message = validate_lan_config(data)
+
+    if not ok:
+        return jsonify({
+            "success": False,
+            "message": message
+        }), 400
+
+    NETWORK_PENDING = data
+
+    return jsonify({
+        "success": True,
+        "pending": NETWORK_PENDING
+    })
+
+
+@app.route("/api/network/discard", methods=["POST"])
+@login_required
+def network_discard_api():
+
+    global NETWORK_PENDING
+
+    NETWORK_PENDING = {}
+
+    return jsonify({"success": True})
+
+
 @app.route("/api/modem")
 @login_required
 def modem_api():
@@ -155,6 +210,7 @@ def modem_api():
 @app.route("/api/header")
 @login_required
 def header_api():
+
     traffic = get_traffic()
     modem = get_modem_data()
 

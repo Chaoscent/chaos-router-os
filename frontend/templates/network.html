@@ -71,12 +71,19 @@
 
     <div id="pendingBar" class="pending-bar hidden">
 
-        <div class="pending-info">
-            <strong id="pendingCount">0</strong>
-            <span>Pending Changes</span>
+        <div class="pending-left">
+
+            <div class="pending-info">
+                <strong id="pendingCount">0</strong>
+                <span id="pendingStatus">Pending Changes</span>
+            </div>
+
+            <div id="pendingList" class="pending-list"></div>
+
         </div>
 
         <div class="pending-actions">
+
             <button id="discardChanges" class="secondary-btn">
                 Discard
             </button>
@@ -84,6 +91,7 @@
             <button id="applyChanges" class="save-btn" disabled>
                 Apply Changes
             </button>
+
         </div>
 
     </div>
