@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chaos Router OS</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+
+<div class="app">
+
+    <aside class="sidebar">
+
+        <div class="logo">
+            Chaos Router
+        </div>
+
+        <nav>
+
+            <a href="#/dashboard" data-route="dashboard">Dashboard</a>
+            <a href="#/network" data-route="network">Network</a>
+            <a href="#/vpn" data-route="vpn">VPN</a>
+            <a href="#/modem" data-route="modem">Modem</a>
+            <a href="#/logs" data-route="logs">Logs</a>
+            <a href="#/system" data-route="system">System</a>
+
+            <hr>
+
+            <a href="#/apps" data-route="apps">Apps</a>
+
+        </nav>
+
+    </aside>
+
+    <main id="content"></main>
+
+</div>
+
+<script src="{{ url_for('static', filename='js/router.js') }}"></script>
+
+</body>
+</html>
