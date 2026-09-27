@@ -1,17 +1,40 @@
-async function updateDashboard(){
+window.Page = {
 
-    const res = await fetch("/api/dashboard");
-    const data = await res.json();
+    dashboard:{
 
-    document.getElementById("hostname").textContent = data.hostname;
-    document.getElementById("ip").textContent = data.ip;
-    document.getElementById("cpu_temp").textContent =
-        data.cpu_temp ? `${data.cpu_temp}°C` : "--";
+        timer:null,
 
-    document.getElementById("ram").textContent = `${data.ram}%`;
-    document.getElementById("uptime").textContent = data.uptime;
-    document.getElementById("time").textContent = data.time;
-}
+        async update(){
 
-updateDashboard();
-setInterval(updateDashboard,2000);
+            const res=await fetch("/api/dashboard");
+            const data=await res.json();
+
+            document.getElementById("hostname").textContent=data.hostname;
+            document.getElementById("ip").textContent=data.ip;
+
+            document.getElementById("cpu_temp").textContent=
+                data.cpu_temp ? `${data.cpu_temp}°C` : "--";
+
+            document.getElementById("ram").textContent=`${data.ram}%`;
+            document.getElementById("uptime").textContent=data.uptime;
+            document.getElementById("time").textContent=data.time;
+
+        },
+
+        init(){
+
+            this.update();
+
+            this.timer=setInterval(()=>this.update(),2000);
+
+        },
+
+        destroy(){
+
+            clearInterval(this.timer);
+
+        }
+
+    }
+
+};
