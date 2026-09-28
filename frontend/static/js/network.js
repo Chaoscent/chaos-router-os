@@ -15,12 +15,17 @@ window.Page.network = {
     isIPv4(value) {
 
         const parts = value.split(".");
+
         if (parts.length !== 4) return false;
 
         return parts.every(part => {
+
             if (!/^\d+$/.test(part)) return false;
+
             const n = Number(part);
+
             return n >= 0 && n <= 255;
+
         });
 
     },
@@ -43,12 +48,16 @@ window.Page.network = {
 
         input.classList.toggle("invalid", !valid);
 
-        let error = input.parentElement.querySelector(".field-error");
+        let error =
+            input.parentElement.querySelector(".field-error");
 
         if (!error) {
+
             error = document.createElement("div");
             error.className = "field-error";
+
             input.parentElement.appendChild(error);
+
         }
 
         error.textContent = valid ? "" : message;
@@ -59,200 +68,601 @@ window.Page.network = {
 
         const card = this.interfaces[name];
 
-        if (name === "wwan0") return true;
+        if (!card) return false;
 
-        if (card.mode.value === "DHCP Client") {
-
-            [card.ip, card.subnet, card.gateway, card.dns].forEach(field =>
-                this.setFieldState(field, true)
-            );
-
+        // WWAN is modem managed.
+        if (name === "wwan0") {
             return true;
-
         }
 
-        const ipOK = this.isIPv4(card.ip.value.trim());
-        const subnetOK = this.isSubnetMask(card.subnet.value.trim());
-        const gatewayOK = this.isIPv4(card.gateway.value.trim());
-        const dnsOK = this.isIPv4(card.dns.value.trim());
-
-        this.setFieldState(card.ip, ipOK, "Invalid IP.");
-        this.setFieldState(card.subnet, subnetOK, "Invalid subnet.");
-        this.setFieldState(card.gateway, gatewayOK, "Invalid gateway.");
-        this.setFieldState(card.dns, dnsOK, "Invalid DNS.");
-
-        return ipOK && subnetOK && gatewayOK && dnsOK;
-
-    },
-
-    // ------------------------------------------------------------
-    // Top Status
-    // ------------------------------------------------------------
-
-    async updateStatus() {
-
-        const res = await fetch("/api/network");
-
-        if (res.status === 401) {
-            location.href = "/login";
-            return;
+        // DHCP requires no manual address validation.
+        if (card.mode.value === "DHCP Client") {
+            return true;
         }
 
-        const data = await res.json();
+        const ipOK =
+            this.isIPv4(card.ip.value.trim());
 
-        wanStatus.textContent = data.wan;
-        wanInterface.textContent = data.interface;
-        wanType.textContent = data.connection;
-        wanGateway.textContent = data.gateway;
+        const subnetOK =
+            this.isSubnetMask(card.subnet.value.trim());
 
-    },
+        const gatewayOK =
+            this.isIPv4(card.gateway.value.trim());
 
-    // ------------------------------------------------------------
-    // Interface Cards
-    // ------------------------------------------------------------
+        const dnsOK =
+            this.isIPv4(card.dns.value.trim());
 
-    async loadInterfaces() {
+        this.setFieldState(
+            card.ip,
+            ipOK,
+            "Invalid IP address."
+        );
 
-        const res = await fetch("/api/network/interfaces");
-        const interfaces = await res.json();
+        this.setFieldState(
+            card.subnet,
+            subnetOK,
+            "Invalid subnet mask."
+        );
 
-        interfaceContainer.innerHTML = "";
+        this.setFieldState(
+            card.gateway,
+            gatewayOK,
+            "Invalid gateway."
+        );
 
-        this.interfaces = {};
-        this.original = {};
-
-        for (const iface of interfaces) {
-
-            this.original[iface.name] = structuredClone(iface);
-
-            const node = interfaceTemplate.content.firstElementChild.cloneNode(true);
-
-            const modeLabel = node.querySelector(".interface-mode");
-
-            node.querySelector(".interface-name").textContent = iface.name;
-            node.querySelector(".interface-type").textContent = iface.type;
-            modeLabel.textContent = iface.mode;
-
-            const mode = node.querySelector(".interface-mode-select");
-            const ip = node.querySelector(".interface-ip");
-            const subnet = node.querySelector(".interface-subnet");
-            const gateway = node.querySelector(".interface-gateway");
-            const dns = node.querySelector(".interface-dns");
-            const save = node.querySelector(".interface-save");
-
-            mode.value = iface.mode;
-            ip.value = iface.ip;
-            subnet.value = iface.subnet;
-            gateway.value = iface.gateway;
-            dns.value = iface.dns;
-
-            this.interfaces[iface.name] = {
-                node,
-                mode,
-                ip,
-                subnet,
-                gateway,
-                dns,
-                save,
-                modeLabel
-            };
-
-            const updateState = () => {
-
-                modeLabel.textContent = mode.value;
-
-                const editable = iface.name === "eth0" && mode.value === "Static";
-
-                mode.disabled = iface.name === "wwan0";
-
-                ip.disabled = !editable;
-                subnet.disabled = !editable;
-                gateway.disabled = !editable;
-                dns.disabled = !editable;
-
-                if (iface.name === "wwan0") {
-                    save.style.display = "none";
-                }
-
-                const changed = this.hasChanges(iface.name);
-                const valid = this.validateCard(iface.name);
-
-                save.disabled = !(changed && valid);
-
-            };
-
-            [mode, ip, subnet, gateway, dns].forEach(el => {
-                el.addEventListener("input", updateState);
-                if (el.tagName === "SELECT")
-                    el.addEventListener("change", updateState);
-            });
-
-            save.onclick = () => {
-                this.pendingInterface = iface.name;
-                this.openConfirmModal(iface.name);
-            };
-
-            updateState();
-
-            interfaceContainer.appendChild(node);
-
-        }
-
-    },
-
-    hasChanges(name) {
-
-        const o = this.original[name];
-        const c = this.interfaces[name];
+        this.setFieldState(
+            card.dns,
+            dnsOK,
+            "Invalid DNS server."
+        );
 
         return (
-            o.mode !== c.mode.value ||
-            o.ip !== c.ip.value ||
-            o.subnet !== c.subnet.value ||
-            o.gateway !== c.gateway.value ||
-            o.dns !== c.dns.value
+            ipOK &&
+            subnetOK &&
+            gatewayOK &&
+            dnsOK
         );
 
     },
 
     // ------------------------------------------------------------
-    // Confirmation Modal
+    // Status
+    // ------------------------------------------------------------
+
+    async updateStatus() {
+
+        try {
+
+            const res =
+                await fetch("/api/network");
+
+            if (res.status === 401) {
+                location.href = "/login";
+                return;
+            }
+
+            const data =
+                await res.json();
+
+            document.getElementById("wanStatus").textContent =
+                data.wan;
+
+            document.getElementById("wanInterface").textContent =
+                data.interface;
+
+            document.getElementById("wanType").textContent =
+                data.connection;
+
+            document.getElementById("wanGateway").textContent =
+                data.gateway;
+
+        } catch (err) {
+
+            console.error(
+                "Network status update failed:",
+                err
+            );
+
+        }
+
+    },
+
+    // ------------------------------------------------------------
+    // Custom Dropdown
+    // ------------------------------------------------------------
+
+    setupDropdown(card, ifaceName) {
+
+        const wrapper =
+            card.node.querySelector(".chaos-select");
+
+        const trigger =
+            wrapper.querySelector(".chaos-select-trigger");
+
+        const value =
+            wrapper.querySelector(".chaos-select-value");
+
+        const menu =
+            wrapper.querySelector(".chaos-select-menu");
+
+        const options =
+            wrapper.querySelectorAll(".chaos-select-option");
+
+        const select =
+            wrapper.querySelector(".interface-mode-select");
+
+        const setValue = newValue => {
+
+            select.value = newValue;
+
+            value.textContent = newValue;
+
+            options.forEach(option => {
+
+                const selected =
+                    option.dataset.value === newValue;
+
+                option.classList.toggle(
+                    "selected",
+                    selected
+                );
+
+            });
+
+            card.modeLabel.textContent =
+                newValue;
+
+            this.updateInterfaceState(ifaceName);
+
+        };
+
+        trigger.addEventListener("click", event => {
+
+            event.stopPropagation();
+
+            if (trigger.disabled) return;
+
+            const open =
+                wrapper.classList.toggle("open");
+
+            trigger.setAttribute(
+                "aria-expanded",
+                open ? "true" : "false"
+            );
+
+        });
+
+        options.forEach(option => {
+
+            option.addEventListener("click", event => {
+
+                event.stopPropagation();
+
+                setValue(
+                    option.dataset.value
+                );
+
+                wrapper.classList.remove("open");
+
+                trigger.setAttribute(
+                    "aria-expanded",
+                    "false"
+                );
+
+            });
+
+        });
+
+        card.setMode = setValue;
+
+        setValue(select.value);
+
+    },
+
+    // ------------------------------------------------------------
+    // Interface State
+    // ------------------------------------------------------------
+
+    updateInterfaceState(name) {
+
+        const card =
+            this.interfaces[name];
+
+        if (!card) return;
+
+        const mode =
+            card.mode.value;
+
+        // WWAN is completely read-only.
+        if (name === "wwan0") {
+
+            card.mode.disabled = true;
+
+            card.ip.disabled = true;
+            card.subnet.disabled = true;
+            card.gateway.disabled = true;
+            card.dns.disabled = true;
+
+            card.save.disabled = true;
+
+            card.modeLabel.textContent =
+                "Modem managed";
+
+            return;
+
+        }
+
+        // DHCP Client
+        if (mode === "DHCP Client") {
+
+            card.ip.disabled = true;
+            card.subnet.disabled = true;
+            card.gateway.disabled = true;
+            card.dns.disabled = true;
+
+        }
+
+        // Static
+        else {
+
+            card.ip.disabled = false;
+            card.subnet.disabled = false;
+            card.gateway.disabled = false;
+            card.dns.disabled = false;
+
+        }
+
+        const changed =
+            this.hasChanges(name);
+
+        const valid =
+            this.validateCard(name);
+
+        card.save.disabled =
+            !(changed && valid);
+
+    },
+
+    // ------------------------------------------------------------
+    // Interfaces
+    // ------------------------------------------------------------
+
+    async loadInterfaces() {
+
+        try {
+
+            const res =
+                await fetch("/api/network/interfaces");
+
+            if (res.status === 401) {
+                location.href = "/login";
+                return;
+            }
+
+            if (!res.ok) {
+                throw new Error(
+                    "Failed to load interfaces."
+                );
+            }
+
+            const interfaces =
+                await res.json();
+
+            const container =
+                document.getElementById(
+                    "interfaceContainer"
+                );
+
+            const template =
+                document.getElementById(
+                    "interfaceTemplate"
+                );
+
+            container.innerHTML = "";
+
+            this.interfaces = {};
+            this.original = {};
+
+            for (const iface of interfaces) {
+
+                this.original[iface.name] =
+                    structuredClone(iface);
+
+                const node =
+                    template.content
+                        .firstElementChild
+                        .cloneNode(true);
+
+                const modeLabel =
+                    node.querySelector(
+                        ".interface-mode"
+                    );
+
+                const mode =
+                    node.querySelector(
+                        ".interface-mode-select"
+                    );
+
+                const ip =
+                    node.querySelector(
+                        ".interface-ip"
+                    );
+
+                const subnet =
+                    node.querySelector(
+                        ".interface-subnet"
+                    );
+
+                const gateway =
+                    node.querySelector(
+                        ".interface-gateway"
+                    );
+
+                const dns =
+                    node.querySelector(
+                        ".interface-dns"
+                    );
+
+                const save =
+                    node.querySelector(
+                        ".interface-save"
+                    );
+
+                node.querySelector(
+                    ".interface-name"
+                ).textContent =
+                    iface.name;
+
+                node.querySelector(
+                    ".interface-type"
+                ).textContent =
+                    iface.type;
+
+                modeLabel.textContent =
+                    iface.mode;
+
+                mode.value =
+                    iface.mode;
+
+                ip.value =
+                    iface.ip || "";
+
+                subnet.value =
+                    iface.subnet || "";
+
+                gateway.value =
+                    iface.gateway || "";
+
+                dns.value =
+                    iface.dns || "";
+
+                const card = {
+
+                    node,
+
+                    mode,
+
+                    ip,
+
+                    subnet,
+
+                    gateway,
+
+                    dns,
+
+                    save,
+
+                    modeLabel,
+
+                    setMode: null
+
+                };
+
+                this.interfaces[iface.name] =
+                    card;
+
+                // Custom dropdown.
+                this.setupDropdown(
+                    card,
+                    iface.name
+                );
+
+                // Input changes.
+                [
+                    ip,
+                    subnet,
+                    gateway,
+                    dns
+                ].forEach(input => {
+
+                    input.addEventListener(
+                        "input",
+                        () => {
+
+                            this.updateInterfaceState(
+                                iface.name
+                            );
+
+                        }
+                    );
+
+                });
+
+                save.addEventListener(
+                    "click",
+                    event => {
+
+                        event.preventDefault();
+
+                        if (save.disabled)
+                            return;
+
+                        if (!this.validateCard(
+                            iface.name
+                        )) {
+                            return;
+                        }
+
+                        this.pendingInterface =
+                            iface.name;
+
+                        this.openConfirmModal(
+                            iface.name
+                        );
+
+                    }
+                );
+
+                container.appendChild(node);
+
+                this.updateInterfaceState(
+                    iface.name
+                );
+
+            }
+
+        } catch (err) {
+
+            console.error(
+                "Failed to load interfaces:",
+                err
+            );
+
+        }
+
+    },
+
+    // ------------------------------------------------------------
+    // Changes
+    // ------------------------------------------------------------
+
+    hasChanges(name) {
+
+        const original =
+            this.original[name];
+
+        const current =
+            this.interfaces[name];
+
+        if (!original || !current)
+            return false;
+
+        return (
+
+            original.mode !==
+            current.mode.value ||
+
+            original.ip !==
+            current.ip.value.trim() ||
+
+            original.subnet !==
+            current.subnet.value.trim() ||
+
+            original.gateway !==
+            current.gateway.value.trim() ||
+
+            original.dns !==
+            current.dns.value.trim()
+
+        );
+
+    },
+
+    // ------------------------------------------------------------
+    // Modal
     // ------------------------------------------------------------
 
     openConfirmModal(name) {
 
-        modalBody.innerHTML = "";
+        const modal =
+            document.getElementById(
+                "confirmModal"
+            );
 
-        const o = this.original[name];
-        const c = this.interfaces[name];
+        const body =
+            document.getElementById(
+                "modalBody"
+            );
+
+        body.innerHTML = "";
+
+        const original =
+            this.original[name];
+
+        const current =
+            this.interfaces[name];
 
         const changes = [
-            ["Mode", o.mode, c.mode.value],
-            ["IP", o.ip, c.ip.value],
-            ["Subnet", o.subnet, c.subnet.value],
-            ["Gateway", o.gateway, c.gateway.value],
-            ["DNS", o.dns, c.dns.value]
+
+            [
+                "Mode",
+                original.mode,
+                current.mode.value
+            ],
+
+            [
+                "IP",
+                original.ip,
+                current.ip.value.trim()
+            ],
+
+            [
+                "Subnet",
+                original.subnet,
+                current.subnet.value.trim()
+            ],
+
+            [
+                "Gateway",
+                original.gateway,
+                current.gateway.value.trim()
+            ],
+
+            [
+                "DNS",
+                original.dns,
+                current.dns.value.trim()
+            ]
+
         ];
 
-        for (const [label, oldValue, newValue] of changes) {
+        for (
+            const [
+                label,
+                oldValue,
+                newValue
+            ] of changes
+        ) {
 
-            if (oldValue === newValue) continue;
+            if (oldValue === newValue)
+                continue;
 
-            modalBody.insertAdjacentHTML("beforeend", `
+            body.insertAdjacentHTML(
+                "beforeend",
+                `
                 <div class="modal-change">
                     <label>${label}</label>
-                    <strong>${oldValue} → ${newValue}</strong>
+                    <strong>
+                        ${oldValue} → ${newValue}
+                    </strong>
                 </div>
-            `);
+                `
+            );
 
         }
 
-        confirmModal.classList.remove("hidden");
+        modal.classList.remove(
+            "hidden"
+        );
 
     },
 
     closeConfirmModal() {
-        confirmModal.classList.add("hidden");
+
+        document
+            .getElementById("confirmModal")
+            .classList.add("hidden");
+
     },
 
     // ------------------------------------------------------------
@@ -261,42 +671,104 @@ window.Page.network = {
 
     async applyChanges() {
 
-        const name = this.pendingInterface;
-        const card = this.interfaces[name];
+        const name =
+            this.pendingInterface;
 
-        const button = card.save;
+        if (!name)
+            return;
 
-        button.disabled = true;
-        button.textContent = "Applying...";
+        const card =
+            this.interfaces[name];
+
+        if (!card)
+            return;
+
+        const modalConfirm =
+            document.getElementById(
+                "modalConfirm"
+            );
+
+        const payload = {
+
+            interface: name,
+
+            mode:
+                card.mode.value,
+
+            ip:
+                card.ip.value.trim(),
+
+            subnet:
+                card.subnet.value.trim(),
+
+            gateway:
+                card.gateway.value.trim(),
+
+            dns:
+                card.dns.value.trim()
+
+        };
 
         modalConfirm.disabled = true;
-        modalConfirm.textContent = "Applying...";
+
+        modalConfirm.textContent =
+            "Applying...";
 
         try {
 
-            await fetch("/api/network/stage", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify({
-                    interface: name,
-                    mode: card.mode.value,
-                    ip: card.ip.value.trim(),
-                    subnet: card.subnet.value.trim(),
-                    gateway: card.gateway.value.trim(),
-                    dns: card.dns.value.trim()
-                })
-            });
+            const stageRes =
+                await fetch(
+                    "/api/network/stage",
+                    {
+                        method: "POST",
 
-            const res = await fetch("/api/network/apply", {
-                method: "POST"
-            });
+                        headers: {
+                            "Content-Type":
+                                "application/json"
+                        },
 
-            const data = await res.json();
+                        body:
+                            JSON.stringify(payload)
+                    }
+                );
 
-            if (!res.ok)
-                throw new Error(data.message || "Apply failed.");
+            const stageData =
+                await stageRes.json();
+
+            if (
+                !stageRes.ok ||
+                !stageData.success
+            ) {
+
+                throw new Error(
+                    stageData.message ||
+                    "Failed to stage configuration."
+                );
+
+            }
+
+            const applyRes =
+                await fetch(
+                    "/api/network/apply",
+                    {
+                        method: "POST"
+                    }
+                );
+
+            const applyData =
+                await applyRes.json();
+
+            if (
+                !applyRes.ok ||
+                !applyData.success
+            ) {
+
+                throw new Error(
+                    applyData.message ||
+                    "Failed to apply configuration."
+                );
+
+            }
 
             this.closeConfirmModal();
 
@@ -305,15 +777,26 @@ window.Page.network = {
 
         } catch (err) {
 
-            alert("Apply failed:\n\n" + err.message);
+            console.error(
+                "Network apply failed:",
+                err
+            );
 
-            button.disabled = false;
-            button.textContent = "Apply";
+            alert(
+                "Apply failed:\n\n" +
+                err.message
+            );
 
         } finally {
 
-            modalConfirm.disabled = false;
-            modalConfirm.textContent = "Apply";
+            modalConfirm.disabled =
+                false;
+
+            modalConfirm.textContent =
+                "Apply";
+
+            this.pendingInterface =
+                null;
 
         }
 
@@ -326,24 +809,85 @@ window.Page.network = {
     init() {
 
         this.updateStatus();
+
         this.loadInterfaces();
 
-        this.timer = setInterval(() => this.updateStatus(), 3000);
+        this.timer =
+            setInterval(
+                () => this.updateStatus(),
+                3000
+            );
 
-        modalClose.onclick = () => this.closeConfirmModal();
-        modalCancel.onclick = () => this.closeConfirmModal();
+        const modal =
+            document.getElementById(
+                "confirmModal"
+            );
 
-        confirmModal.onclick = e => {
-            if (e.target === confirmModal)
+        document
+            .getElementById("modalClose")
+            .onclick = () =>
                 this.closeConfirmModal();
+
+        document
+            .getElementById("modalCancel")
+            .onclick = () =>
+                this.closeConfirmModal();
+
+        modal.onclick = event => {
+
+            if (event.target === modal) {
+                this.closeConfirmModal();
+            }
+
         };
 
-        modalConfirm.onclick = () => this.applyChanges();
+        document
+            .getElementById("modalConfirm")
+            .onclick = () =>
+                this.applyChanges();
+
+        // Close custom dropdowns when clicking elsewhere.
+        document.addEventListener(
+            "click",
+            () => {
+
+                document
+                    .querySelectorAll(
+                        ".chaos-select.open"
+                    )
+                    .forEach(dropdown => {
+
+                        dropdown.classList.remove(
+                            "open"
+                        );
+
+                        const trigger =
+                            dropdown.querySelector(
+                                ".chaos-select-trigger"
+                            );
+
+                        if (trigger) {
+
+                            trigger.setAttribute(
+                                "aria-expanded",
+                                "false"
+                            );
+
+                        }
+
+                    });
+
+            }
+        );
 
     },
 
     destroy() {
+
         clearInterval(this.timer);
+
+        this.timer = null;
+
     }
 
 };

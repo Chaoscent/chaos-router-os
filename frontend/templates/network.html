@@ -37,7 +37,7 @@
 
     <div id="interfaceContainer"></div>
 
-    <!-- Confirmation Modal -->
+    <!-- Apply Confirmation -->
 
     <div id="confirmModal" class="modal hidden">
 
@@ -50,13 +50,13 @@
 
             <div class="modal-body">
 
-                <p>You're about to apply the following changes.</p>
+                <p>You're about to change the selected interface configuration.</p>
 
                 <div id="modalBody"></div>
 
                 <div class="modal-warning">
                     <strong>Warning</strong>
-                    Incorrect settings may temporarily disconnect the router.
+                    Applying incorrect network settings may temporarily disconnect the router.
                 </div>
 
             </div>
@@ -79,7 +79,8 @@
 
 </section>
 
-<!-- Interface Card -->
+
+<!-- Interface Card Template -->
 
 <template id="interfaceTemplate">
 
@@ -97,40 +98,146 @@
 
         <div class="settings-grid">
 
+            <!-- Mode -->
+
             <div class="setting-field">
+
                 <label>Mode</label>
-                <select class="setting-input interface-mode-select">
-                    <option value="DHCP Client">DHCP Client</option>
-                    <option value="Static">Static</option>
-                </select>
+
+                <div class="chaos-select">
+
+                    <button
+                        type="button"
+                        class="chaos-select-trigger"
+                        aria-haspopup="listbox"
+                        aria-expanded="false"
+                    >
+
+                        <span class="chaos-select-value">
+                            DHCP Client
+                        </span>
+
+                        <span class="chaos-select-chevron">
+
+                            <svg
+                                width="16"
+                                height="16"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                            >
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+
+                        </span>
+
+                    </button>
+
+                    <div
+                        class="chaos-select-menu"
+                        role="listbox"
+                    >
+
+                        <button
+                            type="button"
+                            class="chaos-select-option"
+                            data-value="DHCP Client"
+                        >
+                            <span>DHCP Client</span>
+                            <span class="chaos-select-check">✓</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            class="chaos-select-option"
+                            data-value="Static"
+                        >
+                            <span>Static</span>
+                            <span class="chaos-select-check">✓</span>
+                        </button>
+
+                    </div>
+
+                    <select class="interface-mode-select">
+                        <option value="DHCP Client">
+                            DHCP Client
+                        </option>
+
+                        <option value="Static">
+                            Static
+                        </option>
+                    </select>
+
+                </div>
+
             </div>
 
+            <!-- IP -->
+
             <div class="setting-field">
+
                 <label>IP Address</label>
-                <input class="setting-input interface-ip" type="text">
+
+                <input
+                    class="setting-input interface-ip"
+                    type="text"
+                >
+
             </div>
 
+            <!-- Subnet -->
+
             <div class="setting-field">
+
                 <label>Subnet Mask</label>
-                <input class="setting-input interface-subnet" type="text">
+
+                <input
+                    class="setting-input interface-subnet"
+                    type="text"
+                >
+
             </div>
 
+            <!-- Gateway -->
+
             <div class="setting-field">
+
                 <label>Gateway</label>
-                <input class="setting-input interface-gateway" type="text">
+
+                <input
+                    class="setting-input interface-gateway"
+                    type="text"
+                >
+
             </div>
 
+            <!-- DNS -->
+
             <div class="setting-field">
+
                 <label>Primary DNS</label>
-                <input class="setting-input interface-dns" type="text">
+
+                <input
+                    class="setting-input interface-dns"
+                    type="text"
+                >
+
             </div>
 
         </div>
 
         <div class="interface-footer">
-            <button class="save-btn interface-save" disabled>
+
+            <button
+                class="save-btn interface-save"
+                disabled
+            >
                 Apply
             </button>
+
         </div>
 
     </div>

@@ -533,6 +533,7 @@ main{
     border-radius:12px;
     font-size:15px;
     font:inherit;
+    line-height:1;
     transition:var(--transition);
     box-sizing:border-box;
 }
@@ -545,6 +546,19 @@ main{
     outline:none;
     border-color:var(--accent);
     box-shadow:0 0 0 3px rgba(78,161,255,.12);
+}
+
+/* Inputs and selects stay completely still while editing. */
+.setting-input:hover:not(:disabled){
+    border-color:#3f4b61;
+    transform:none;
+}
+
+.setting-input,
+.setting-input:hover,
+.setting-input:focus,
+.setting-input:active{
+    transform:none;
 }
 
 /* Make the Mode dropdown identical to text inputs */
@@ -692,8 +706,47 @@ select.setting-input:disabled{
     background:var(--panel2);
 }
 
-.secondary-btn:disabled,
+/* ========================= */
+/* Save / Apply Buttons      */
+/* ========================= */
+
+.save-btn{
+    min-width:120px;
+    height:44px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:0 20px;
+    background:var(--accent);
+    color:#fff;
+    border:1px solid transparent;
+    border-radius:12px;
+    font:inherit;
+    font-size:15px;
+    font-weight:600;
+    line-height:1;
+    cursor:pointer;
+    transition:background .18s ease,border-color .18s ease,box-shadow .18s ease,transform .12s ease,opacity .18s ease;
+}
+
+.save-btn:hover:not(:disabled){
+    background:#60aaff;
+    border-color:#70b3ff;
+    box-shadow:0 5px 18px rgba(78,161,255,.20);
+}
+
+.save-btn:active:not(:disabled){
+    transform:scale(.98);
+}
+
 .save-btn:disabled{
+    background:var(--accent);
+    opacity:.45;
+    cursor:not-allowed;
+    box-shadow:none;
+}
+
+.secondary-btn:disabled{
     opacity:.45;
     cursor:not-allowed;
 }
@@ -847,7 +900,45 @@ select.setting-input:disabled{
 .modal-actions{
     display:flex;
     justify-content:flex-end;
+    align-items:center;
     gap:12px;
+}
+
+.modal-actions .save-btn,
+.modal-actions .secondary-btn{
+    min-width:96px;
+    height:44px;
+    padding:0 20px;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    margin:0;
+    font:inherit;
+    font-size:15px;
+    font-weight:600;
+    line-height:1;
+}
+
+.modal-actions .save-btn{
+    background:var(--accent);
+    color:#fff;
+    border:1px solid transparent;
+    border-radius:12px;
+}
+
+.modal-actions .save-btn:hover:not(:disabled){
+    background:#60aaff;
+    border-color:#70b3ff;
+    box-shadow:0 5px 18px rgba(78,161,255,.20);
+}
+
+.modal-actions .save-btn:active:not(:disabled){
+    transform:scale(.98);
+}
+
+.modal-actions .save-btn:disabled{
+    opacity:.45;
+    cursor:not-allowed;
 }
 
 @media (max-width:700px){
@@ -898,4 +989,465 @@ select.setting-input:disabled{
 .interface-save:disabled{
     opacity:.45;
     cursor:not-allowed;
+}
+
+/* ========================================================= */
+/* Chaos Custom Select                                       */
+/* ========================================================= */
+
+.chaos-select{
+    position:relative;
+    width:100%;
+}
+
+/* Hidden native select.
+   JS still uses it as the actual value. */
+
+.chaos-select .interface-mode-select{
+    position:absolute;
+    width:1px;
+    height:1px;
+    opacity:0;
+    pointer-events:none;
+    overflow:hidden;
+}
+
+/* Trigger */
+
+.chaos-select-trigger{
+    width:100%;
+    height:48px;
+    min-height:48px;
+
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    line-height:1;
+
+    background:var(--panel2);
+    border:1px solid var(--border);
+    border-radius:12px;
+
+    color:var(--text);
+
+    padding:0 14px 0 16px;
+
+    font:inherit;
+    font-size:15px;
+    line-height:1;
+
+    cursor:pointer;
+
+    transition:
+        border-color .18s ease,
+        background .18s ease,
+        box-shadow .18s ease;
+}
+
+.chaos-select-trigger:hover{
+    background:#242b39;
+    border-color:#3f4b61;
+}
+
+.chaos-select.open .chaos-select-trigger{
+    border-color:var(--accent);
+
+    box-shadow:
+        0 0 0 3px rgba(78,161,255,.12);
+}
+
+.chaos-select-trigger:disabled{
+    opacity:.55;
+    cursor:not-allowed;
+}
+
+/* Chevron */
+
+.chaos-select-chevron{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    color:var(--muted);
+
+    transition:
+        transform .18s ease,
+        color .18s ease;
+}
+
+.chaos-select.open .chaos-select-chevron{
+    transform:rotate(180deg);
+    color:var(--text);
+}
+
+/* Menu */
+
+.chaos-select-menu{
+    position:absolute;
+
+    left:0;
+    right:0;
+    top:calc(100% + 6px);
+
+    padding:5px;
+
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+
+    box-shadow:
+        0 18px 45px rgba(0,0,0,.38);
+
+    opacity:0;
+    visibility:hidden;
+
+    transform:
+        translateY(-5px)
+        scale(.985);
+
+    transform-origin:top;
+
+    transition:
+        opacity .14s ease,
+        transform .14s ease,
+        visibility .14s ease;
+
+    z-index:100;
+
+}
+
+.chaos-select.open .chaos-select-menu{
+
+    opacity:1;
+    visibility:visible;
+
+    transform:
+        translateY(0)
+        scale(1);
+
+}
+
+/* Options */
+
+.chaos-select-option{
+
+    width:100%;
+
+    min-height:42px;
+
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+
+    padding:0 12px;
+
+    background:transparent;
+    border:none;
+    border-radius:8px;
+
+    color:var(--text);
+
+    font:inherit;
+    font-size:14px;
+    line-height:1;
+
+    text-align:left;
+
+    cursor:pointer;
+
+    transition:
+        background .14s ease,
+        color .14s ease;
+
+}
+
+.chaos-select-option:hover{
+    background:rgba(78,161,255,.12);
+    color:white;
+}
+
+.chaos-select-option.selected{
+    background:rgba(78,161,255,.16);
+    color:#b9dcff;
+}
+
+.chaos-select-option.selected:hover{
+    background:rgba(78,161,255,.22);
+}
+
+/* Checkmark */
+
+.chaos-select-check{
+    opacity:0;
+
+    color:var(--accent);
+
+    font-size:15px;
+    font-weight:700;
+
+    transition:opacity .14s ease;
+}
+
+.chaos-select-option.selected .chaos-select-check{
+    opacity:1;
+}
+
+/* ========================================================= */
+/* Network Interface Cards                                   */
+/* ========================================================= */
+
+/*
+ * Don't make the entire card move when the user is
+ * interacting with an input/select inside it.
+ */
+
+.interface-card:hover{
+    transform:none;
+}
+
+/*
+ * Keep the dropdown above neighboring interface cards.
+ */
+
+.interface-card{
+    position:relative;
+}
+
+/*
+ * Make the Apply button feel like the other Chaos buttons.
+ */
+
+.interface-save{
+    width:120px;
+    height:44px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    padding:0;
+
+    background:var(--accent);
+    color:#fff;
+
+    border:1px solid transparent;
+    border-radius:12px;
+
+    font:inherit;
+    font-size:15px;
+    font-weight:600;
+    line-height:1;
+
+    cursor:pointer;
+
+    transition:
+        background .18s ease,
+        border-color .18s ease,
+        box-shadow .18s ease,
+        transform .12s ease,
+        opacity .18s ease;
+
+}
+
+.interface-save:hover:not(:disabled){
+
+    background:#60aaff;
+
+    border-color:#70b3ff;
+
+    box-shadow:
+        0 5px 18px rgba(78,161,255,.20);
+
+}
+
+.interface-save:active:not(:disabled){
+
+    transform:scale(.98);
+
+}
+
+.interface-save:disabled{
+
+    background:var(--accent);
+
+    opacity:.45;
+
+    cursor:not-allowed;
+
+    box-shadow:none;
+
+    transform:none;
+
+}
+
+/* ========================================================= */
+/* Control alignment                                         */
+/* ========================================================= */
+
+/* Keep editable fields vertically centered without moving them on hover. */
+.setting-input,
+.setting-input[type="text"],
+.setting-input[type="number"]{
+    height:48px;
+    min-height:48px;
+    padding-top:0;
+    padding-bottom:0;
+    line-height:normal;
+    vertical-align:middle;
+}
+
+/* Custom mode selector: center the label itself, not just the wrapper. */
+.chaos-select-trigger{
+    height:48px;
+    min-height:48px;
+    padding-top:0;
+    padding-bottom:0;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    line-height:normal;
+}
+
+.chaos-select-trigger > span,
+.chaos-select-trigger .chaos-select-label{
+    display:flex;
+    align-items:center;
+    height:100%;
+    line-height:normal;
+}
+
+.chaos-select-option{
+    min-height:42px;
+    height:42px;
+    display:flex;
+    align-items:center;
+    line-height:normal;
+    padding-top:0;
+    padding-bottom:0;
+}
+
+/* Buttons use flex centering as well. */
+.interface-save,
+.save-btn,
+.secondary-btn,
+.modal-actions button{
+    box-sizing:border-box;
+    line-height:normal;
+    vertical-align:middle;
+}
+
+.interface-save{
+    height:44px;
+    min-height:44px;
+}
+
+.modal-actions .save-btn,
+.modal-actions .secondary-btn{
+    height:44px;
+    min-height:44px;
+}
+
+
+/* ========================================================= */
+/* FINAL NETWORK DROPDOWN ALIGNMENT                          */
+/* ========================================================= */
+
+.interface-card .chaos-select{
+    position:relative;
+    width:100%;
+    min-width:0;
+}
+
+.interface-card .chaos-select-trigger{
+    width:100%;
+    height:48px;
+    min-height:48px;
+    margin:0;
+    padding:0 14px 0 16px;
+
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+
+    box-sizing:border-box;
+    line-height:normal;
+}
+
+.interface-card .chaos-select-value{
+    display:flex;
+    align-items:center;
+
+    height:100%;
+    min-height:0;
+    margin:0;
+    padding:0;
+
+    line-height:1;
+    white-space:nowrap;
+}
+
+.interface-card .chaos-select-chevron{
+    width:16px;
+    height:16px;
+    min-width:16px;
+    min-height:16px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    margin:0;
+    padding:0;
+    line-height:0;
+}
+
+.interface-card .chaos-select-chevron svg{
+    display:block;
+    width:16px;
+    height:16px;
+    margin:0;
+}
+
+.interface-card .chaos-select-menu{
+    box-sizing:border-box;
+}
+
+.interface-card .chaos-select-option{
+    width:100%;
+    height:42px;
+    min-height:42px;
+    margin:0;
+    padding:0 12px;
+
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+
+    box-sizing:border-box;
+    line-height:normal;
+}
+
+.interface-card .chaos-select-option > span:first-child{
+    display:flex;
+    align-items:center;
+    height:100%;
+    margin:0;
+    padding:0;
+    line-height:1;
+}
+
+.interface-card .chaos-select-check{
+    height:100%;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin:0;
+    line-height:1;
+}
+
+/* Prevent the field/card from shifting while interacting with it. */
+.interface-card .chaos-select-trigger:hover,
+.interface-card .chaos-select-trigger:focus,
+.interface-card .chaos-select-trigger:active{
+    transform:none;
 }
