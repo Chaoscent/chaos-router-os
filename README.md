@@ -4,7 +4,7 @@
 
 > **Disclaimer:** This project relies heavily on AI-assisted development (Vibecoding). Every feature is tested on real hardware before it's considered done.
 
-Modern networking OS for the Raspberry Pi 5.
+A networking-first operating system for Raspberry Pi 5.
 
 Built specifically for the Raspberry Pi 5, the Waveshare PCIe TO 4G/5G M.2 USB3.2 HAT+, and the Quectel RM520N-GL.
 
@@ -26,7 +26,7 @@ The software became its own project along the way.
 
 ## Supported Hardware
 
-Officially supported hardware for **Core v1**:
+Officially tested hardware for **Core v1**:
 
 * Raspberry Pi 5
 * Waveshare PCIe TO 4G/5G M.2 USB3.2 HAT+
@@ -144,13 +144,13 @@ The user never has to remember `:9000`.
 
 * [x] Flask foundation
 * [x] Dashboard UI
-* [X] Live System API
-* [X] SPA routing (`#/dashboard`)
-* [X] Network page
+* [x] Live System API
+* [x] SPA routing (`#/dashboard`)
+* [x] Network page
 * [ ] VPN page
-* [X] Modem page (`mmcli`)
+* [x] Modem page (`mmcli`)
 * [ ] Logs
-* [X] System
+* [x] System
 * [ ] Apps installer page
 
 ### Apps Addon (released with v2)
