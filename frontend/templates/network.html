@@ -1,73 +1,150 @@
 <section class="page">
 
     <div class="page-header">
+
         <h1>Network</h1>
-        <p>Configure your router's network interfaces.</p>
+
+        <p>
+            Configure your router's network interfaces.
+        </p>
+
     </div>
+
 
     <!-- Internet Status -->
 
     <div class="card-grid">
 
         <div class="card">
+
             <span>Internet</span>
-            <h2 id="wanStatus" class="card-metric">--</h2>
+
+            <h2
+                id="wanStatus"
+                class="card-metric"
+            >
+                --
+            </h2>
+
         </div>
 
+
         <div class="card">
+
             <span>WAN Interface</span>
-            <h2 id="wanInterface" class="card-value">--</h2>
+
+            <h2
+                id="wanInterface"
+                class="card-value"
+            >
+                --
+            </h2>
+
         </div>
 
+
         <div class="card">
+
             <span>Connection</span>
-            <h2 id="wanType" class="card-value">--</h2>
+
+            <h2
+                id="wanType"
+                class="card-value"
+            >
+                --
+            </h2>
+
         </div>
 
+
         <div class="card">
+
             <span>Default Gateway</span>
-            <h2 id="wanGateway" class="card-value">--</h2>
+
+            <h2
+                id="wanGateway"
+                class="card-value"
+            >
+                --
+            </h2>
+
         </div>
 
     </div>
 
+
     <div style="margin-top:24px;"></div>
+
 
     <!-- Interfaces -->
 
     <div id="interfaceContainer"></div>
 
+
     <!-- Apply Confirmation -->
 
-    <div id="confirmModal" class="modal hidden">
+    <div
+        id="confirmModal"
+        class="modal hidden"
+    >
 
         <div class="modal-content">
 
             <div class="modal-header">
-                <h2>Apply Network Changes</h2>
-                <button id="modalClose" class="icon-btn">×</button>
+
+                <h2>
+                    Apply Network Changes
+                </h2>
+
+                <button
+                    id="modalClose"
+                    class="icon-btn"
+                    type="button"
+                >
+                    ×
+                </button>
+
             </div>
+
 
             <div class="modal-body">
 
-                <p>You're about to change the selected interface configuration.</p>
+                <p>
+                    You're about to change the selected
+                    interface configuration.
+                </p>
 
                 <div id="modalBody"></div>
 
+
                 <div class="modal-warning">
+
                     <strong>Warning</strong>
-                    Applying incorrect network settings may temporarily disconnect the router.
+
+                    Applying incorrect network settings
+                    may temporarily disconnect the router.
+
                 </div>
 
             </div>
 
+
             <div class="modal-actions">
 
-                <button id="modalCancel" class="secondary-btn">
+                <button
+                    id="modalCancel"
+                    class="secondary-btn"
+                    type="button"
+                >
                     Cancel
                 </button>
 
-                <button id="modalConfirm" class="save-btn">
+
+                <button
+                    id="modalConfirm"
+                    class="save-btn"
+                    type="button"
+                >
                     Apply
                 </button>
 
@@ -80,31 +157,45 @@
 </section>
 
 
-<!-- Interface Card Template -->
+
+<!-- ========================================================= -->
+<!-- Interface Card Template                                   -->
+<!-- ========================================================= -->
 
 <template id="interfaceTemplate">
 
     <div class="card interface-card">
 
+
         <div class="interface-header">
 
             <div>
+
                 <h2 class="interface-name"></h2>
+
                 <p class="interface-type"></p>
+
                 <p class="interface-mode"></p>
+
             </div>
 
         </div>
 
+
         <div class="settings-grid">
+
 
             <!-- Mode -->
 
             <div class="setting-field">
 
-                <label>Mode</label>
+                <label>
+                    Mode
+                </label>
+
 
                 <div class="chaos-select">
+
 
                     <button
                         type="button"
@@ -113,11 +204,16 @@
                         aria-expanded="false"
                     >
 
-                        <span class="chaos-select-value">
+                        <span
+                            class="chaos-select-value"
+                        >
                             DHCP Client
                         </span>
 
-                        <span class="chaos-select-chevron">
+
+                        <span
+                            class="chaos-select-chevron"
+                        >
 
                             <svg
                                 width="16"
@@ -128,13 +224,19 @@
                                 stroke-width="2"
                                 stroke-linecap="round"
                                 stroke-linejoin="round"
+                                aria-hidden="true"
                             >
-                                <polyline points="6 9 12 15 18 9"></polyline>
+
+                                <polyline
+                                    points="6 9 12 15 18 9"
+                                ></polyline>
+
                             </svg>
 
                         </span>
 
                     </button>
+
 
                     <div
                         class="chaos-select-menu"
@@ -145,23 +247,53 @@
                             type="button"
                             class="chaos-select-option"
                             data-value="DHCP Client"
+                            role="option"
                         >
-                            <span>DHCP Client</span>
-                            <span class="chaos-select-check">✓</span>
+
+                            <span>
+                                DHCP Client
+                            </span>
+
+                            <span class="chaos-select-check">
+                                ✓
+                            </span>
+
                         </button>
+
 
                         <button
                             type="button"
                             class="chaos-select-option"
                             data-value="Static"
+                            role="option"
                         >
-                            <span>Static</span>
-                            <span class="chaos-select-check">✓</span>
+
+                            <span>
+                                Static
+                            </span>
+
+                            <span class="chaos-select-check">
+                                ✓
+                            </span>
+
                         </button>
 
                     </div>
 
-                    <select class="interface-mode-select">
+
+                    <!--
+                        Hidden native select.
+
+                        JS uses this as the actual value.
+                        The visible button above is the UI.
+                    -->
+
+                    <select
+                        class="interface-mode-select"
+                        tabindex="-1"
+                        aria-hidden="true"
+                    >
+
                         <option value="DHCP Client">
                             DHCP Client
                         </option>
@@ -169,70 +301,96 @@
                         <option value="Static">
                             Static
                         </option>
+
                     </select>
 
                 </div>
 
             </div>
 
+
+
             <!-- IP -->
 
             <div class="setting-field">
 
-                <label>IP Address</label>
+                <label>
+                    IP Address
+                </label>
 
                 <input
                     class="setting-input interface-ip"
                     type="text"
+                    autocomplete="off"
                 >
 
             </div>
+
+
 
             <!-- Subnet -->
 
             <div class="setting-field">
 
-                <label>Subnet Mask</label>
+                <label>
+                    Subnet Mask
+                </label>
 
                 <input
                     class="setting-input interface-subnet"
                     type="text"
+                    autocomplete="off"
                 >
 
             </div>
+
+
 
             <!-- Gateway -->
 
             <div class="setting-field">
 
-                <label>Gateway</label>
+                <label>
+                    Gateway
+                </label>
 
                 <input
                     class="setting-input interface-gateway"
                     type="text"
+                    autocomplete="off"
                 >
 
             </div>
+
+
 
             <!-- DNS -->
 
             <div class="setting-field">
 
-                <label>Primary DNS</label>
+                <label>
+                    Primary DNS
+                </label>
 
                 <input
                     class="setting-input interface-dns"
                     type="text"
+                    autocomplete="off"
                 >
 
             </div>
 
         </div>
 
+
+
+        <!-- Apply -->
+
         <div class="interface-footer">
 
             <button
                 class="save-btn interface-save"
+                type="button"
                 disabled
             >
                 Apply

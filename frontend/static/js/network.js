@@ -48,8 +48,7 @@ window.Page.network = {
 
         input.classList.toggle("invalid", !valid);
 
-        let error =
-            input.parentElement.querySelector(".field-error");
+        let error = input.parentElement.querySelector(".field-error");
 
         if (!error) {
 
@@ -70,38 +69,54 @@ window.Page.network = {
 
         if (!card) return false;
 
-        // WWAN is modem managed.
+        /*
+         * WWAN is completely read-only.
+         */
         if (name === "wwan0") {
-            return true;
+
+            [
+                card.ip,
+                card.subnet,
+                card.gateway,
+                card.dns
+            ].forEach(field => this.setFieldState(field, true));
+
+            return false;
+
         }
 
-        // DHCP requires no manual address validation.
+        /*
+         * DHCP Client:
+         * IP, subnet, gateway and DNS are supplied automatically.
+         */
         if (card.mode.value === "DHCP Client") {
+
+            [
+                card.ip,
+                card.subnet,
+                card.gateway,
+                card.dns
+            ].forEach(field => this.setFieldState(field, true));
+
             return true;
+
         }
 
-        const ipOK =
-            this.isIPv4(card.ip.value.trim());
-
-        const subnetOK =
-            this.isSubnetMask(card.subnet.value.trim());
-
-        const gatewayOK =
-            this.isIPv4(card.gateway.value.trim());
-
-        const dnsOK =
-            this.isIPv4(card.dns.value.trim());
+        const ipOK = this.isIPv4(card.ip.value.trim());
+        const subnetOK = this.isSubnetMask(card.subnet.value.trim());
+        const gatewayOK = this.isIPv4(card.gateway.value.trim());
+        const dnsOK = this.isIPv4(card.dns.value.trim());
 
         this.setFieldState(
             card.ip,
             ipOK,
-            "Invalid IP address."
+            "Invalid IP."
         );
 
         this.setFieldState(
             card.subnet,
             subnetOK,
-            "Invalid subnet mask."
+            "Invalid subnet."
         );
 
         this.setFieldState(
@@ -113,55 +128,46 @@ window.Page.network = {
         this.setFieldState(
             card.dns,
             dnsOK,
-            "Invalid DNS server."
+            "Invalid DNS."
         );
 
-        return (
-            ipOK &&
-            subnetOK &&
-            gatewayOK &&
-            dnsOK
-        );
+        return ipOK &&
+               subnetOK &&
+               gatewayOK &&
+               dnsOK;
 
     },
 
     // ------------------------------------------------------------
-    // Status
+    // Top Status
     // ------------------------------------------------------------
 
     async updateStatus() {
 
         try {
 
-            const res =
-                await fetch("/api/network");
+            const res = await fetch("/api/network");
 
             if (res.status === 401) {
+
                 location.href = "/login";
                 return;
+
             }
 
-            const data =
-                await res.json();
+            if (!res.ok)
+                return;
 
-            document.getElementById("wanStatus").textContent =
-                data.wan;
+            const data = await res.json();
 
-            document.getElementById("wanInterface").textContent =
-                data.interface;
-
-            document.getElementById("wanType").textContent =
-                data.connection;
-
-            document.getElementById("wanGateway").textContent =
-                data.gateway;
+            wanStatus.textContent = data.wan;
+            wanInterface.textContent = data.interface;
+            wanType.textContent = data.connection;
+            wanGateway.textContent = data.gateway;
 
         } catch (err) {
 
-            console.error(
-                "Network status update failed:",
-                err
-            );
+            console.error("Network status update failed:", err);
 
         }
 
@@ -171,36 +177,37 @@ window.Page.network = {
     // Custom Dropdown
     // ------------------------------------------------------------
 
-    setupDropdown(card, ifaceName) {
+    setupCustomSelect(cardData) {
 
-        const wrapper =
-            card.node.querySelector(".chaos-select");
+        const {
+            name,
+            mode,
+            chaosSelect,
+            trigger,
+            valueLabel,
+            options
+        } = cardData;
 
-        const trigger =
-            wrapper.querySelector(".chaos-select-trigger");
+        if (!chaosSelect || !trigger)
+            return;
 
-        const value =
-            wrapper.querySelector(".chaos-select-value");
+        const isWWAN = name === "wwan0";
 
-        const menu =
-            wrapper.querySelector(".chaos-select-menu");
+        const closeMenu = () => {
 
-        const options =
-            wrapper.querySelectorAll(".chaos-select-option");
+            chaosSelect.classList.remove("open");
+            trigger.setAttribute("aria-expanded", "false");
 
-        const select =
-            wrapper.querySelector(".interface-mode-select");
+        };
 
-        const setValue = newValue => {
+        const updateVisualState = () => {
 
-            select.value = newValue;
-
-            value.textContent = newValue;
+            valueLabel.textContent = mode.value;
 
             options.forEach(option => {
 
                 const selected =
-                    option.dataset.value === newValue;
+                    option.dataset.value === mode.value;
 
                 option.classList.toggle(
                     "selected",
@@ -209,156 +216,112 @@ window.Page.network = {
 
             });
 
-            card.modeLabel.textContent =
-                newValue;
-
-            this.updateInterfaceState(ifaceName);
-
         };
 
-        trigger.addEventListener("click", event => {
+        /*
+         * WWAN:
+         * Disable both the real select and the visible custom
+         * dropdown trigger.
+         */
+        trigger.disabled = isWWAN;
+        mode.disabled = isWWAN;
 
-            event.stopPropagation();
+        if (isWWAN)
+            closeMenu();
 
-            if (trigger.disabled) return;
+        updateVisualState();
+
+        /*
+         * Do not attach click behaviour to a disabled selector.
+         */
+        trigger.onclick = e => {
+
+            e.preventDefault();
+
+            if (trigger.disabled)
+                return;
 
             const open =
-                wrapper.classList.toggle("open");
+                chaosSelect.classList.contains("open");
+
+            /*
+             * Close any other custom selectors.
+             */
+            document
+                .querySelectorAll(".chaos-select.open")
+                .forEach(select => {
+
+                    if (select !== chaosSelect)
+                        select.classList.remove("open");
+
+                });
+
+            chaosSelect.classList.toggle(
+                "open",
+                !open
+            );
 
             trigger.setAttribute(
                 "aria-expanded",
-                open ? "true" : "false"
+                String(!open)
             );
 
-        });
+        };
 
         options.forEach(option => {
 
-            option.addEventListener("click", event => {
+            option.onclick = e => {
 
-                event.stopPropagation();
+                e.preventDefault();
 
-                setValue(
-                    option.dataset.value
+                if (trigger.disabled)
+                    return;
+
+                const value = option.dataset.value;
+
+                mode.value = value;
+
+                mode.dispatchEvent(
+                    new Event("change", {
+                        bubbles: true
+                    })
                 );
 
-                wrapper.classList.remove("open");
+                updateVisualState();
 
-                trigger.setAttribute(
-                    "aria-expanded",
-                    "false"
-                );
+                closeMenu();
 
-            });
+            };
 
         });
 
-        card.setMode = setValue;
-
-        setValue(select.value);
-
-    },
-
-    // ------------------------------------------------------------
-    // Interface State
-    // ------------------------------------------------------------
-
-    updateInterfaceState(name) {
-
-        const card =
-            this.interfaces[name];
-
-        if (!card) return;
-
-        const mode =
-            card.mode.value;
-
-        // WWAN is completely read-only.
-        if (name === "wwan0") {
-
-            card.mode.disabled = true;
-
-            card.ip.disabled = true;
-            card.subnet.disabled = true;
-            card.gateway.disabled = true;
-            card.dns.disabled = true;
-
-            card.save.disabled = true;
-
-            card.modeLabel.textContent =
-                "Modem managed";
-
-            return;
-
-        }
-
-        // DHCP Client
-        if (mode === "DHCP Client") {
-
-            card.ip.disabled = true;
-            card.subnet.disabled = true;
-            card.gateway.disabled = true;
-            card.dns.disabled = true;
-
-        }
-
-        // Static
-        else {
-
-            card.ip.disabled = false;
-            card.subnet.disabled = false;
-            card.gateway.disabled = false;
-            card.dns.disabled = false;
-
-        }
-
-        const changed =
-            this.hasChanges(name);
-
-        const valid =
-            this.validateCard(name);
-
-        card.save.disabled =
-            !(changed && valid);
+        return {
+            updateVisualState,
+            closeMenu
+        };
 
     },
 
     // ------------------------------------------------------------
-    // Interfaces
+    // Interface Cards
     // ------------------------------------------------------------
 
     async loadInterfaces() {
 
         try {
 
-            const res =
-                await fetch("/api/network/interfaces");
+            const res = await fetch(
+                "/api/network/interfaces"
+            );
 
-            if (res.status === 401) {
-                location.href = "/login";
-                return;
-            }
-
-            if (!res.ok) {
+            if (!res.ok)
                 throw new Error(
-                    "Failed to load interfaces."
-                );
-            }
-
-            const interfaces =
-                await res.json();
-
-            const container =
-                document.getElementById(
-                    "interfaceContainer"
+                    `HTTP ${res.status}`
                 );
 
-            const template =
-                document.getElementById(
-                    "interfaceTemplate"
-                );
+            const interfaces = await res.json();
 
-            container.innerHTML = "";
+            interfaceContainer.innerHTML = "";
 
             this.interfaces = {};
             this.original = {};
@@ -369,7 +332,8 @@ window.Page.network = {
                     structuredClone(iface);
 
                 const node =
-                    template.content
+                    interfaceTemplate
+                        .content
                         .firstElementChild
                         .cloneNode(true);
 
@@ -377,6 +341,37 @@ window.Page.network = {
                     node.querySelector(
                         ".interface-mode"
                     );
+
+                const chaosSelect =
+                    node.querySelector(
+                        ".chaos-select"
+                    );
+
+                const trigger =
+                    node.querySelector(
+                        ".chaos-select-trigger"
+                    );
+
+                const valueLabel =
+                    node.querySelector(
+                        ".chaos-select-value"
+                    );
+
+                const options =
+                    node.querySelectorAll(
+                        ".chaos-select-option"
+                    );
+
+                node.querySelector(
+                    ".interface-name"
+                ).textContent = iface.name;
+
+                node.querySelector(
+                    ".interface-type"
+                ).textContent = iface.type;
+
+                modeLabel.textContent =
+                    iface.mode;
 
                 const mode =
                     node.querySelector(
@@ -408,115 +403,155 @@ window.Page.network = {
                         ".interface-save"
                     );
 
-                node.querySelector(
-                    ".interface-name"
-                ).textContent =
-                    iface.name;
+                mode.value = iface.mode;
+                ip.value = iface.ip || "";
+                subnet.value = iface.subnet || "";
+                gateway.value = iface.gateway || "";
+                dns.value = iface.dns || "";
 
-                node.querySelector(
-                    ".interface-type"
-                ).textContent =
-                    iface.type;
-
-                modeLabel.textContent =
-                    iface.mode;
-
-                mode.value =
-                    iface.mode;
-
-                ip.value =
-                    iface.ip || "";
-
-                subnet.value =
-                    iface.subnet || "";
-
-                gateway.value =
-                    iface.gateway || "";
-
-                dns.value =
-                    iface.dns || "";
-
-                const card = {
+                this.interfaces[iface.name] = {
 
                     node,
-
                     mode,
-
                     ip,
-
                     subnet,
-
                     gateway,
-
                     dns,
-
                     save,
-
                     modeLabel,
-
-                    setMode: null
+                    chaosSelect,
+                    trigger,
+                    valueLabel,
+                    options
 
                 };
 
-                this.interfaces[iface.name] =
-                    card;
+                const updateState = () => {
 
-                // Custom dropdown.
-                this.setupDropdown(
-                    card,
-                    iface.name
-                );
+                    const isWWAN =
+                        iface.name === "wwan0";
 
-                // Input changes.
+                    const isStatic =
+                        mode.value === "Static";
+
+                    modeLabel.textContent =
+                        mode.value;
+
+                    /*
+                     * Only eth0 can be changed.
+                     */
+                    mode.disabled = isWWAN;
+                    trigger.disabled = isWWAN;
+
+                    /*
+                     * DHCP Client:
+                     * everything is read-only.
+                     *
+                     * Static:
+                     * all network values become editable.
+                     */
+                    const editable =
+                        !isWWAN && isStatic;
+
+                    ip.disabled = !editable;
+                    subnet.disabled = !editable;
+                    gateway.disabled = !editable;
+                    dns.disabled = !editable;
+
+                    /*
+                     * Make sure a WWAN dropdown can never
+                     * remain visually open.
+                     */
+                    if (isWWAN) {
+
+                        chaosSelect.classList.remove(
+                            "open"
+                        );
+
+                        trigger.setAttribute(
+                            "aria-expanded",
+                            "false"
+                        );
+
+                    }
+
+                    const changed =
+                        this.hasChanges(
+                            iface.name
+                        );
+
+                    const valid =
+                        this.validateCard(
+                            iface.name
+                        );
+
+                    /*
+                     * WWAN never gets an Apply button
+                     * because it is not configurable.
+                     */
+                    save.disabled =
+                        isWWAN ||
+                        !(changed && valid);
+
+                };
+
+                /*
+                 * Custom dropdown.
+                 */
+                this.setupCustomSelect({
+
+                    name: iface.name,
+                    mode,
+                    chaosSelect,
+                    trigger,
+                    valueLabel,
+                    options
+
+                });
+
+                /*
+                 * Inputs.
+                 */
                 [
                     ip,
                     subnet,
                     gateway,
                     dns
-                ].forEach(input => {
+                ].forEach(el => {
 
-                    input.addEventListener(
+                    el.addEventListener(
                         "input",
-                        () => {
-
-                            this.updateInterfaceState(
-                                iface.name
-                            );
-
-                        }
+                        updateState
                     );
 
                 });
 
-                save.addEventListener(
-                    "click",
-                    event => {
-
-                        event.preventDefault();
-
-                        if (save.disabled)
-                            return;
-
-                        if (!this.validateCard(
-                            iface.name
-                        )) {
-                            return;
-                        }
-
-                        this.pendingInterface =
-                            iface.name;
-
-                        this.openConfirmModal(
-                            iface.name
-                        );
-
-                    }
+                mode.addEventListener(
+                    "change",
+                    updateState
                 );
 
-                container.appendChild(node);
+                /*
+                 * Apply button.
+                 */
+                save.onclick = () => {
 
-                this.updateInterfaceState(
-                    iface.name
+                    if (save.disabled)
+                        return;
+
+                    this.pendingInterface =
+                        iface.name;
+
+                    this.openConfirmModal(
+                        iface.name
+                    );
+
+                };
+
+                updateState();
+
+                interfaceContainer.appendChild(
+                    node
                 );
 
             }
@@ -524,7 +559,7 @@ window.Page.network = {
         } catch (err) {
 
             console.error(
-                "Failed to load interfaces:",
+                "Failed to load network interfaces:",
                 err
             );
 
@@ -548,49 +583,40 @@ window.Page.network = {
             return false;
 
         return (
-
             original.mode !==
-            current.mode.value ||
+                current.mode.value ||
 
             original.ip !==
-            current.ip.value.trim() ||
+                current.ip.value ||
 
             original.subnet !==
-            current.subnet.value.trim() ||
+                current.subnet.value ||
 
             original.gateway !==
-            current.gateway.value.trim() ||
+                current.gateway.value ||
 
             original.dns !==
-            current.dns.value.trim()
-
+                current.dns.value
         );
 
     },
 
     // ------------------------------------------------------------
-    // Modal
+    // Confirmation Modal
     // ------------------------------------------------------------
 
     openConfirmModal(name) {
-
-        const modal =
-            document.getElementById(
-                "confirmModal"
-            );
-
-        const body =
-            document.getElementById(
-                "modalBody"
-            );
-
-        body.innerHTML = "";
 
         const original =
             this.original[name];
 
         const current =
             this.interfaces[name];
+
+        if (!original || !current)
+            return;
+
+        modalBody.innerHTML = "";
 
         const changes = [
 
@@ -603,55 +629,60 @@ window.Page.network = {
             [
                 "IP",
                 original.ip,
-                current.ip.value.trim()
+                current.ip.value
             ],
 
             [
                 "Subnet",
                 original.subnet,
-                current.subnet.value.trim()
+                current.subnet.value
             ],
 
             [
                 "Gateway",
                 original.gateway,
-                current.gateway.value.trim()
+                current.gateway.value
             ],
 
             [
                 "DNS",
                 original.dns,
-                current.dns.value.trim()
+                current.dns.value
             ]
 
         ];
 
         for (
-            const [
-                label,
-                oldValue,
-                newValue
-            ] of changes
+            const [label, oldValue, newValue]
+            of changes
         ) {
 
             if (oldValue === newValue)
                 continue;
 
-            body.insertAdjacentHTML(
-                "beforeend",
-                `
-                <div class="modal-change">
-                    <label>${label}</label>
-                    <strong>
-                        ${oldValue} → ${newValue}
-                    </strong>
-                </div>
-                `
-            );
+            const row =
+                document.createElement(
+                    "div"
+                );
+
+            row.className =
+                "modal-change";
+
+            row.innerHTML = `
+                <label>${label}</label>
+                <strong></strong>
+            `;
+
+            row.querySelector(
+                "strong"
+            ).textContent =
+                `${oldValue} → ${newValue}`;
+
+            modalBody.appendChild(row);
 
         }
 
-        modal.classList.remove(
+        confirmModal.classList.remove(
             "hidden"
         );
 
@@ -659,9 +690,11 @@ window.Page.network = {
 
     closeConfirmModal() {
 
-        document
-            .getElementById("confirmModal")
-            .classList.add("hidden");
+        confirmModal.classList.add(
+            "hidden"
+        );
+
+        this.pendingInterface = null;
 
     },
 
@@ -682,11 +715,6 @@ window.Page.network = {
 
         if (!card)
             return;
-
-        const modalConfirm =
-            document.getElementById(
-                "modalConfirm"
-            );
 
         const payload = {
 
@@ -709,9 +737,11 @@ window.Page.network = {
 
         };
 
-        modalConfirm.disabled = true;
+        const button =
+            modalConfirm;
 
-        modalConfirm.textContent =
+        button.disabled = true;
+        button.textContent =
             "Applying...";
 
         try {
@@ -728,21 +758,26 @@ window.Page.network = {
                         },
 
                         body:
-                            JSON.stringify(payload)
+                            JSON.stringify(
+                                payload
+                            )
                     }
                 );
 
-            const stageData =
-                await stageRes.json();
+            if (!stageRes.ok) {
 
-            if (
-                !stageRes.ok ||
-                !stageData.success
-            ) {
+                let error;
+
+                try {
+                    error =
+                        await stageRes.json();
+                } catch {
+                    error = {};
+                }
 
                 throw new Error(
-                    stageData.message ||
-                    "Failed to stage configuration."
+                    error.message ||
+                    "Failed to stage network changes."
                 );
 
             }
@@ -755,23 +790,29 @@ window.Page.network = {
                     }
                 );
 
-            const applyData =
-                await applyRes.json();
+            let data = {};
 
-            if (
-                !applyRes.ok ||
-                !applyData.success
-            ) {
+            try {
+                data =
+                    await applyRes.json();
+            } catch {
+                // Ignore empty response bodies.
+            }
+
+            if (!applyRes.ok) {
 
                 throw new Error(
-                    applyData.message ||
-                    "Failed to apply configuration."
+                    data.message ||
+                    "Apply failed."
                 );
 
             }
 
             this.closeConfirmModal();
 
+            /*
+             * Reload the actual values from the backend.
+             */
             await this.loadInterfaces();
             await this.updateStatus();
 
@@ -789,14 +830,8 @@ window.Page.network = {
 
         } finally {
 
-            modalConfirm.disabled =
-                false;
-
-            modalConfirm.textContent =
-                "Apply";
-
-            this.pendingInterface =
-                null;
+            button.disabled = false;
+            button.textContent = "Apply";
 
         }
 
@@ -818,51 +853,48 @@ window.Page.network = {
                 3000
             );
 
-        const modal =
-            document.getElementById(
-                "confirmModal"
-            );
+        modalClose.onclick =
+            () => this.closeConfirmModal();
 
-        document
-            .getElementById("modalClose")
-            .onclick = () =>
+        modalCancel.onclick =
+            () => this.closeConfirmModal();
+
+        confirmModal.onclick = e => {
+
+            if (e.target === confirmModal)
                 this.closeConfirmModal();
-
-        document
-            .getElementById("modalCancel")
-            .onclick = () =>
-                this.closeConfirmModal();
-
-        modal.onclick = event => {
-
-            if (event.target === modal) {
-                this.closeConfirmModal();
-            }
 
         };
 
-        document
-            .getElementById("modalConfirm")
-            .onclick = () =>
-                this.applyChanges();
+        modalConfirm.onclick =
+            () => this.applyChanges();
 
-        // Close custom dropdowns when clicking elsewhere.
+        /*
+         * Close custom dropdowns when clicking elsewhere.
+         */
         document.addEventListener(
             "click",
-            () => {
+            e => {
+
+                if (
+                    e.target.closest(
+                        ".chaos-select"
+                    )
+                )
+                    return;
 
                 document
                     .querySelectorAll(
                         ".chaos-select.open"
                     )
-                    .forEach(dropdown => {
+                    .forEach(select => {
 
-                        dropdown.classList.remove(
+                        select.classList.remove(
                             "open"
                         );
 
                         const trigger =
-                            dropdown.querySelector(
+                            select.querySelector(
                                 ".chaos-select-trigger"
                             );
 
@@ -885,8 +917,6 @@ window.Page.network = {
     destroy() {
 
         clearInterval(this.timer);
-
-        this.timer = null;
 
     }
 
