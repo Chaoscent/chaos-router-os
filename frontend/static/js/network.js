@@ -18,12 +18,9 @@ window.Page.network = {
         if (parts.length !== 4) return false;
 
         return parts.every(part => {
-
             if (!/^\d+$/.test(part)) return false;
-
             const n = Number(part);
             return n >= 0 && n <= 255;
-
         });
 
     },
@@ -49,12 +46,9 @@ window.Page.network = {
         let error = input.parentElement.querySelector(".field-error");
 
         if (!error) {
-
             error = document.createElement("div");
             error.className = "field-error";
-
             input.parentElement.appendChild(error);
-
         }
 
         error.textContent = valid ? "" : message;
@@ -65,7 +59,9 @@ window.Page.network = {
 
         const card = this.interfaces[name];
 
-        if (card.mode.value === "DHCP Client" || name === "wwan0") {
+        if (name === "wwan0") return true;
+
+        if (card.mode.value === "DHCP Client") {
 
             [card.ip, card.subnet, card.gateway, card.dns].forEach(field =>
                 this.setFieldState(field, true)
@@ -98,10 +94,8 @@ window.Page.network = {
         const res = await fetch("/api/network");
 
         if (res.status === 401) {
-
             location.href = "/login";
             return;
-
         }
 
         const data = await res.json();
@@ -167,7 +161,7 @@ window.Page.network = {
 
                 modeLabel.textContent = mode.value;
 
-                const editable = iface.name !== "wwan0" && mode.value === "Static";
+                const editable = iface.name === "eth0" && mode.value === "Static";
 
                 mode.disabled = iface.name === "wwan0";
 
@@ -175,6 +169,10 @@ window.Page.network = {
                 subnet.disabled = !editable;
                 gateway.disabled = !editable;
                 dns.disabled = !editable;
+
+                if (iface.name === "wwan0") {
+                    save.style.display = "none";
+                }
 
                 const changed = this.hasChanges(iface.name);
                 const valid = this.validateCard(iface.name);
@@ -184,19 +182,14 @@ window.Page.network = {
             };
 
             [mode, ip, subnet, gateway, dns].forEach(el => {
-
                 el.addEventListener("input", updateState);
-
                 if (el.tagName === "SELECT")
                     el.addEventListener("change", updateState);
-
             });
 
             save.onclick = () => {
-
                 this.pendingInterface = iface.name;
                 this.openConfirmModal(iface.name);
-
             };
 
             updateState();
@@ -259,9 +252,7 @@ window.Page.network = {
     },
 
     closeConfirmModal() {
-
         confirmModal.classList.add("hidden");
-
     },
 
     // ------------------------------------------------------------
@@ -272,6 +263,11 @@ window.Page.network = {
 
         const name = this.pendingInterface;
         const card = this.interfaces[name];
+
+        const button = card.save;
+
+        button.disabled = true;
+        button.textContent = "Applying...";
 
         modalConfirm.disabled = true;
         modalConfirm.textContent = "Applying...";
@@ -311,6 +307,9 @@ window.Page.network = {
 
             alert("Apply failed:\n\n" + err.message);
 
+            button.disabled = false;
+            button.textContent = "Apply";
+
         } finally {
 
             modalConfirm.disabled = false;
@@ -335,10 +334,8 @@ window.Page.network = {
         modalCancel.onclick = () => this.closeConfirmModal();
 
         confirmModal.onclick = e => {
-
             if (e.target === confirmModal)
                 this.closeConfirmModal();
-
         };
 
         modalConfirm.onclick = () => this.applyChanges();
@@ -346,9 +343,7 @@ window.Page.network = {
     },
 
     destroy() {
-
         clearInterval(this.timer);
-
     }
 
 };
