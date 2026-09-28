@@ -1056,9 +1056,25 @@ select.setting-input:disabled{
         0 0 0 3px rgba(78,161,255,.12);
 }
 
-.chaos-select-trigger:disabled{
-    opacity:.55;
+.chaos-select-trigger:disabled,
+.chaos-select-trigger:disabled:hover,
+.chaos-select-trigger:disabled:focus,
+.chaos-select-trigger:disabled:active{
+    background:#151922;
+    border-color:#252d3a;
+    color:#626b7b;
+    opacity:1;
     cursor:not-allowed;
+    box-shadow:none;
+    transform:none;
+}
+
+.interface-card .chaos-select-trigger:disabled .chaos-select-value{
+    color:#626b7b;
+}
+
+.interface-card .chaos-select-trigger:disabled .chaos-select-chevron{
+    color:#4d5666;
 }
 
 /* Chevron */
@@ -1384,6 +1400,17 @@ select.setting-input:disabled{
 
     line-height:1;
     white-space:nowrap;
+    color:var(--text);
+}
+
+/* Override the generic .card span muted color for the mode value. */
+.interface-card .chaos-select-trigger .chaos-select-value{
+    color:var(--text);
+}
+
+/* Keep only disabled/read-only interface text muted. */
+.interface-card .chaos-select-trigger:disabled .chaos-select-value{
+    color:#626b7b;
 }
 
 .interface-card .chaos-select-chevron{
