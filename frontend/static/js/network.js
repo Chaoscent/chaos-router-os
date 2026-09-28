@@ -14,13 +14,15 @@ window.Page.network = {
 
     isIPv4(value) {
 
-        const parts = value.split(".");
+        const parts = String(value || "").trim().split(".");
 
-        if (parts.length !== 4) return false;
+        if (parts.length !== 4)
+            return false;
 
         return parts.every(part => {
 
-            if (!/^\d+$/.test(part)) return false;
+            if (!/^\d+$/.test(part))
+                return false;
 
             const n = Number(part);
 
@@ -32,7 +34,8 @@ window.Page.network = {
 
     isSubnetMask(value) {
 
-        if (!this.isIPv4(value)) return false;
+        if (!this.isIPv4(value))
+            return false;
 
         const bits = value
             .split(".")
@@ -45,6 +48,9 @@ window.Page.network = {
     },
 
     setFieldState(input, valid, message = "") {
+
+        if (!input)
+            return;
 
         input.classList.toggle("invalid", !valid);
 
@@ -67,11 +73,10 @@ window.Page.network = {
 
         const card = this.interfaces[name];
 
-        if (!card) return false;
+        if (!card)
+            return false;
 
-        /*
-         * WWAN is completely read-only.
-         */
+        // WWAN is completely read-only.
         if (name === "wwan0") {
 
             [
@@ -79,16 +84,17 @@ window.Page.network = {
                 card.subnet,
                 card.gateway,
                 card.dns
-            ].forEach(field => this.setFieldState(field, true));
+            ].forEach(field => {
 
-            return false;
+                this.setFieldState(field, true);
+
+            });
+
+            return true;
 
         }
 
-        /*
-         * DHCP Client:
-         * IP, subnet, gateway and DNS are supplied automatically.
-         */
+        // DHCP does not require editable network values.
         if (card.mode.value === "DHCP Client") {
 
             [
@@ -96,16 +102,20 @@ window.Page.network = {
                 card.subnet,
                 card.gateway,
                 card.dns
-            ].forEach(field => this.setFieldState(field, true));
+            ].forEach(field => {
+
+                this.setFieldState(field, true);
+
+            });
 
             return true;
 
         }
 
-        const ipOK = this.isIPv4(card.ip.value.trim());
-        const subnetOK = this.isSubnetMask(card.subnet.value.trim());
-        const gatewayOK = this.isIPv4(card.gateway.value.trim());
-        const dnsOK = this.isIPv4(card.dns.value.trim());
+        const ipOK = this.isIPv4(card.ip.value);
+        const subnetOK = this.isSubnetMask(card.subnet.value);
+        const gatewayOK = this.isIPv4(card.gateway.value);
+        const dnsOK = this.isIPv4(card.dns.value);
 
         this.setFieldState(
             card.ip,
@@ -131,10 +141,145 @@ window.Page.network = {
             "Invalid DNS."
         );
 
-        return ipOK &&
-               subnetOK &&
-               gatewayOK &&
-               dnsOK;
+        return (
+            ipOK &&
+            subnetOK &&
+            gatewayOK &&
+            dnsOK
+        );
+
+    },
+
+    // ------------------------------------------------------------
+    // Custom Dropdown
+    // ------------------------------------------------------------
+
+    setupCustomSelect(node, interfaceName) {
+
+        const wrapper = node.querySelector(".chaos-select");
+        const trigger = node.querySelector(".chaos-select-trigger");
+        const value = node.querySelector(".chaos-select-value");
+        const menu = node.querySelector(".chaos-select-menu");
+        const nativeSelect = node.querySelector(".interface-mode-select");
+        const options = node.querySelectorAll(".chaos-select-option");
+
+        if (
+            !wrapper ||
+            !trigger ||
+            !value ||
+            !menu ||
+            !nativeSelect
+        ) {
+            return;
+        }
+
+        const close = () => {
+
+            wrapper.classList.remove("open");
+
+            trigger.setAttribute(
+                "aria-expanded",
+                "false"
+            );
+
+        };
+
+        const updateVisual = () => {
+
+            value.textContent = nativeSelect.value;
+
+            options.forEach(option => {
+
+                const selected =
+                    option.dataset.value === nativeSelect.value;
+
+                option.classList.toggle(
+                    "selected",
+                    selected
+                );
+
+                option.setAttribute(
+                    "aria-selected",
+                    selected ? "true" : "false"
+                );
+
+            });
+
+        };
+
+        trigger.addEventListener("click", event => {
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            if (trigger.disabled)
+                return;
+
+            const isOpen =
+                wrapper.classList.contains("open");
+
+            document
+                .querySelectorAll(".chaos-select.open")
+                .forEach(other => {
+
+                    if (other !== wrapper)
+                        other.classList.remove("open");
+
+                });
+
+            if (isOpen) {
+
+                close();
+
+            } else {
+
+                wrapper.classList.add("open");
+
+                trigger.setAttribute(
+                    "aria-expanded",
+                    "true"
+                );
+
+            }
+
+        });
+
+        options.forEach(option => {
+
+            option.addEventListener("click", event => {
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (trigger.disabled)
+                    return;
+
+                const newValue =
+                    option.dataset.value;
+
+                nativeSelect.value = newValue;
+
+                updateVisual();
+
+                nativeSelect.dispatchEvent(
+                    new Event("change", {
+                        bubbles: true
+                    })
+                );
+
+                close();
+
+            });
+
+        });
+
+        nativeSelect.addEventListener("change", () => {
+
+            updateVisual();
+
+        });
+
+        updateVisual();
 
     },
 
@@ -146,7 +291,8 @@ window.Page.network = {
 
         try {
 
-            const res = await fetch("/api/network");
+            const res =
+                await fetch("/api/network");
 
             if (res.status === 401) {
 
@@ -158,147 +304,44 @@ window.Page.network = {
             if (!res.ok)
                 return;
 
-            const data = await res.json();
+            const data =
+                await res.json();
 
-            wanStatus.textContent = data.wan;
-            wanInterface.textContent = data.interface;
-            wanType.textContent = data.connection;
-            wanGateway.textContent = data.gateway;
+            const wanStatus =
+                document.getElementById("wanStatus");
+
+            const wanInterface =
+                document.getElementById("wanInterface");
+
+            const wanType =
+                document.getElementById("wanType");
+
+            const wanGateway =
+                document.getElementById("wanGateway");
+
+            if (wanStatus)
+                wanStatus.textContent = data.wan ?? "--";
+
+            if (wanInterface)
+                wanInterface.textContent =
+                    data.interface ?? "--";
+
+            if (wanType)
+                wanType.textContent =
+                    data.connection ?? "--";
+
+            if (wanGateway)
+                wanGateway.textContent =
+                    data.gateway ?? "--";
 
         } catch (err) {
 
-            console.error("Network status update failed:", err);
+            console.error(
+                "Network status update failed:",
+                err
+            );
 
         }
-
-    },
-
-    // ------------------------------------------------------------
-    // Custom Dropdown
-    // ------------------------------------------------------------
-
-    setupCustomSelect(cardData) {
-
-        const {
-            name,
-            mode,
-            chaosSelect,
-            trigger,
-            valueLabel,
-            options
-        } = cardData;
-
-        if (!chaosSelect || !trigger)
-            return;
-
-        const isWWAN = name === "wwan0";
-
-        const closeMenu = () => {
-
-            chaosSelect.classList.remove("open");
-            trigger.setAttribute("aria-expanded", "false");
-
-        };
-
-        const updateVisualState = () => {
-
-            valueLabel.textContent = mode.value;
-
-            options.forEach(option => {
-
-                const selected =
-                    option.dataset.value === mode.value;
-
-                option.classList.toggle(
-                    "selected",
-                    selected
-                );
-
-            });
-
-        };
-
-        /*
-         * WWAN:
-         * Disable both the real select and the visible custom
-         * dropdown trigger.
-         */
-        trigger.disabled = isWWAN;
-        mode.disabled = isWWAN;
-
-        if (isWWAN)
-            closeMenu();
-
-        updateVisualState();
-
-        /*
-         * Do not attach click behaviour to a disabled selector.
-         */
-        trigger.onclick = e => {
-
-            e.preventDefault();
-
-            if (trigger.disabled)
-                return;
-
-            const open =
-                chaosSelect.classList.contains("open");
-
-            /*
-             * Close any other custom selectors.
-             */
-            document
-                .querySelectorAll(".chaos-select.open")
-                .forEach(select => {
-
-                    if (select !== chaosSelect)
-                        select.classList.remove("open");
-
-                });
-
-            chaosSelect.classList.toggle(
-                "open",
-                !open
-            );
-
-            trigger.setAttribute(
-                "aria-expanded",
-                String(!open)
-            );
-
-        };
-
-        options.forEach(option => {
-
-            option.onclick = e => {
-
-                e.preventDefault();
-
-                if (trigger.disabled)
-                    return;
-
-                const value = option.dataset.value;
-
-                mode.value = value;
-
-                mode.dispatchEvent(
-                    new Event("change", {
-                        bubbles: true
-                    })
-                );
-
-                updateVisualState();
-
-                closeMenu();
-
-            };
-
-        });
-
-        return {
-            updateVisualState,
-            closeMenu
-        };
 
     },
 
@@ -308,20 +351,42 @@ window.Page.network = {
 
     async loadInterfaces() {
 
+        const container =
+            document.getElementById(
+                "interfaceContainer"
+            );
+
+        const template =
+            document.getElementById(
+                "interfaceTemplate"
+            );
+
+        if (!container || !template)
+            return;
+
         try {
 
-            const res = await fetch(
-                "/api/network/interfaces"
-            );
+            const res =
+                await fetch(
+                    "/api/network/interfaces"
+                );
+
+            if (res.status === 401) {
+
+                location.href = "/login";
+                return;
+
+            }
 
             if (!res.ok)
                 throw new Error(
-                    `HTTP ${res.status}`
+                    "Failed to load interfaces."
                 );
 
-            const interfaces = await res.json();
+            const interfaces =
+                await res.json();
 
-            interfaceContainer.innerHTML = "";
+            container.innerHTML = "";
 
             this.interfaces = {};
             this.original = {};
@@ -332,46 +397,17 @@ window.Page.network = {
                     structuredClone(iface);
 
                 const node =
-                    interfaceTemplate
-                        .content
+                    template.content
                         .firstElementChild
                         .cloneNode(true);
+
+                const name =
+                    iface.name;
 
                 const modeLabel =
                     node.querySelector(
                         ".interface-mode"
                     );
-
-                const chaosSelect =
-                    node.querySelector(
-                        ".chaos-select"
-                    );
-
-                const trigger =
-                    node.querySelector(
-                        ".chaos-select-trigger"
-                    );
-
-                const valueLabel =
-                    node.querySelector(
-                        ".chaos-select-value"
-                    );
-
-                const options =
-                    node.querySelectorAll(
-                        ".chaos-select-option"
-                    );
-
-                node.querySelector(
-                    ".interface-name"
-                ).textContent = iface.name;
-
-                node.querySelector(
-                    ".interface-type"
-                ).textContent = iface.type;
-
-                modeLabel.textContent =
-                    iface.mode;
 
                 const mode =
                     node.querySelector(
@@ -403,13 +439,36 @@ window.Page.network = {
                         ".interface-save"
                     );
 
-                mode.value = iface.mode;
-                ip.value = iface.ip || "";
-                subnet.value = iface.subnet || "";
-                gateway.value = iface.gateway || "";
-                dns.value = iface.dns || "";
+                node.querySelector(
+                    ".interface-name"
+                ).textContent = name;
 
-                this.interfaces[iface.name] = {
+                node.querySelector(
+                    ".interface-type"
+                ).textContent =
+                    iface.type ?? "";
+
+                modeLabel.textContent =
+                    iface.mode ?? "";
+
+                mode.value =
+                    iface.mode === "Static"
+                        ? "Static"
+                        : "DHCP Client";
+
+                ip.value =
+                    iface.ip ?? "";
+
+                subnet.value =
+                    iface.subnet ?? "";
+
+                gateway.value =
+                    iface.gateway ?? "";
+
+                dns.value =
+                    iface.dns ?? "";
+
+                this.interfaces[name] = {
 
                     node,
                     mode,
@@ -418,18 +477,27 @@ window.Page.network = {
                     gateway,
                     dns,
                     save,
-                    modeLabel,
-                    chaosSelect,
-                    trigger,
-                    valueLabel,
-                    options
+                    modeLabel
 
                 };
+
+                // ------------------------------------------------
+                // Custom dropdown
+                // ------------------------------------------------
+
+                this.setupCustomSelect(
+                    node,
+                    name
+                );
+
+                // ------------------------------------------------
+                // State updater
+                // ------------------------------------------------
 
                 const updateState = () => {
 
                     const isWWAN =
-                        iface.name === "wwan0";
+                        name === "wwan0";
 
                     const isStatic =
                         mode.value === "Static";
@@ -437,122 +505,116 @@ window.Page.network = {
                     modeLabel.textContent =
                         mode.value;
 
-                    /*
-                     * Only eth0 can be changed.
-                     */
-                    mode.disabled = isWWAN;
-                    trigger.disabled = isWWAN;
+                    // wwan0 is completely read-only.
+                    mode.disabled =
+                        isWWAN;
 
-                    /*
-                     * DHCP Client:
-                     * everything is read-only.
-                     *
-                     * Static:
-                     * all network values become editable.
-                     */
                     const editable =
-                        !isWWAN && isStatic;
+                        !isWWAN &&
+                        isStatic;
 
-                    ip.disabled = !editable;
-                    subnet.disabled = !editable;
-                    gateway.disabled = !editable;
-                    dns.disabled = !editable;
+                    ip.disabled =
+                        !editable;
 
-                    /*
-                     * Make sure a WWAN dropdown can never
-                     * remain visually open.
-                     */
-                    if (isWWAN) {
+                    subnet.disabled =
+                        !editable;
 
-                        chaosSelect.classList.remove(
-                            "open"
+                    gateway.disabled =
+                        !editable;
+
+                    dns.disabled =
+                        !editable;
+
+                    // Keep visible custom dropdown disabled
+                    // together with the native select.
+                    const trigger =
+                        node.querySelector(
+                            ".chaos-select-trigger"
                         );
 
-                        trigger.setAttribute(
-                            "aria-expanded",
-                            "false"
-                        );
+                    if (trigger) {
+
+                        trigger.disabled =
+                            isWWAN;
 
                     }
 
                     const changed =
-                        this.hasChanges(
-                            iface.name
-                        );
+                        this.hasChanges(name);
 
                     const valid =
-                        this.validateCard(
-                            iface.name
-                        );
+                        this.validateCard(name);
 
-                    /*
-                     * WWAN never gets an Apply button
-                     * because it is not configurable.
-                     */
+                    // Apply only works when there is
+                    // actually something to apply.
                     save.disabled =
                         isWWAN ||
-                        !(changed && valid);
+                        !changed ||
+                        !valid;
 
                 };
 
-                /*
-                 * Custom dropdown.
-                 */
-                this.setupCustomSelect({
-
-                    name: iface.name,
-                    mode,
-                    chaosSelect,
-                    trigger,
-                    valueLabel,
-                    options
-
-                });
-
-                /*
-                 * Inputs.
-                 */
-                [
-                    ip,
-                    subnet,
-                    gateway,
-                    dns
-                ].forEach(el => {
-
-                    el.addEventListener(
-                        "input",
-                        updateState
-                    );
-
-                });
+                // ------------------------------------------------
+                // Field listeners
+                // ------------------------------------------------
 
                 mode.addEventListener(
                     "change",
                     updateState
                 );
 
-                /*
-                 * Apply button.
-                 */
-                save.onclick = () => {
+                ip.addEventListener(
+                    "input",
+                    updateState
+                );
 
-                    if (save.disabled)
-                        return;
+                subnet.addEventListener(
+                    "input",
+                    updateState
+                );
 
-                    this.pendingInterface =
-                        iface.name;
+                gateway.addEventListener(
+                    "input",
+                    updateState
+                );
 
-                    this.openConfirmModal(
-                        iface.name
-                    );
+                dns.addEventListener(
+                    "input",
+                    updateState
+                );
 
-                };
+                // ------------------------------------------------
+                // APPLY BUTTON
+                // ------------------------------------------------
+
+                save.addEventListener(
+                    "click",
+                    event => {
+
+                        event.preventDefault();
+                        event.stopPropagation();
+
+                        if (save.disabled)
+                            return;
+
+                        console.log(
+                            "Apply clicked:",
+                            name
+                        );
+
+                        this.pendingInterface =
+                            name;
+
+                        this.openConfirmModal(
+                            name
+                        );
+
+                    }
+                );
 
                 updateState();
 
-                interfaceContainer.appendChild(
-                    node
-                );
+                container.appendChild(node);
 
             }
 
@@ -583,6 +645,7 @@ window.Page.network = {
             return false;
 
         return (
+
             original.mode !==
                 current.mode.value ||
 
@@ -597,6 +660,7 @@ window.Page.network = {
 
             original.dns !==
                 current.dns.value
+
         );
 
     },
@@ -607,16 +671,44 @@ window.Page.network = {
 
     openConfirmModal(name) {
 
+        const modal =
+            document.getElementById(
+                "confirmModal"
+            );
+
+        const body =
+            document.getElementById(
+                "modalBody"
+            );
+
+        if (!modal || !body) {
+
+            console.error(
+                "Confirmation modal elements not found."
+            );
+
+            return;
+
+        }
+
         const original =
             this.original[name];
 
         const current =
             this.interfaces[name];
 
-        if (!original || !current)
+        if (!original || !current) {
+
+            console.error(
+                "Interface data not found:",
+                name
+            );
+
             return;
 
-        modalBody.innerHTML = "";
+        }
+
+        body.innerHTML = "";
 
         const changes = [
 
@@ -652,54 +744,79 @@ window.Page.network = {
 
         ];
 
-        for (
-            const [label, oldValue, newValue]
-            of changes
-        ) {
+        let changeCount = 0;
+
+        for (const [
+            label,
+            oldValue,
+            newValue
+        ] of changes) {
 
             if (oldValue === newValue)
                 continue;
 
+            changeCount++;
+
             const row =
-                document.createElement(
-                    "div"
-                );
+                document.createElement("div");
 
             row.className =
                 "modal-change";
 
-            row.innerHTML = `
-                <label>${label}</label>
-                <strong></strong>
-            `;
+            const labelElement =
+                document.createElement("label");
 
-            row.querySelector(
-                "strong"
-            ).textContent =
+            labelElement.textContent =
+                label;
+
+            const valueElement =
+                document.createElement("strong");
+
+            valueElement.textContent =
                 `${oldValue} → ${newValue}`;
 
-            modalBody.appendChild(row);
+            row.appendChild(
+                labelElement
+            );
+
+            row.appendChild(
+                valueElement
+            );
+
+            body.appendChild(row);
 
         }
 
-        confirmModal.classList.remove(
-            "hidden"
-        );
+        if (changeCount === 0) {
+
+            const message =
+                document.createElement("p");
+
+            message.textContent =
+                "No changes to apply.";
+
+            body.appendChild(message);
+
+        }
+
+        modal.classList.remove("hidden");
 
     },
 
     closeConfirmModal() {
 
-        confirmModal.classList.add(
-            "hidden"
-        );
+        const modal =
+            document.getElementById(
+                "confirmModal"
+            );
 
-        this.pendingInterface = null;
+        if (modal)
+            modal.classList.add("hidden");
 
     },
 
     // ------------------------------------------------------------
-    // Apply
+    // Apply Changes
     // ------------------------------------------------------------
 
     async applyChanges() {
@@ -716,32 +833,16 @@ window.Page.network = {
         if (!card)
             return;
 
-        const payload = {
+        const modalConfirm =
+            document.getElementById(
+                "modalConfirm"
+            );
 
-            interface: name,
+        if (!modalConfirm)
+            return;
 
-            mode:
-                card.mode.value,
-
-            ip:
-                card.ip.value.trim(),
-
-            subnet:
-                card.subnet.value.trim(),
-
-            gateway:
-                card.gateway.value.trim(),
-
-            dns:
-                card.dns.value.trim()
-
-        };
-
-        const button =
-            modalConfirm;
-
-        button.disabled = true;
-        button.textContent =
+        modalConfirm.disabled = true;
+        modalConfirm.textContent =
             "Applying...";
 
         try {
@@ -757,26 +858,43 @@ window.Page.network = {
                                 "application/json"
                         },
 
-                        body:
-                            JSON.stringify(
-                                payload
-                            )
+                        body: JSON.stringify({
+
+                            interface: name,
+
+                            mode:
+                                card.mode.value,
+
+                            ip:
+                                card.ip.value.trim(),
+
+                            subnet:
+                                card.subnet.value.trim(),
+
+                            gateway:
+                                card.gateway.value.trim(),
+
+                            dns:
+                                card.dns.value.trim()
+
+                        })
+
                     }
                 );
 
+            let stageData = {};
+
+            try {
+
+                stageData =
+                    await stageRes.json();
+
+            } catch (_) {}
+
             if (!stageRes.ok) {
 
-                let error;
-
-                try {
-                    error =
-                        await stageRes.json();
-                } catch {
-                    error = {};
-                }
-
                 throw new Error(
-                    error.message ||
+                    stageData.message ||
                     "Failed to stage network changes."
                 );
 
@@ -790,29 +908,26 @@ window.Page.network = {
                     }
                 );
 
-            let data = {};
+            let applyData = {};
 
             try {
-                data =
+
+                applyData =
                     await applyRes.json();
-            } catch {
-                // Ignore empty response bodies.
-            }
+
+            } catch (_) {}
 
             if (!applyRes.ok) {
 
                 throw new Error(
-                    data.message ||
-                    "Apply failed."
+                    applyData.message ||
+                    "Failed to apply network changes."
                 );
 
             }
 
             this.closeConfirmModal();
 
-            /*
-             * Reload the actual values from the backend.
-             */
             await this.loadInterfaces();
             await this.updateStatus();
 
@@ -830,8 +945,10 @@ window.Page.network = {
 
         } finally {
 
-            button.disabled = false;
-            button.textContent = "Apply";
+            modalConfirm.disabled = false;
+
+            modalConfirm.textContent =
+                "Apply";
 
         }
 
@@ -844,7 +961,6 @@ window.Page.network = {
     init() {
 
         this.updateStatus();
-
         this.loadInterfaces();
 
         this.timer =
@@ -853,57 +969,102 @@ window.Page.network = {
                 3000
             );
 
-        modalClose.onclick =
-            () => this.closeConfirmModal();
+        const modal =
+            document.getElementById(
+                "confirmModal"
+            );
 
-        modalCancel.onclick =
-            () => this.closeConfirmModal();
+        const modalClose =
+            document.getElementById(
+                "modalClose"
+            );
 
-        confirmModal.onclick = e => {
+        const modalCancel =
+            document.getElementById(
+                "modalCancel"
+            );
 
-            if (e.target === confirmModal)
+        const modalConfirm =
+            document.getElementById(
+                "modalConfirm"
+            );
+
+        if (modalClose) {
+
+            modalClose.onclick = () =>
                 this.closeConfirmModal();
 
-        };
+        }
 
-        modalConfirm.onclick =
-            () => this.applyChanges();
+        if (modalCancel) {
 
-        /*
-         * Close custom dropdowns when clicking elsewhere.
-         */
-        document.addEventListener(
-            "click",
-            e => {
+            modalCancel.onclick = () =>
+                this.closeConfirmModal();
+
+        }
+
+        if (modal) {
+
+            modal.onclick = event => {
 
                 if (
-                    e.target.closest(
-                        ".chaos-select"
-                    )
-                )
-                    return;
+                    event.target === modal
+                ) {
+
+                    this.closeConfirmModal();
+
+                }
+
+            };
+
+        }
+
+        if (modalConfirm) {
+
+            modalConfirm.onclick = event => {
+
+                event.preventDefault();
+
+                this.applyChanges();
+
+            };
+
+        }
+
+        // Close custom dropdowns when clicking elsewhere.
+        document.addEventListener(
+            "click",
+            event => {
 
                 document
                     .querySelectorAll(
                         ".chaos-select.open"
                     )
-                    .forEach(select => {
+                    .forEach(wrapper => {
 
-                        select.classList.remove(
-                            "open"
-                        );
+                        if (
+                            !wrapper.contains(
+                                event.target
+                            )
+                        ) {
 
-                        const trigger =
-                            select.querySelector(
-                                ".chaos-select-trigger"
+                            wrapper.classList.remove(
+                                "open"
                             );
 
-                        if (trigger) {
+                            const trigger =
+                                wrapper.querySelector(
+                                    ".chaos-select-trigger"
+                                );
 
-                            trigger.setAttribute(
-                                "aria-expanded",
-                                "false"
-                            );
+                            if (trigger) {
+
+                                trigger.setAttribute(
+                                    "aria-expanded",
+                                    "false"
+                                );
+
+                            }
 
                         }
 
@@ -916,7 +1077,15 @@ window.Page.network = {
 
     destroy() {
 
-        clearInterval(this.timer);
+        if (this.timer) {
+
+            clearInterval(
+                this.timer
+            );
+
+            this.timer = null;
+
+        }
 
     }
 
