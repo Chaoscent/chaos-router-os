@@ -210,6 +210,10 @@ def get_connection_dns(connection):
 
     return "Unknown"
 
+def get_dns():
+    return get_connection_dns(
+        get_connection_for_interface(get_default_interface())
+    )
 
 def get_default_interface():
 
