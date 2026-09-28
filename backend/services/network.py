@@ -8,13 +8,13 @@ from services.config import (
 )
 
 # -------------------------------------------------------------------
-# Configuration Paths
+# Configuration
 # -------------------------------------------------------------------
 
 DEVICE_ALIASES_FILE = f"{CONFIG_DIR}/device_aliases.json"
 
 # -------------------------------------------------------------------
-# Offline MAC Vendor Database
+# Offline OUI Database
 # -------------------------------------------------------------------
 
 OUI_DB = {
@@ -43,22 +43,19 @@ OUI_DB = {
 }
 
 # -------------------------------------------------------------------
-# Device Aliases
+# Device aliases
 # -------------------------------------------------------------------
 
 def load_device_aliases():
     return load_json(DEVICE_ALIASES_FILE, {})
 
 
-def save_device_aliases(aliases):
-    save_json(DEVICE_ALIASES_FILE, aliases)
+def save_device_aliases(data):
+    save_json(DEVICE_ALIASES_FILE, data)
 
 
 def lookup_alias(mac):
-
-    aliases = load_device_aliases()
-
-    return aliases.get(mac.upper())
+    return load_device_aliases().get(mac.upper())
 
 
 def set_device_alias(mac, name):
@@ -86,15 +83,15 @@ def run(cmd):
     except Exception:
         return None
 
-# -------------------------------------------------------------------
-# NetworkManager
-# -------------------------------------------------------------------
 
 def has_networkmanager():
     return run(["which", "nmcli"]) is not None
 
+# -------------------------------------------------------------------
+# Interface helpers
+# -------------------------------------------------------------------
 
-def get_active_connection():
+def get_connection_for_interface(interface):
 
     if not has_networkmanager():
         return None
@@ -113,38 +110,89 @@ def get_active_connection():
         return None
 
     for line in output.splitlines():
-        if ":" in line:
-            return line.split(":", 1)[0]
+
+        if ":" not in line:
+            continue
+
+        name, device = line.split(":", 1)
+
+        if device == interface:
+            return name
 
     return None
 
-# -------------------------------------------------------------------
-# Live Network Status
-# -------------------------------------------------------------------
 
-def get_default_interface():
-    try:
-        output = subprocess.check_output(
-            ["ip", "route", "show", "default"],
-            text=True
-        )
-        return output.split("dev")[1].split()[0]
-    except Exception:
+def get_ip(interface):
+
+    output = run([
+        "ip",
+        "-4",
+        "-o",
+        "addr",
+        "show",
+        interface
+    ])
+
+    if not output:
         return "Unknown"
 
+    for line in output.splitlines():
+        if "inet " in line:
+            return line.split("inet ")[1].split("/")[0]
 
-def get_gateway():
-    try:
-        output = subprocess.check_output(
-            ["ip", "route", "show", "default"],
-            text=True
-        )
-        return output.split("via")[1].split()[0]
-    except Exception:
+    return "Unknown"
+
+
+def get_subnet_mask(interface):
+
+    output = run([
+        "ip",
+        "-4",
+        "-o",
+        "addr",
+        "show",
+        interface
+    ])
+
+    if not output:
+        return "255.255.255.0"
+
+    for line in output.splitlines():
+
+        if "inet " not in line:
+            continue
+
+        cidr = int(line.split("/")[1].split()[0])
+
+        mask = (0xffffffff << (32 - cidr)) & 0xffffffff
+
+        return socket.inet_ntoa(mask.to_bytes(4, "big"))
+
+    return "255.255.255.0"
+
+
+def get_gateway(interface):
+
+    output = run([
+        "ip",
+        "route",
+        "show",
+        "dev",
+        interface
+    ])
+
+    if not output:
         return "Unknown"
+
+    for line in output.splitlines():
+        if line.startswith("default via"):
+            return line.split()[2]
+
+    return "Unknown"
 
 
 def get_dns():
+
     try:
         with open("/etc/resolv.conf") as f:
             for line in f:
@@ -156,158 +204,227 @@ def get_dns():
     return "Unknown"
 
 
+def get_default_interface():
+
+    output = run([
+        "ip",
+        "route",
+        "show",
+        "default"
+    ])
+
+    if not output:
+        return "Unknown"
+
+    return output.split("dev")[1].split()[0]
+
+
 def get_connection_type(interface):
 
     if interface.startswith(("wwan", "cdc", "usb")):
         return "5G"
 
-    if interface.startswith("wl"):
-        return "Wi-Fi"
-
     if interface.startswith("eth"):
         return "Ethernet"
 
+    if interface.startswith("wl"):
+        return "Wi-Fi"
+
     return "Unknown"
 
-
-def get_ip(interface):
-    try:
-        return subprocess.check_output(
-            ["hostname", "-I"],
-            text=True
-        ).split()[0]
-    except Exception:
-        return "Unknown"
-
 # -------------------------------------------------------------------
-# LAN Configuration
+# Interface API
 # -------------------------------------------------------------------
 
-def get_subnet_mask(interface):
+def get_interfaces():
 
-    try:
+    interfaces = []
 
-        output = subprocess.check_output(
-            ["ip", "-4", "addr", "show", interface],
-            text=True
-        )
+    for interface in ("wwan0", "eth0"):
 
-        for line in output.splitlines():
+        if run(["ip", "link", "show", interface]) is None:
+            continue
 
-            line = line.strip()
+        if interface == "wwan0":
+            mode = "DHCP"
+        else:
+            mode = "DHCP Client"
 
-            if line.startswith("inet "):
+        interfaces.append({
+            "name": interface,
+            "connection": get_connection_for_interface(interface),
+            "type": get_connection_type(interface),
+            "mode": mode,
+            "ip": get_ip(interface),
+            "subnet": get_subnet_mask(interface),
+            "gateway": get_gateway(interface),
+            "dns": get_dns()
+        })
 
-                cidr = int(line.split("/")[1].split()[0])
+    return interfaces
 
-                mask = (0xffffffff << (32 - cidr)) & 0xffffffff
-
-                return socket.inet_ntoa(mask.to_bytes(4, "big"))
-
-    except Exception:
-        pass
-
-    return "255.255.255.0"
-
+# Compatibility with current frontend
 
 def get_lan_config():
 
-    interface = get_default_interface()
+    for interface in get_interfaces():
+        if interface["name"] == "eth0":
+            return interface
 
     return {
-        "interface": interface,
-        "connection": get_active_connection(),
-        "ip": get_ip(interface),
-        "subnet": get_subnet_mask(interface),
-        "gateway": get_gateway(),
+        "interface": "eth0",
+        "connection": None,
+        "ip": "Unknown",
+        "subnet": "255.255.255.0",
+        "gateway": "Unknown",
         "dns": get_dns()
     }
 
+# -------------------------------------------------------------------
+# Validation
+# -------------------------------------------------------------------
 
 def validate_lan_config(config):
 
     try:
-        socket.inet_aton(config["ip"])
-        socket.inet_aton(config["subnet"])
-        socket.inet_aton(config["gateway"])
         socket.inet_aton(config["dns"])
+
+        if config["interface"] == "eth0" and config.get("mode") == "Static":
+            socket.inet_aton(config["ip"])
+            socket.inet_aton(config["subnet"])
+            socket.inet_aton(config["gateway"])
+
     except OSError:
-        return False, "One or more addresses are invalid."
+        return False, "Invalid network configuration."
 
     return True, "OK"
 
 # -------------------------------------------------------------------
-# Apply Engine
+# Apply
 # -------------------------------------------------------------------
 
 def mask_to_cidr(mask):
 
     bits = "".join(
-        bin(int(octet))[2:].zfill(8)
-        for octet in mask.split(".")
+        bin(int(o))[2:].zfill(8)
+        for o in mask.split(".")
     )
 
     return bits.count("1")
 
 
-def apply_lan_config(config, dry_run=True):
+def apply_interface_config(config, dry_run=True):
 
     valid, message = validate_lan_config(config)
 
     if not valid:
         return False, message
 
-    connection = get_active_connection()
+    connection = get_connection_for_interface(config["interface"])
 
-    if connection is None:
+    if not connection:
         return False, "No active NetworkManager connection."
 
-    cidr = mask_to_cidr(config["subnet"])
+    commands = []
 
-    commands = [
-        [
-            "nmcli",
-            "connection",
-            "modify",
-            connection,
-            "ipv4.addresses",
-            f"{config['ip']}/{cidr}"
-        ],
-        [
-            "nmcli",
-            "connection",
-            "modify",
-            connection,
-            "ipv4.gateway",
-            config["gateway"]
-        ],
-        [
-            "nmcli",
-            "connection",
-            "modify",
-            connection,
-            "ipv4.dns",
-            config["dns"]
-        ],
-        [
-            "nmcli",
-            "connection",
-            "modify",
-            connection,
-            "ipv4.method",
-            "manual"
-        ],
-        [
+    if config["interface"] == "wwan0":
+
+        commands += [
+            [
+                "nmcli",
+                "connection",
+                "modify",
+                connection,
+                "ipv4.dns",
+                config["dns"]
+            ],
+            [
+                "nmcli",
+                "connection",
+                "up",
+                connection
+            ]
+        ]
+
+    else:
+
+        if config.get("mode") == "DHCP Client":
+
+            commands += [
+                [
+                    "nmcli",
+                    "connection",
+                    "modify",
+                    connection,
+                    "ipv4.method",
+                    "auto"
+                ],
+                [
+                    "nmcli",
+                    "connection",
+                    "modify",
+                    connection,
+                    "ipv4.ignore-auto-dns",
+                    "yes"
+                ],
+                [
+                    "nmcli",
+                    "connection",
+                    "modify",
+                    connection,
+                    "ipv4.dns",
+                    config["dns"]
+                ]
+            ]
+
+        else:
+
+            cidr = mask_to_cidr(config["subnet"])
+
+            commands += [
+                [
+                    "nmcli",
+                    "connection",
+                    "modify",
+                    connection,
+                    "ipv4.addresses",
+                    f"{config['ip']}/{cidr}"
+                ],
+                [
+                    "nmcli",
+                    "connection",
+                    "modify",
+                    connection,
+                    "ipv4.gateway",
+                    config["gateway"]
+                ],
+                [
+                    "nmcli",
+                    "connection",
+                    "modify",
+                    connection,
+                    "ipv4.dns",
+                    config["dns"]
+                ],
+                [
+                    "nmcli",
+                    "connection",
+                    "modify",
+                    connection,
+                    "ipv4.method",
+                    "manual"
+                ]
+            ]
+
+        commands.append([
             "nmcli",
             "connection",
             "up",
             connection
-        ]
-    ]
+        ])
 
     if dry_run:
         return True, {
-            "mode": "dry-run",
             "connection": connection,
             "commands": commands
         }
@@ -317,29 +434,32 @@ def apply_lan_config(config, dry_run=True):
         for cmd in commands:
             subprocess.check_call(cmd)
 
-        return True, "Network configuration applied."
+        return True, "Applied."
 
     except subprocess.CalledProcessError as e:
         return False, str(e)
 
+# Compatibility wrapper
+
+def apply_lan_config(config, dry_run=True):
+    return apply_interface_config(config, dry_run)
+
 # -------------------------------------------------------------------
-# Client Intelligence
+# Client intelligence
 # -------------------------------------------------------------------
 
 def lookup_hostname(ip):
 
-    try:
-        output = subprocess.check_output(
-            ["getent", "hosts", ip],
-            text=True,
-            timeout=0.25
-        ).strip()
+    output = run([
+        "getent",
+        "hosts",
+        ip
+    ])
 
-        if output:
-            return output.split()[1]
-
-    except Exception:
-        pass
+    if output:
+        parts = output.split()
+        if len(parts) >= 2:
+            return parts[1]
 
     return "Unknown"
 
@@ -348,60 +468,54 @@ def lookup_vendor(mac):
     return OUI_DB.get(mac.upper()[:8], "Unknown")
 
 # -------------------------------------------------------------------
-# Connected Clients
+# Clients
 # -------------------------------------------------------------------
 
 def get_clients():
 
     clients = []
 
-    try:
+    output = run(["ip", "neigh"])
 
-        output = subprocess.check_output(
-            ["ip", "neigh"],
-            text=True
-        )
+    if not output:
+        return clients
 
-        for line in output.splitlines():
+    for line in output.splitlines():
 
-            parts = line.split()
+        parts = line.split()
 
-            if len(parts) < 5:
-                continue
+        if len(parts) < 5:
+            continue
 
-            ip = parts[0]
+        ip = parts[0]
 
-            try:
-                socket.inet_aton(ip)
-            except Exception:
-                continue
+        try:
+            socket.inet_aton(ip)
+        except Exception:
+            continue
 
-            interface = parts[2]
-            mac = parts[4]
-            state = parts[-1]
+        interface = parts[2]
+        mac = parts[4]
+        state = parts[-1]
 
-            if state == "REACHABLE":
-                status = "Online"
-            elif state == "STALE":
-                status = "Idle"
-            else:
-                status = state.title()
+        if state == "REACHABLE":
+            status = "Online"
+        elif state == "STALE":
+            status = "Idle"
+        else:
+            status = state.title()
 
-            alias = lookup_alias(mac)
-            hostname = alias or lookup_hostname(ip)
+        alias = lookup_alias(mac)
 
-            clients.append({
-                "hostname": hostname,
-                "ip": ip,
-                "interface": interface,
-                "mac": mac,
-                "state": status,
-                "vendor": lookup_vendor(mac),
-                "traffic": "--"
-            })
-
-    except Exception:
-        pass
+        clients.append({
+            "hostname": alias or lookup_hostname(ip),
+            "ip": ip,
+            "interface": interface,
+            "mac": mac,
+            "state": status,
+            "vendor": lookup_vendor(mac),
+            "traffic": "--"
+        })
 
     clients.sort(
         key=lambda c: (

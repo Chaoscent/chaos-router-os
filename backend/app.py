@@ -33,8 +33,10 @@ from services.network import (
     get_connected_clients,
     get_clients,
     get_lan_config,
+    get_interfaces,
     validate_lan_config,
     apply_lan_config,
+    apply_interface_config,
     set_device_alias
 )
 
@@ -44,7 +46,6 @@ from services.traffic import get_traffic, get_history
 from services.config import (
     load_json,
     save_json,
-    CONFIG_DIR,
     RUNTIME_DIR
 )
 
@@ -56,17 +57,12 @@ app = Flask(
 
 app.secret_key = os.getenv("SECRET_KEY", "chaos-router-dev")
 
-# Runtime state lives in /tmp
+# Runtime state (/tmp)
 NETWORK_PENDING_FILE = f"{RUNTIME_DIR}/network_pending.json"
 
-# CONFIG_DIR is now selected automatically by config.py:
-# - WSL/dev -> ~/.config/chaos-router
-# - Pi      -> /etc/chaos-router
-
-
-# -------------------------------------------------------------------
+# ------------------------------------------------------------
 # Authentication
-# -------------------------------------------------------------------
+# ------------------------------------------------------------
 
 @app.route("/")
 def home():
@@ -97,10 +93,9 @@ def logout():
     session.clear()
     return redirect(url_for("login_page"))
 
-
-# -------------------------------------------------------------------
+# ------------------------------------------------------------
 # SPA Fragments
-# -------------------------------------------------------------------
+# ------------------------------------------------------------
 
 VALID_PAGES = {
     "dashboard",
@@ -123,10 +118,9 @@ def fragment(page):
 
     return render_template(f"{page}.html")
 
-
-# -------------------------------------------------------------------
-# Dashboard API
-# -------------------------------------------------------------------
+# ------------------------------------------------------------
+# Dashboard
+# ------------------------------------------------------------
 
 @app.route("/api/dashboard")
 @login_required
@@ -151,10 +145,9 @@ def dashboard_api():
         "history": get_history()
     })
 
-
-# -------------------------------------------------------------------
-# Network API
-# -------------------------------------------------------------------
+# ------------------------------------------------------------
+# Network
+# ------------------------------------------------------------
 
 @app.route("/api/network")
 @login_required
@@ -164,7 +157,7 @@ def network_api():
 
     return jsonify({
         "interface": interface,
-        "gateway": get_gateway(),
+        "gateway": get_gateway(interface),
         "ip": get_network_ip(interface),
         "dns": get_dns(),
         "connection": get_connection_type(interface),
@@ -172,6 +165,14 @@ def network_api():
     })
 
 
+# NEW: interface-based API
+@app.route("/api/network/interfaces")
+@login_required
+def network_interfaces_api():
+    return jsonify(get_interfaces())
+
+
+# Backwards compatibility
 @app.route("/api/network/config")
 @login_required
 def network_config_api():
@@ -227,18 +228,8 @@ def network_apply_api():
             "message": "No pending changes."
         }), 400
 
-    current = get_lan_config()
-
-    # Safety: only DNS is applied for now.
-    apply_config = {
-        "ip": current["ip"],
-        "subnet": current["subnet"],
-        "gateway": current["gateway"],
-        "dns": pending["dns"]
-    }
-
-    success, result = apply_lan_config(
-        apply_config,
+    success, result = apply_interface_config(
+        pending,
         dry_run=False
     )
 
@@ -248,7 +239,7 @@ def network_apply_api():
 
         return jsonify({
             "success": True,
-            "message": "DNS applied successfully.",
+            "message": "Network configuration applied.",
             "result": result
         })
 
@@ -257,10 +248,9 @@ def network_apply_api():
         "message": result
     }), 500
 
-
-# -------------------------------------------------------------------
+# ------------------------------------------------------------
 # Modem + Header
-# -------------------------------------------------------------------
+# ------------------------------------------------------------
 
 @app.route("/api/modem")
 @login_required
@@ -286,10 +276,9 @@ def header_api():
         "tx": traffic["tx"]
     })
 
-
-# -------------------------------------------------------------------
+# ------------------------------------------------------------
 # Clients
-# -------------------------------------------------------------------
+# ------------------------------------------------------------
 
 @app.route("/api/clients")
 @login_required
@@ -321,16 +310,15 @@ def client_alias():
     })
 
 
-# Backwards-compatible endpoint
+# Old endpoint still works
 @app.route("/api/clients/rename", methods=["POST"])
 @login_required
 def rename_client():
     return client_alias()
 
-
-# -------------------------------------------------------------------
+# ------------------------------------------------------------
 # System
-# -------------------------------------------------------------------
+# ------------------------------------------------------------
 
 @app.route("/api/system/hostname", methods=["POST"])
 @login_required
@@ -351,10 +339,9 @@ def update_hostname():
         "message": message
     }), 400
 
-
-# -------------------------------------------------------------------
+# ------------------------------------------------------------
 # Development
-# -------------------------------------------------------------------
+# ------------------------------------------------------------
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
