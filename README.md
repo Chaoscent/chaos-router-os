@@ -62,7 +62,7 @@ curl -fsSL chaos-software.dev/router-os/core | sudo bash
 
 ---
 
-### Pro
+### Hardware Edition
 
 **Core + Chaos Router hardware features.**
 
@@ -77,17 +77,17 @@ Adds:
 * Hardware-specific dashboard widgets
 * GPIO services
 
-Planned Install Command (coming soon):
+Planned Install Command (not recommended if you´re not using Chaos Router Hardware):
 
 ```bash
-curl -fsSL chaos-software.dev/router-os/pro | sudo bash
+curl -fsSL chaos-software.dev/router-os/hardware-edition | sudo bash
 ```
 
 ---
 
 ## Apps Addon
 
-Neither **Core** nor **Pro** ships with the Apps Addon.
+Neither **Core** nor **Hardware Edition** ships with the Apps Addon.
 
 The sidebar always contains an **Apps** page.
 
@@ -144,23 +144,23 @@ The user never has to remember `:9000`.
 
 * [x] Flask foundation
 * [x] Dashboard UI
-* [ ] Live System API
-* [ ] SPA routing (`#/dashboard`)
-* [ ] Network page
+* [X] Live System API
+* [X] SPA routing (`#/dashboard`)
+* [X] Network page
 * [ ] VPN page
-* [ ] Modem page (`mmcli`)
+* [X] Modem page (`mmcli`)
 * [ ] Logs
-* [ ] System
+* [X] System
 * [ ] Apps installer page
 
-### Apps Addon v1
+### Apps Addon (released with v2)
 
 * [ ] Container Runtime installer
 * [ ] App Manager
 * [ ] Caddy automation
 * [ ] First installable app
 
-### Pro v1
+### Hardware Edition
 
 * [ ] OLED integration
 * [ ] Hardware buttons
@@ -172,7 +172,7 @@ The user never has to remember `:9000`.
 
 ## Design Principles
 
-These are considered non-negotiable for v1.
+These are considered non-negotiable for Chaos Router OS.
 
 * UniFi-inspired visual language (not a clone)
 * MikroTik-style SPA navigation (`/#page`) with no full-page reloads
@@ -180,7 +180,7 @@ These are considered non-negotiable for v1.
 * Flask backend
 * Caddy as the reverse proxy
 * No Docker dependency in Core
-* Pro builds on Core, but hardware-exclusive features are never installable from Core
+* Hardware Edition builds on Core, but hardware-exclusive features are never installable from Core
 
 ---
 

@@ -41,7 +41,12 @@ from services.network import (
 from services.modem import get_modem_data
 from services.traffic import get_traffic, get_history
 
-from services.config import load_json, save_json, RUNTIME_DIR
+from services.config import (
+    load_json,
+    save_json,
+    CONFIG_DIR,
+    RUNTIME_DIR
+)
 
 app = Flask(
     __name__,
@@ -49,22 +54,24 @@ app = Flask(
     static_folder="../frontend/static"
 )
 
-# Development secret key (will be replaced by the installer later)
 app.secret_key = os.getenv("SECRET_KEY", "chaos-router-dev")
 
-# Runtime state lives in /tmp instead of Flask globals
+# Runtime state lives in /tmp
 NETWORK_PENDING_FILE = f"{RUNTIME_DIR}/network_pending.json"
+
+# CONFIG_DIR is now selected automatically by config.py:
+# - WSL/dev -> ~/.config/chaos-router
+# - Pi      -> /etc/chaos-router
+
 
 # -------------------------------------------------------------------
 # Authentication
 # -------------------------------------------------------------------
 
-
 @app.route("/")
 def home():
     if "user" not in session:
         return redirect(url_for("login_page"))
-
     return render_template("base.html")
 
 
@@ -90,10 +97,10 @@ def logout():
     session.clear()
     return redirect(url_for("login_page"))
 
+
 # -------------------------------------------------------------------
 # SPA Fragments
 # -------------------------------------------------------------------
-
 
 VALID_PAGES = {
     "dashboard",
@@ -116,10 +123,10 @@ def fragment(page):
 
     return render_template(f"{page}.html")
 
-# -------------------------------------------------------------------
-# APIs
-# -------------------------------------------------------------------
 
+# -------------------------------------------------------------------
+# Dashboard API
+# -------------------------------------------------------------------
 
 @app.route("/api/dashboard")
 @login_required
@@ -144,6 +151,10 @@ def dashboard_api():
         "history": get_history()
     })
 
+
+# -------------------------------------------------------------------
+# Network API
+# -------------------------------------------------------------------
 
 @app.route("/api/network")
 @login_required
@@ -247,6 +258,10 @@ def network_apply_api():
     }), 500
 
 
+# -------------------------------------------------------------------
+# Modem + Header
+# -------------------------------------------------------------------
+
 @app.route("/api/modem")
 @login_required
 def modem_api():
@@ -272,20 +287,24 @@ def header_api():
     })
 
 
+# -------------------------------------------------------------------
+# Clients
+# -------------------------------------------------------------------
+
 @app.route("/api/clients")
 @login_required
 def clients_api():
     return jsonify(get_clients())
 
 
-@app.route("/api/clients/rename", methods=["POST"])
+@app.route("/api/clients/alias", methods=["POST"])
 @login_required
-def rename_client():
+def client_alias():
 
     data = request.get_json()
 
     mac = data.get("mac", "").strip()
-    name = data.get("name", "").strip()
+    alias = data.get("alias", "").strip()
 
     if not mac:
         return jsonify({
@@ -293,14 +312,25 @@ def rename_client():
             "message": "MAC address is required."
         }), 400
 
-    set_device_alias(mac, name)
+    set_device_alias(mac, alias)
 
     return jsonify({
         "success": True,
         "mac": mac.upper(),
-        "name": name
+        "alias": alias
     })
 
+
+# Backwards-compatible endpoint
+@app.route("/api/clients/rename", methods=["POST"])
+@login_required
+def rename_client():
+    return client_alias()
+
+
+# -------------------------------------------------------------------
+# System
+# -------------------------------------------------------------------
 
 @app.route("/api/system/hostname", methods=["POST"])
 @login_required
@@ -321,10 +351,10 @@ def update_hostname():
         "message": message
     }), 400
 
+
 # -------------------------------------------------------------------
 # Development
 # -------------------------------------------------------------------
-
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5000, debug=True)

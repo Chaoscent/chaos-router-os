@@ -1,83 +1,49 @@
 import json
 import os
-import tempfile
+from pathlib import Path
 
 # -------------------------------------------------------------------
-# Chaos Router OS Configuration Paths
+# Configuration Locations
 # -------------------------------------------------------------------
 
-if os.geteuid() == 0:
-    CONFIG_DIR = "/etc/chaos-router"
+SYSTEM_DIR = Path("/etc/chaos-router")
+USER_DIR = Path.home() / ".config" / "chaos-router"
+RUNTIME_DIR = Path("/tmp/chaos-router")
+
+# Use /etc when writable (Pi), otherwise ~/.config (development/WSL)
+if SYSTEM_DIR.exists() and os.access(SYSTEM_DIR, os.W_OK):
+    CONFIG_DIR = SYSTEM_DIR
 else:
-    CONFIG_DIR = os.path.expanduser("~/.config/chaos-router")
+    CONFIG_DIR = USER_DIR
 
-RUNTIME_DIR = "/tmp/chaos-router"
+CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
 
-# -------------------------------------------------------------------
-# Directory Management
-# -------------------------------------------------------------------
-
-def ensure_dirs():
-    """
-    Create configuration and runtime directories if they do not exist.
-    Safe to call repeatedly.
-    """
-    os.makedirs(CONFIG_DIR, exist_ok=True)
-    os.makedirs(RUNTIME_DIR, exist_ok=True)
+# Keep the old constant so existing imports don't break.
+RUNTIME_DIR = str(RUNTIME_DIR)
+CONFIG_DIR = str(CONFIG_DIR)
 
 # -------------------------------------------------------------------
 # JSON Helpers
 # -------------------------------------------------------------------
 
 def load_json(path, default=None):
-    """
-    Load JSON from disk.
-
-    Returns the provided default value if the file does not exist
-    or contains invalid JSON.
-    """
-
-    ensure_dirs()
-
     if default is None:
         default = {}
 
     try:
         with open(path, "r") as f:
             return json.load(f)
-
-    except (FileNotFoundError, json.JSONDecodeError):
+    except Exception:
         return default
 
-# -------------------------------------------------------------------
-# Atomic Writes
-# -------------------------------------------------------------------
 
 def save_json(path, data):
-    """
-    Atomically write JSON to disk.
+    os.makedirs(os.path.dirname(path), exist_ok=True)
 
-    Writes to a temporary file first, flushes it to disk,
-    then replaces the original file.
-    """
+    tmp = f"{path}.tmp"
 
-    ensure_dirs()
+    with open(tmp, "w") as f:
+        json.dump(data, f, indent=2)
 
-    directory = os.path.dirname(path)
-    os.makedirs(directory, exist_ok=True)
-
-    fd, temp_path = tempfile.mkstemp(dir=directory)
-
-    try:
-
-        with os.fdopen(fd, "w") as f:
-            json.dump(data, f, indent=4)
-            f.flush()
-            os.fsync(f.fileno())
-
-        os.replace(temp_path, path)
-
-    finally:
-
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+    os.replace(tmp, path)
