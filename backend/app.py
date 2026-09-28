@@ -34,11 +34,14 @@ from services.network import (
     get_clients,
     get_lan_config,
     validate_lan_config,
-    apply_lan_config
+    apply_lan_config,
+    set_device_alias
 )
 
 from services.modem import get_modem_data
 from services.traffic import get_traffic, get_history
+
+from services.config import load_json, save_json, RUNTIME_DIR
 
 app = Flask(
     __name__,
@@ -49,11 +52,8 @@ app = Flask(
 # Development secret key (will be replaced by the installer later)
 app.secret_key = os.getenv("SECRET_KEY", "chaos-router-dev")
 
-# -------------------------------------------------------------------
-# Pending Configuration Store (M14)
-# -------------------------------------------------------------------
-
-NETWORK_PENDING = {}
+# Runtime state lives in /tmp instead of Flask globals
+NETWORK_PENDING_FILE = f"{RUNTIME_DIR}/network_pending.json"
 
 # -------------------------------------------------------------------
 # Authentication
@@ -170,14 +170,12 @@ def network_config_api():
 @app.route("/api/network/pending")
 @login_required
 def network_pending_api():
-    return jsonify(NETWORK_PENDING)
+    return jsonify(load_json(NETWORK_PENDING_FILE, {}))
 
 
 @app.route("/api/network/stage", methods=["POST"])
 @login_required
 def network_stage_api():
-
-    global NETWORK_PENDING
 
     data = request.get_json()
 
@@ -189,11 +187,11 @@ def network_stage_api():
             "message": message
         }), 400
 
-    NETWORK_PENDING = data
+    save_json(NETWORK_PENDING_FILE, data)
 
     return jsonify({
         "success": True,
-        "pending": NETWORK_PENDING
+        "pending": data
     })
 
 
@@ -201,9 +199,7 @@ def network_stage_api():
 @login_required
 def network_discard_api():
 
-    global NETWORK_PENDING
-
-    NETWORK_PENDING = {}
+    save_json(NETWORK_PENDING_FILE, {})
 
     return jsonify({"success": True})
 
@@ -212,9 +208,9 @@ def network_discard_api():
 @login_required
 def network_apply_api():
 
-    global NETWORK_PENDING
+    pending = load_json(NETWORK_PENDING_FILE, {})
 
-    if not NETWORK_PENDING:
+    if not pending:
         return jsonify({
             "success": False,
             "message": "No pending changes."
@@ -227,7 +223,7 @@ def network_apply_api():
         "ip": current["ip"],
         "subnet": current["subnet"],
         "gateway": current["gateway"],
-        "dns": NETWORK_PENDING["dns"]
+        "dns": pending["dns"]
     }
 
     success, result = apply_lan_config(
@@ -237,7 +233,7 @@ def network_apply_api():
 
     if success:
 
-        NETWORK_PENDING = {}
+        save_json(NETWORK_PENDING_FILE, {})
 
         return jsonify({
             "success": True,
@@ -280,6 +276,30 @@ def header_api():
 @login_required
 def clients_api():
     return jsonify(get_clients())
+
+
+@app.route("/api/clients/rename", methods=["POST"])
+@login_required
+def rename_client():
+
+    data = request.get_json()
+
+    mac = data.get("mac", "").strip()
+    name = data.get("name", "").strip()
+
+    if not mac:
+        return jsonify({
+            "success": False,
+            "message": "MAC address is required."
+        }), 400
+
+    set_device_alias(mac, name)
+
+    return jsonify({
+        "success": True,
+        "mac": mac.upper(),
+        "name": name
+    })
 
 
 @app.route("/api/system/hostname", methods=["POST"])

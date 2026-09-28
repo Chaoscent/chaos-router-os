@@ -70,6 +70,10 @@
 
             <div class="inspector-actions">
 
+                <button id="renameDevice" class="action-btn">
+                    Rename Device
+                </button>
+
                 <button class="action-btn" disabled>
                     Reserve DHCP IP
                 </button>
@@ -85,3 +89,49 @@
     </div>
 
 </section>
+
+<!-- Rename Device Modal -->
+
+<div id="renameModal" class="modal-overlay hidden">
+
+    <div class="modal">
+
+        <div class="modal-header">
+
+            <h2>Rename Device</h2>
+
+            <button id="closeRenameModal" class="icon-btn">×</button>
+
+        </div>
+
+        <p class="modal-subtitle">
+            Give this device a friendly name.
+        </p>
+
+        <div class="modal-body">
+
+            <input
+                id="renameInput"
+                class="setting-input"
+                type="text"
+                placeholder="Office Gateway"
+                maxlength="32"
+                autocomplete="off">
+
+        </div>
+
+        <div class="modal-actions">
+
+            <button id="cancelRenameBtn" class="secondary-btn">
+                Cancel
+            </button>
+
+            <button id="saveRenameBtn" class="save-btn">
+                Save
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
