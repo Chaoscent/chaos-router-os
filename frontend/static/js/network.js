@@ -57,29 +57,10 @@ window.Page.network = {
         const gwOK = this.isIPv4(gatewayInput.value.trim());
         const dnsOK = this.isIPv4(dnsInput.value.trim());
 
-        this.setFieldState(
-            lanIpInput,
-            ipOK,
-            "Invalid IPv4 address."
-        );
-
-        this.setFieldState(
-            subnetInput,
-            maskOK,
-            "Invalid subnet mask."
-        );
-
-        this.setFieldState(
-            gatewayInput,
-            gwOK,
-            "Invalid gateway."
-        );
-
-        this.setFieldState(
-            dnsInput,
-            dnsOK,
-            "Invalid DNS server."
-        );
+        this.setFieldState(lanIpInput, ipOK, "Invalid IPv4 address.");
+        this.setFieldState(subnetInput, maskOK, "Invalid subnet mask.");
+        this.setFieldState(gatewayInput, gwOK, "Invalid gateway.");
+        this.setFieldState(dnsInput, dnsOK, "Invalid DNS server.");
 
         return ipOK && maskOK && gwOK && dnsOK;
 
@@ -160,26 +141,10 @@ window.Page.network = {
         const list = document.getElementById("pendingList");
 
         const fields = [
-            {
-                label: "LAN IP",
-                old: this.original.ip,
-                value: lanIpInput.value
-            },
-            {
-                label: "Subnet",
-                old: this.original.subnet,
-                value: subnetInput.value
-            },
-            {
-                label: "Gateway",
-                old: this.original.gateway,
-                value: gatewayInput.value
-            },
-            {
-                label: "Primary DNS",
-                old: this.original.dns,
-                value: dnsInput.value
-            }
+            { label: "LAN IP", old: this.original.ip, value: lanIpInput.value },
+            { label: "Subnet", old: this.original.subnet, value: subnetInput.value },
+            { label: "Gateway", old: this.original.gateway, value: gatewayInput.value },
+            { label: "Primary DNS", old: this.original.dns, value: dnsInput.value }
         ];
 
         list.innerHTML = "";
@@ -241,6 +206,90 @@ window.Page.network = {
 
     },
 
+    openConfirmModal() {
+
+        const modal = document.getElementById("confirmModal");
+        const body = document.getElementById("modalBody");
+
+        body.innerHTML = "";
+
+        const fields = [
+            { label: "LAN IP", old: this.original.ip, value: lanIpInput.value },
+            { label: "Subnet", old: this.original.subnet, value: subnetInput.value },
+            { label: "Gateway", old: this.original.gateway, value: gatewayInput.value },
+            { label: "Primary DNS", old: this.original.dns, value: dnsInput.value }
+        ];
+
+        for (const field of fields) {
+
+            if (field.old === field.value) continue;
+
+            body.insertAdjacentHTML("beforeend", `
+                <div class="modal-change">
+                    <label>${field.label}</label>
+                    <strong>${field.old} → ${field.value}</strong>
+                </div>
+            `);
+
+        }
+
+        modal.classList.remove("hidden");
+
+    },
+
+    closeConfirmModal() {
+
+        document.getElementById("confirmModal").classList.add("hidden");
+
+    },
+
+    async applyChangesToBackend() {
+
+        const button = document.getElementById("modalConfirm");
+
+        button.disabled = true;
+        button.textContent = "Applying...";
+
+        try {
+
+            const res = await fetch("/api/network/apply", {
+                method: "POST"
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.message || "Apply failed.");
+            }
+
+            this.closeConfirmModal();
+
+            await this.loadConfig();
+            await this.update();
+
+            const statusText = document.getElementById("pendingStatus");
+
+            if (statusText) {
+                statusText.textContent = "✓ DNS applied successfully";
+                statusText.style.color = "#8ce5aa";
+            }
+
+            pendingBar.classList.add("hidden");
+            pendingCount.textContent = "0";
+
+        } catch (err) {
+
+            alert("Apply failed:\n\n" + err.message);
+
+        } finally {
+
+            button.disabled = false;
+            button.textContent = "Apply Changes";
+
+        }
+
+    },
+
     init() {
 
         this.update();
@@ -270,12 +319,26 @@ window.Page.network = {
 
             if (!this.validate()) return;
 
-            const statusText = document.getElementById("pendingStatus");
+            this.openConfirmModal();
 
-            if (statusText) {
-                statusText.textContent = "✓ Validation passed · Ready to apply";
-                statusText.style.color = "#8ce5aa";
+        };
+
+        const modal = document.getElementById("confirmModal");
+
+        document.getElementById("modalClose").onclick = () => this.closeConfirmModal();
+        document.getElementById("modalCancel").onclick = () => this.closeConfirmModal();
+
+        modal.onclick = (e) => {
+
+            if (e.target === modal) {
+                this.closeConfirmModal();
             }
+
+        };
+
+        document.getElementById("modalConfirm").onclick = () => {
+
+            this.applyChangesToBackend();
 
         };
 

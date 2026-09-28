@@ -3,6 +3,45 @@ import socket
 
 
 # -------------------------------------------------------------------
+# Helpers
+# -------------------------------------------------------------------
+
+def run(cmd):
+    try:
+        return subprocess.check_output(cmd, text=True).strip()
+    except Exception:
+        return None
+
+
+# -------------------------------------------------------------------
+# NetworkManager
+# -------------------------------------------------------------------
+
+def has_networkmanager():
+    return run(["which", "nmcli"]) is not None
+
+
+def get_active_connection():
+    """
+    Returns the active NetworkManager profile name.
+    Example: 'Wired connection 1'
+    """
+    if not has_networkmanager():
+        return None
+
+    output = run(["nmcli", "-t", "-f", "NAME,DEVICE", "connection", "show", "--active"])
+
+    if not output:
+        return None
+
+    for line in output.splitlines():
+        if ":" in line:
+            return line.split(":", 1)[0]
+
+    return None
+
+
+# -------------------------------------------------------------------
 # Live Network Status
 # -------------------------------------------------------------------
 
@@ -13,7 +52,7 @@ def get_default_interface():
             text=True
         )
         return output.split("dev")[1].split()[0]
-    except:
+    except Exception:
         return "Unknown"
 
 
@@ -24,7 +63,7 @@ def get_gateway():
             text=True
         )
         return output.split("via")[1].split()[0]
-    except:
+    except Exception:
         return "Unknown"
 
 
@@ -34,7 +73,7 @@ def get_dns():
             for line in f:
                 if line.startswith("nameserver"):
                     return line.split()[1]
-    except:
+    except Exception:
         pass
     return "Unknown"
 
@@ -55,7 +94,7 @@ def get_ip(interface):
             ["hostname", "-I"],
             text=True
         ).split()[0]
-    except:
+    except Exception:
         return "Unknown"
 
 
@@ -63,30 +102,12 @@ def get_ip(interface):
 # LAN Configuration
 # -------------------------------------------------------------------
 
-def get_lan_config():
-    """
-    Returns the current LAN configuration.
-    This becomes the single source of truth for the Network workspace.
-    """
-
-    interface = get_default_interface()
-
-    return {
-        "interface": interface,
-        "ip": get_ip(interface),
-        "subnet": get_subnet_mask(interface),
-        "gateway": get_gateway(),
-        "dns": get_dns()
-    }
-
-
 def get_subnet_mask(interface):
     """
     Convert CIDR (/24) into a dotted subnet mask.
     """
 
     try:
-
         output = subprocess.check_output(
             ["ip", "-4", "addr", "show", interface],
             text=True
@@ -104,18 +125,26 @@ def get_subnet_mask(interface):
 
                 return socket.inet_ntoa(mask.to_bytes(4, "big"))
 
-    except:
+    except Exception:
         pass
 
     return "255.255.255.0"
 
 
-def validate_lan_config(config):
-    """
-    Validation only.
-    Applying comes in the next milestone.
-    """
+def get_lan_config():
+    interface = get_default_interface()
 
+    return {
+        "interface": interface,
+        "connection": get_active_connection(),
+        "ip": get_ip(interface),
+        "subnet": get_subnet_mask(interface),
+        "gateway": get_gateway(),
+        "dns": get_dns()
+    }
+
+
+def validate_lan_config(config):
     try:
         socket.inet_aton(config["ip"])
         socket.inet_aton(config["subnet"])
@@ -125,6 +154,49 @@ def validate_lan_config(config):
         return False, "One or more addresses are invalid."
 
     return True, "OK"
+
+
+def apply_lan_config(config, dry_run=True):
+    """
+    Safe application layer.
+
+    On WSL this stays in dry-run mode.
+    On the Raspberry Pi we'll call this with dry_run=False.
+    """
+
+    valid, message = validate_lan_config(config)
+
+    if not valid:
+        return False, message
+
+    connection = get_active_connection()
+
+    if connection is None:
+        return False, "No active NetworkManager connection."
+
+    commands = [
+        ["nmcli", "connection", "modify", connection, "ipv4.addresses", config["ip"]],
+        ["nmcli", "connection", "modify", connection, "ipv4.gateway", config["gateway"]],
+        ["nmcli", "connection", "modify", connection, "ipv4.dns", config["dns"]],
+        ["nmcli", "connection", "modify", connection, "ipv4.method", "manual"],
+        ["nmcli", "connection", "up", connection]
+    ]
+
+    if dry_run:
+        return True, {
+            "mode": "dry-run",
+            "connection": connection,
+            "commands": commands
+        }
+
+    try:
+        for cmd in commands:
+            subprocess.check_call(cmd)
+
+        return True, "Network configuration applied."
+
+    except subprocess.CalledProcessError as e:
+        return False, str(e)
 
 
 # -------------------------------------------------------------------
@@ -153,7 +225,7 @@ def get_clients():
 
             try:
                 socket.inet_aton(ip)
-            except:
+            except Exception:
                 continue
 
             interface = parts[2]
@@ -170,7 +242,7 @@ def get_clients():
                 "traffic": "--"
             })
 
-    except:
+    except Exception:
         pass
 
     return clients

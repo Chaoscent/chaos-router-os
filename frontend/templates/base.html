@@ -104,6 +104,37 @@
 
 </div>
 
+<!-- Global Confirmation Modal -->
+
+<div id="confirmModal" class="modal-overlay hidden">
+
+    <div class="modal">
+
+        <div class="modal-header">
+            <h2 id="modalTitle">Confirm Changes</h2>
+            <button id="modalClose" class="icon-btn">×</button>
+        </div>
+
+        <p id="modalSubtitle" class="modal-subtitle">
+            Review your changes before applying them.
+        </p>
+
+        <div id="modalBody" class="modal-body"></div>
+
+        <div class="modal-actions">
+            <button id="modalCancel" class="secondary-btn">
+                Cancel
+            </button>
+
+            <button id="modalConfirm" class="save-btn">
+                Apply Changes
+            </button>
+        </div>
+
+    </div>
+
+</div>
+
 <script src="{{ url_for('static', filename='js/header.js') }}"></script>
 <script src="{{ url_for('static', filename='js/router.js') }}"></script>
 

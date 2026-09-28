@@ -33,7 +33,8 @@ from services.network import (
     get_connected_clients,
     get_clients,
     get_lan_config,
-    validate_lan_config
+    validate_lan_config,
+    apply_lan_config
 )
 
 from services.modem import get_modem_data
@@ -54,10 +55,10 @@ app.secret_key = os.getenv("SECRET_KEY", "chaos-router-dev")
 
 NETWORK_PENDING = {}
 
-
 # -------------------------------------------------------------------
 # Authentication
 # -------------------------------------------------------------------
+
 
 @app.route("/")
 def home():
@@ -74,6 +75,7 @@ def login_page():
 
 @app.route("/api/login", methods=["POST"])
 def api_login():
+
     data = request.get_json()
 
     if verify_login(data["username"], data["password"]):
@@ -88,10 +90,10 @@ def logout():
     session.clear()
     return redirect(url_for("login_page"))
 
-
 # -------------------------------------------------------------------
 # SPA Fragments
 # -------------------------------------------------------------------
+
 
 VALID_PAGES = {
     "dashboard",
@@ -108,15 +110,16 @@ VALID_PAGES = {
 @app.route("/fragment/<page>")
 @login_required
 def fragment(page):
+
     if page not in VALID_PAGES:
         abort(404)
 
     return render_template(f"{page}.html")
 
-
 # -------------------------------------------------------------------
 # APIs
 # -------------------------------------------------------------------
+
 
 @app.route("/api/dashboard")
 @login_required
@@ -132,7 +135,10 @@ def dashboard_api():
         "ram": get_ram(),
         "time": get_time(),
         "clients": get_connected_clients(),
-        "active": max(1 if traffic["rx"] > 0 or traffic["tx"] > 0 else 0, 0),
+        "active": max(
+            1 if traffic["rx"] > 0 or traffic["tx"] > 0 else 0,
+            0
+        ),
         "download": traffic["rx"],
         "upload": traffic["tx"],
         "history": get_history()
@@ -142,6 +148,7 @@ def dashboard_api():
 @app.route("/api/network")
 @login_required
 def network_api():
+
     interface = get_default_interface()
 
     return jsonify({
@@ -201,6 +208,49 @@ def network_discard_api():
     return jsonify({"success": True})
 
 
+@app.route("/api/network/apply", methods=["POST"])
+@login_required
+def network_apply_api():
+
+    global NETWORK_PENDING
+
+    if not NETWORK_PENDING:
+        return jsonify({
+            "success": False,
+            "message": "No pending changes."
+        }), 400
+
+    current = get_lan_config()
+
+    # Safety: only DNS is applied for now.
+    apply_config = {
+        "ip": current["ip"],
+        "subnet": current["subnet"],
+        "gateway": current["gateway"],
+        "dns": NETWORK_PENDING["dns"]
+    }
+
+    success, result = apply_lan_config(
+        apply_config,
+        dry_run=False
+    )
+
+    if success:
+
+        NETWORK_PENDING = {}
+
+        return jsonify({
+            "success": True,
+            "message": "DNS applied successfully.",
+            "result": result
+        })
+
+    return jsonify({
+        "success": False,
+        "message": result
+    }), 500
+
+
 @app.route("/api/modem")
 @login_required
 def modem_api():
@@ -251,10 +301,10 @@ def update_hostname():
         "message": message
     }), 400
 
-
 # -------------------------------------------------------------------
 # Development
 # -------------------------------------------------------------------
+
 
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5000, debug=True)
