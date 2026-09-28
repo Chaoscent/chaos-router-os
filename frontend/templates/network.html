@@ -2,98 +2,137 @@
 
     <div class="page-header">
         <h1>Network</h1>
-        <p>Configure your router's network interfaces and LAN settings.</p>
+        <p>Configure your router's network interfaces.</p>
     </div>
 
-    <!-- Live Status -->
+    <!-- Internet Status -->
 
     <div class="card-grid">
 
         <div class="card">
-            <span>WAN Status</span>
-            <h2 id="wan" class="card-metric">--</h2>
+            <span>Internet</span>
+            <h2 id="wanStatus" class="card-metric">--</h2>
         </div>
 
         <div class="card">
-            <span>Connection Type</span>
-            <h2 id="connection" class="card-metric">--</h2>
+            <span>WAN Interface</span>
+            <h2 id="wanInterface" class="card-value">--</h2>
         </div>
 
         <div class="card">
-            <span>Primary Interface</span>
-            <h2 id="interface" class="card-value">--</h2>
+            <span>Connection</span>
+            <h2 id="wanType" class="card-value">--</h2>
         </div>
 
         <div class="card">
-            <span>Current LAN IP</span>
-            <h2 id="currentIp" class="card-value">--</h2>
+            <span>Default Gateway</span>
+            <h2 id="wanGateway" class="card-value">--</h2>
         </div>
 
     </div>
 
     <div style="margin-top:24px;"></div>
 
-    <!-- LAN Configuration -->
+    <!-- Interfaces -->
 
-    <div class="card">
+    <div id="interfaceContainer"></div>
 
-        <span>LAN Configuration</span>
+    <!-- Confirmation Modal -->
 
-        <div class="settings-grid">
+    <div id="confirmModal" class="modal hidden">
 
-            <div class="setting-field">
-                <label>LAN IP</label>
-                <input id="lanIpInput" class="setting-input" type="text">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h2>Apply Network Changes</h2>
+                <button id="modalClose" class="icon-btn">×</button>
             </div>
 
-            <div class="setting-field">
-                <label>Subnet Mask</label>
-                <input id="subnetInput" class="setting-input" type="text">
+            <div class="modal-body">
+
+                <p>You're about to apply the following changes.</p>
+
+                <div id="modalBody"></div>
+
+                <div class="modal-warning">
+                    <strong>Warning</strong>
+                    Incorrect settings may temporarily disconnect the router.
+                </div>
+
             </div>
 
-            <div class="setting-field">
-                <label>Gateway</label>
-                <input id="gatewayInput" class="setting-input" type="text">
+            <div class="modal-actions">
+
+                <button id="modalCancel" class="secondary-btn">
+                    Cancel
+                </button>
+
+                <button id="modalConfirm" class="save-btn">
+                    Apply
+                </button>
+
             </div>
-
-            <div class="setting-field">
-                <label>Primary DNS</label>
-                <input id="dnsInput" class="setting-input" type="text">
-            </div>
-
-        </div>
-
-    </div>
-
-    <div style="margin-top:18px;"></div>
-
-    <!-- Pending Changes -->
-
-    <div id="pendingBar" class="pending-bar hidden">
-
-        <div class="pending-left">
-
-            <div class="pending-info">
-                <strong id="pendingCount">0</strong>
-                <span id="pendingStatus">Pending Changes</span>
-            </div>
-
-            <div id="pendingList" class="pending-list"></div>
-
-        </div>
-
-        <div class="pending-actions">
-
-            <button id="discardChanges" class="secondary-btn">
-                Discard
-            </button>
-
-            <button id="applyChanges" class="save-btn" disabled>
-                Apply Changes
-            </button>
 
         </div>
 
     </div>
 
 </section>
+
+<!-- Interface Card -->
+
+<template id="interfaceTemplate">
+
+    <div class="card interface-card">
+
+        <div class="interface-header">
+
+            <div>
+                <h2 class="interface-name"></h2>
+                <p class="interface-type"></p>
+                <p class="interface-mode"></p>
+            </div>
+
+        </div>
+
+        <div class="settings-grid">
+
+            <div class="setting-field">
+                <label>Mode</label>
+                <select class="setting-input interface-mode-select">
+                    <option value="DHCP Client">DHCP Client</option>
+                    <option value="Static">Static</option>
+                </select>
+            </div>
+
+            <div class="setting-field">
+                <label>IP Address</label>
+                <input class="setting-input interface-ip" type="text">
+            </div>
+
+            <div class="setting-field">
+                <label>Subnet Mask</label>
+                <input class="setting-input interface-subnet" type="text">
+            </div>
+
+            <div class="setting-field">
+                <label>Gateway</label>
+                <input class="setting-input interface-gateway" type="text">
+            </div>
+
+            <div class="setting-field">
+                <label>Primary DNS</label>
+                <input class="setting-input interface-dns" type="text">
+            </div>
+
+        </div>
+
+        <div class="interface-footer">
+            <button class="save-btn interface-save" disabled>
+                Apply
+            </button>
+        </div>
+
+    </div>
+
+</template>

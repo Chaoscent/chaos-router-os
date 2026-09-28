@@ -3,7 +3,14 @@ window.Page = window.Page || {};
 window.Page.network = {
 
     timer: null,
+
+    interfaces: {},
     original: {},
+    pendingInterface: null,
+
+    // ------------------------------------------------------------
+    // Validation
+    // ------------------------------------------------------------
 
     isIPv4(value) {
 
@@ -11,9 +18,12 @@ window.Page.network = {
         if (parts.length !== 4) return false;
 
         return parts.every(part => {
+
             if (!/^\d+$/.test(part)) return false;
+
             const n = Number(part);
             return n >= 0 && n <= 255;
+
         });
 
     },
@@ -22,13 +32,11 @@ window.Page.network = {
 
         if (!this.isIPv4(value)) return false;
 
-        const parts = value.split(".").map(Number);
-
-        let bits = "";
-
-        for (const p of parts) {
-            bits += p.toString(2).padStart(8, "0");
-        }
+        const bits = value
+            .split(".")
+            .map(Number)
+            .map(n => n.toString(2).padStart(8, "0"))
+            .join("");
 
         return /^1*0*$/.test(bits);
 
@@ -41,216 +49,249 @@ window.Page.network = {
         let error = input.parentElement.querySelector(".field-error");
 
         if (!error) {
+
             error = document.createElement("div");
             error.className = "field-error";
+
             input.parentElement.appendChild(error);
+
         }
 
         error.textContent = valid ? "" : message;
 
     },
 
-    validate() {
+    validateCard(name) {
 
-        const ipOK = this.isIPv4(lanIpInput.value.trim());
-        const maskOK = this.isSubnetMask(subnetInput.value.trim());
-        const gwOK = this.isIPv4(gatewayInput.value.trim());
-        const dnsOK = this.isIPv4(dnsInput.value.trim());
+        const card = this.interfaces[name];
 
-        this.setFieldState(lanIpInput, ipOK, "Invalid IPv4 address.");
-        this.setFieldState(subnetInput, maskOK, "Invalid subnet mask.");
-        this.setFieldState(gatewayInput, gwOK, "Invalid gateway.");
-        this.setFieldState(dnsInput, dnsOK, "Invalid DNS server.");
+        if (card.mode.value === "DHCP Client" || name === "wwan0") {
 
-        return ipOK && maskOK && gwOK && dnsOK;
+            [card.ip, card.subnet, card.gateway, card.dns].forEach(field =>
+                this.setFieldState(field, true)
+            );
+
+            return true;
+
+        }
+
+        const ipOK = this.isIPv4(card.ip.value.trim());
+        const subnetOK = this.isSubnetMask(card.subnet.value.trim());
+        const gatewayOK = this.isIPv4(card.gateway.value.trim());
+        const dnsOK = this.isIPv4(card.dns.value.trim());
+
+        this.setFieldState(card.ip, ipOK, "Invalid IP.");
+        this.setFieldState(card.subnet, subnetOK, "Invalid subnet.");
+        this.setFieldState(card.gateway, gatewayOK, "Invalid gateway.");
+        this.setFieldState(card.dns, dnsOK, "Invalid DNS.");
+
+        return ipOK && subnetOK && gatewayOK && dnsOK;
 
     },
 
-    async update() {
+    // ------------------------------------------------------------
+    // Top Status
+    // ------------------------------------------------------------
+
+    async updateStatus() {
 
         const res = await fetch("/api/network");
 
         if (res.status === 401) {
+
             location.href = "/login";
             return;
+
         }
 
         const data = await res.json();
 
-        currentIp.textContent = data.ip;
-        wan.textContent = data.wan;
-        connection.textContent = data.connection;
-        interface.textContent = data.interface;
+        wanStatus.textContent = data.wan;
+        wanInterface.textContent = data.interface;
+        wanType.textContent = data.connection;
+        wanGateway.textContent = data.gateway;
 
     },
 
-    async loadConfig() {
+    // ------------------------------------------------------------
+    // Interface Cards
+    // ------------------------------------------------------------
 
-        const res = await fetch("/api/network/config");
-        const config = await res.json();
+    async loadInterfaces() {
 
-        this.original = { ...config };
+        const res = await fetch("/api/network/interfaces");
+        const interfaces = await res.json();
 
-        lanIpInput.value = config.ip;
-        subnetInput.value = config.subnet;
-        gatewayInput.value = config.gateway;
-        dnsInput.value = config.dns;
+        interfaceContainer.innerHTML = "";
 
-        const pendingRes = await fetch("/api/network/pending");
-        const pending = await pendingRes.json();
+        this.interfaces = {};
+        this.original = {};
 
-        if (Object.keys(pending).length) {
+        for (const iface of interfaces) {
 
-            lanIpInput.value = pending.ip;
-            subnetInput.value = pending.subnet;
-            gatewayInput.value = pending.gateway;
-            dnsInput.value = pending.dns;
+            this.original[iface.name] = structuredClone(iface);
+
+            const node = interfaceTemplate.content.firstElementChild.cloneNode(true);
+
+            const modeLabel = node.querySelector(".interface-mode");
+
+            node.querySelector(".interface-name").textContent = iface.name;
+            node.querySelector(".interface-type").textContent = iface.type;
+            modeLabel.textContent = iface.mode;
+
+            const mode = node.querySelector(".interface-mode-select");
+            const ip = node.querySelector(".interface-ip");
+            const subnet = node.querySelector(".interface-subnet");
+            const gateway = node.querySelector(".interface-gateway");
+            const dns = node.querySelector(".interface-dns");
+            const save = node.querySelector(".interface-save");
+
+            mode.value = iface.mode;
+            ip.value = iface.ip;
+            subnet.value = iface.subnet;
+            gateway.value = iface.gateway;
+            dns.value = iface.dns;
+
+            this.interfaces[iface.name] = {
+                node,
+                mode,
+                ip,
+                subnet,
+                gateway,
+                dns,
+                save,
+                modeLabel
+            };
+
+            const updateState = () => {
+
+                modeLabel.textContent = mode.value;
+
+                const editable = iface.name !== "wwan0" && mode.value === "Static";
+
+                mode.disabled = iface.name === "wwan0";
+
+                ip.disabled = !editable;
+                subnet.disabled = !editable;
+                gateway.disabled = !editable;
+                dns.disabled = !editable;
+
+                const changed = this.hasChanges(iface.name);
+                const valid = this.validateCard(iface.name);
+
+                save.disabled = !(changed && valid);
+
+            };
+
+            [mode, ip, subnet, gateway, dns].forEach(el => {
+
+                el.addEventListener("input", updateState);
+
+                if (el.tagName === "SELECT")
+                    el.addEventListener("change", updateState);
+
+            });
+
+            save.onclick = () => {
+
+                this.pendingInterface = iface.name;
+                this.openConfirmModal(iface.name);
+
+            };
+
+            updateState();
+
+            interfaceContainer.appendChild(node);
 
         }
 
-        this.checkChanges();
+    },
+
+    hasChanges(name) {
+
+        const o = this.original[name];
+        const c = this.interfaces[name];
+
+        return (
+            o.mode !== c.mode.value ||
+            o.ip !== c.ip.value ||
+            o.subnet !== c.subnet.value ||
+            o.gateway !== c.gateway.value ||
+            o.dns !== c.dns.value
+        );
 
     },
 
-    async stage() {
+    // ------------------------------------------------------------
+    // Confirmation Modal
+    // ------------------------------------------------------------
 
-        if (!this.validate()) return;
+    openConfirmModal(name) {
 
-        const payload = {
-            ip: lanIpInput.value.trim(),
-            subnet: subnetInput.value.trim(),
-            gateway: gatewayInput.value.trim(),
-            dns: dnsInput.value.trim()
-        };
+        modalBody.innerHTML = "";
 
-        await fetch("/api/network/stage", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(payload)
-        });
+        const o = this.original[name];
+        const c = this.interfaces[name];
 
-    },
-
-    checkChanges() {
-
-        const valid = this.validate();
-
-        const statusText = document.getElementById("pendingStatus");
-        const list = document.getElementById("pendingList");
-
-        const fields = [
-            { label: "LAN IP", old: this.original.ip, value: lanIpInput.value },
-            { label: "Subnet", old: this.original.subnet, value: subnetInput.value },
-            { label: "Gateway", old: this.original.gateway, value: gatewayInput.value },
-            { label: "Primary DNS", old: this.original.dns, value: dnsInput.value }
+        const changes = [
+            ["Mode", o.mode, c.mode.value],
+            ["IP", o.ip, c.ip.value],
+            ["Subnet", o.subnet, c.subnet.value],
+            ["Gateway", o.gateway, c.gateway.value],
+            ["DNS", o.dns, c.dns.value]
         ];
 
-        list.innerHTML = "";
+        for (const [label, oldValue, newValue] of changes) {
 
-        let changes = 0;
+            if (oldValue === newValue) continue;
 
-        for (const field of fields) {
-
-            if (field.old === field.value) continue;
-
-            changes++;
-
-            const row = document.createElement("div");
-            row.className = "pending-change";
-
-            row.innerHTML = `
-                <strong>${field.label}</strong>
-                <span class="pending-old">${field.old}</span>
-                <span class="pending-arrow">→</span>
-                <span class="pending-new">${field.value}</span>
-            `;
-
-            list.appendChild(row);
-
-        }
-
-        pendingCount.textContent = changes;
-        pendingBar.classList.toggle("hidden", changes === 0);
-
-        applyChanges.disabled = changes === 0 || !valid;
-        discardChanges.disabled = changes === 0;
-
-        if (statusText) {
-
-            if (!valid) {
-                statusText.textContent = "Fix validation errors before applying.";
-                statusText.style.color = "#ffb4b4";
-            } else {
-                statusText.textContent = "Pending Changes";
-                statusText.style.color = "";
-            }
-
-        }
-
-    },
-
-    async discard() {
-
-        await fetch("/api/network/discard", {
-            method: "POST"
-        });
-
-        lanIpInput.value = this.original.ip;
-        subnetInput.value = this.original.subnet;
-        gatewayInput.value = this.original.gateway;
-        dnsInput.value = this.original.dns;
-
-        this.checkChanges();
-
-    },
-
-    openConfirmModal() {
-
-        const modal = document.getElementById("confirmModal");
-        const body = document.getElementById("modalBody");
-
-        body.innerHTML = "";
-
-        const fields = [
-            { label: "LAN IP", old: this.original.ip, value: lanIpInput.value },
-            { label: "Subnet", old: this.original.subnet, value: subnetInput.value },
-            { label: "Gateway", old: this.original.gateway, value: gatewayInput.value },
-            { label: "Primary DNS", old: this.original.dns, value: dnsInput.value }
-        ];
-
-        for (const field of fields) {
-
-            if (field.old === field.value) continue;
-
-            body.insertAdjacentHTML("beforeend", `
+            modalBody.insertAdjacentHTML("beforeend", `
                 <div class="modal-change">
-                    <label>${field.label}</label>
-                    <strong>${field.old} → ${field.value}</strong>
+                    <label>${label}</label>
+                    <strong>${oldValue} → ${newValue}</strong>
                 </div>
             `);
 
         }
 
-        modal.classList.remove("hidden");
+        confirmModal.classList.remove("hidden");
 
     },
 
     closeConfirmModal() {
 
-        document.getElementById("confirmModal").classList.add("hidden");
+        confirmModal.classList.add("hidden");
 
     },
 
-    async applyChangesToBackend() {
+    // ------------------------------------------------------------
+    // Apply
+    // ------------------------------------------------------------
 
-        const button = document.getElementById("modalConfirm");
+    async applyChanges() {
 
-        button.disabled = true;
-        button.textContent = "Applying...";
+        const name = this.pendingInterface;
+        const card = this.interfaces[name];
+
+        modalConfirm.disabled = true;
+        modalConfirm.textContent = "Applying...";
 
         try {
+
+            await fetch("/api/network/stage", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    interface: name,
+                    mode: card.mode.value,
+                    ip: card.ip.value.trim(),
+                    subnet: card.subnet.value.trim(),
+                    gateway: card.gateway.value.trim(),
+                    dns: card.dns.value.trim()
+                })
+            });
 
             const res = await fetch("/api/network/apply", {
                 method: "POST"
@@ -258,24 +299,13 @@ window.Page.network = {
 
             const data = await res.json();
 
-            if (!res.ok) {
+            if (!res.ok)
                 throw new Error(data.message || "Apply failed.");
-            }
 
             this.closeConfirmModal();
 
-            await this.loadConfig();
-            await this.update();
-
-            const statusText = document.getElementById("pendingStatus");
-
-            if (statusText) {
-                statusText.textContent = "✓ DNS applied successfully";
-                statusText.style.color = "#8ce5aa";
-            }
-
-            pendingBar.classList.add("hidden");
-            pendingCount.textContent = "0";
+            await this.loadInterfaces();
+            await this.updateStatus();
 
         } catch (err) {
 
@@ -283,64 +313,35 @@ window.Page.network = {
 
         } finally {
 
-            button.disabled = false;
-            button.textContent = "Apply Changes";
+            modalConfirm.disabled = false;
+            modalConfirm.textContent = "Apply";
 
         }
 
     },
 
+    // ------------------------------------------------------------
+    // Lifecycle
+    // ------------------------------------------------------------
+
     init() {
 
-        this.update();
-        this.loadConfig();
+        this.updateStatus();
+        this.loadInterfaces();
 
-        this.timer = setInterval(() => this.update(), 3000);
+        this.timer = setInterval(() => this.updateStatus(), 3000);
 
-        [
-            lanIpInput,
-            subnetInput,
-            gatewayInput,
-            dnsInput
-        ].forEach(input => {
+        modalClose.onclick = () => this.closeConfirmModal();
+        modalCancel.onclick = () => this.closeConfirmModal();
 
-            input.addEventListener("input", () => {
+        confirmModal.onclick = e => {
 
-                this.checkChanges();
-                this.stage();
-
-            });
-
-        });
-
-        discardChanges.onclick = () => this.discard();
-
-        applyChanges.onclick = () => {
-
-            if (!this.validate()) return;
-
-            this.openConfirmModal();
-
-        };
-
-        const modal = document.getElementById("confirmModal");
-
-        document.getElementById("modalClose").onclick = () => this.closeConfirmModal();
-        document.getElementById("modalCancel").onclick = () => this.closeConfirmModal();
-
-        modal.onclick = (e) => {
-
-            if (e.target === modal) {
+            if (e.target === confirmModal)
                 this.closeConfirmModal();
-            }
 
         };
 
-        document.getElementById("modalConfirm").onclick = () => {
-
-            this.applyChangesToBackend();
-
-        };
+        modalConfirm.onclick = () => this.applyChanges();
 
     },
 
