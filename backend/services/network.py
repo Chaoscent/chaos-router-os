@@ -191,15 +191,22 @@ def get_gateway(interface):
     return "Unknown"
 
 
-def get_dns():
+def get_connection_dns(connection):
 
-    try:
-        with open("/etc/resolv.conf") as f:
-            for line in f:
-                if line.startswith("nameserver"):
-                    return line.split()[1]
-    except Exception:
-        pass
+    if not connection:
+        return "Unknown"
+
+    output = run([
+        "nmcli",
+        "-g",
+        "ipv4.dns",
+        "connection",
+        "show",
+        connection
+    ])
+
+    if output:
+        return output.split()[0]
 
     return "Unknown"
 
@@ -245,6 +252,8 @@ def get_interfaces():
         if run(["ip", "link", "show", interface]) is None:
             continue
 
+        connection = get_connection_for_interface(interface)
+
         if interface == "wwan0":
             mode = "DHCP"
         else:
@@ -252,13 +261,13 @@ def get_interfaces():
 
         interfaces.append({
             "name": interface,
-            "connection": get_connection_for_interface(interface),
+            "connection": connection,
             "type": get_connection_type(interface),
             "mode": mode,
             "ip": get_ip(interface),
             "subnet": get_subnet_mask(interface),
             "gateway": get_gateway(interface),
-            "dns": get_dns()
+            "dns": get_connection_dns(connection)
         })
 
     return interfaces
@@ -277,7 +286,7 @@ def get_lan_config():
         "ip": "Unknown",
         "subnet": "255.255.255.0",
         "gateway": "Unknown",
-        "dns": get_dns()
+        "dns": get_connection_dns(get_connection_for_interface("eth0"))
     }
 
 # -------------------------------------------------------------------
