@@ -5,29 +5,181 @@
         <p>System configuration and device settings.</p>
     </div>
 
-    <div class="card">
 
-        <span>Hostname</span>
+    <div class="system-sections">
 
-        <div class="setting-row">
 
-            <input
-                id="hostnameInput"
-                class="setting-input"
-                type="text"
-                placeholder="Hostname">
+        <!-- Hostname -->
 
-            <button
-                id="saveHostname"
-                class="save-btn">
-                Save
-            </button>
+        <div class="card">
+
+            <span>Hostname</span>
+
+            <div class="setting-row">
+
+                <input
+                    id="hostnameInput"
+                    class="setting-input"
+                    type="text"
+                    placeholder="Hostname">
+
+                <button
+                    id="saveHostname"
+                    class="save-btn">
+                    Save
+                </button>
+
+            </div>
+
+            <div id="hostnameStatus" class="setting-status">
+                Changes apply immediately.
+            </div>
 
         </div>
 
-        <div id="hostnameStatus" class="setting-status">
-            Changes apply immediately.
+
+        <!-- Security -->
+
+        <div class="card">
+
+            <span>Security</span>
+
+
+            <div class="setting-group">
+
+                <label for="idleTimeoutInput">
+                    Idle session timeout
+                </label>
+
+                <div class="setting-row">
+
+                    <input
+                        id="idleTimeoutInput"
+                        class="setting-input"
+                        type="number"
+                        min="1"
+                        step="1"
+                        placeholder="Default: 5 minutes">
+
+                    <span>minutes</span>
+
+                </div>
+
+            </div>
+
+
+            <div class="setting-group">
+
+                <label for="absoluteTimeoutInput">
+                    Absolute session lifetime
+                </label>
+
+                <div class="setting-row">
+
+                    <input
+                        id="absoluteTimeoutInput"
+                        class="setting-input"
+                        type="number"
+                        min="1"
+                        step="1"
+                        placeholder="Default: 1 hour">
+
+                    <span>minutes</span>
+
+                </div>
+
+            </div>
+
+
+            <div class="setting-row">
+
+                <button
+                    id="saveSecurity"
+                    class="save-btn">
+                    Save
+                </button>
+
+            </div>
+
+            <div
+                id="securityStatus"
+                class="setting-status">
+            </div>
+
         </div>
+
+
+        <!-- Change Password -->
+
+        <div class="card">
+
+            <span>Change Password</span>
+
+
+            <div class="setting-group">
+
+                <label for="currentPasswordInput">
+                    Current password
+                </label>
+
+                <input
+                    id="currentPasswordInput"
+                    class="setting-input"
+                    type="password"
+                    autocomplete="current-password">
+
+            </div>
+
+
+            <div class="setting-group">
+
+                <label for="newPasswordInput">
+                    New password
+                </label>
+
+                <input
+                    id="newPasswordInput"
+                    class="setting-input"
+                    type="password"
+                    autocomplete="new-password">
+
+            </div>
+
+
+            <div class="setting-group">
+
+                <label for="confirmPasswordInput">
+                    Confirm new password
+                </label>
+
+                <input
+                    id="confirmPasswordInput"
+                    class="setting-input"
+                    type="password"
+                    autocomplete="new-password">
+
+            </div>
+
+
+            <div class="setting-row">
+
+                <button
+                    id="changePassword"
+                    class="save-btn">
+                    Change Password
+                </button>
+
+            </div>
+
+
+            <div
+                id="passwordStatus"
+                class="setting-status">
+                Changing the password will require you to log in again.
+            </div>
+
+        </div>
+
 
     </div>
 

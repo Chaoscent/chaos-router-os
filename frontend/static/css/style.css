@@ -1478,3 +1478,39 @@ select.setting-input:disabled{
 .interface-card .chaos-select-trigger:active{
     transform:none;
 }
+
+/* ========================================================= */
+/* System Page                                                */
+/* ========================================================= */
+
+/* Keep System sections visually separated. */
+.system-sections{
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+}
+
+
+/* Remove browser number-field spinner arrows. */
+
+.setting-input[type="number"]{
+    -moz-appearance:textfield;
+    appearance:textfield;
+}
+
+.setting-input[type="number"]::-webkit-inner-spin-button,
+.setting-input[type="number"]::-webkit-outer-spin-button{
+    -webkit-appearance:none;
+    margin:0;
+}
+
+
+/* System timeout placeholders. */
+
+#idleTimeoutInput::placeholder{
+    color:var(--muted);
+}
+
+#absoluteTimeoutInput::placeholder{
+    color:var(--muted);
+}

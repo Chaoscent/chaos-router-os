@@ -11,7 +11,16 @@ from flask import (
     url_for
 )
 
-from auth import verify_login, login_required
+from auth import (
+    verify_login,
+    login_user,
+    is_logged_in,
+    login_required,
+    get_idle_timeout,
+    get_absolute_timeout,
+    set_session_timeouts,
+    change_password
+)
 
 from services.system import (
     get_hostname,
@@ -49,6 +58,7 @@ from services.config import (
     RUNTIME_DIR
 )
 
+
 app = Flask(
     __name__,
     template_folder="../frontend/templates",
@@ -57,8 +67,10 @@ app = Flask(
 
 app.secret_key = os.getenv("SECRET_KEY", "chaos-router-dev")
 
+
 # Runtime state (/tmp)
 NETWORK_PENDING_FILE = f"{RUNTIME_DIR}/network_pending.json"
+
 
 # ------------------------------------------------------------
 # Authentication
@@ -66,8 +78,10 @@ NETWORK_PENDING_FILE = f"{RUNTIME_DIR}/network_pending.json"
 
 @app.route("/")
 def home():
-    if "user" not in session:
+
+    if not is_logged_in():
         return redirect(url_for("login_page"))
+
     return render_template("base.html")
 
 
@@ -81,17 +95,29 @@ def api_login():
 
     data = request.get_json()
 
-    if verify_login(data["username"], data["password"]):
-        session["user"] = data["username"]
-        return jsonify({"success": True})
+    username = data.get("username", "")
+    password = data.get("password", "")
 
-    return jsonify({"success": False}), 401
+    if verify_login(username, password):
+
+        login_user(username)
+
+        return jsonify({
+            "success": True
+        })
+
+    return jsonify({
+        "success": False
+    }), 401
 
 
 @app.route("/logout")
 def logout():
+
     session.clear()
+
     return redirect(url_for("login_page"))
+
 
 # ------------------------------------------------------------
 # SPA Fragments
@@ -117,6 +143,7 @@ def fragment(page):
         abort(404)
 
     return render_template(f"{page}.html")
+
 
 # ------------------------------------------------------------
 # Dashboard
@@ -145,6 +172,7 @@ def dashboard_api():
         "history": get_history()
     })
 
+
 # ------------------------------------------------------------
 # Network
 # ------------------------------------------------------------
@@ -165,23 +193,24 @@ def network_api():
     })
 
 
-# NEW: interface-based API
 @app.route("/api/network/interfaces")
 @login_required
 def network_interfaces_api():
+
     return jsonify(get_interfaces())
 
 
-# Backwards compatibility
 @app.route("/api/network/config")
 @login_required
 def network_config_api():
+
     return jsonify(get_lan_config())
 
 
 @app.route("/api/network/pending")
 @login_required
 def network_pending_api():
+
     return jsonify(load_json(NETWORK_PENDING_FILE, {}))
 
 
@@ -213,7 +242,9 @@ def network_discard_api():
 
     save_json(NETWORK_PENDING_FILE, {})
 
-    return jsonify({"success": True})
+    return jsonify({
+        "success": True
+    })
 
 
 @app.route("/api/network/apply", methods=["POST"])
@@ -248,6 +279,7 @@ def network_apply_api():
         "message": result
     }), 500
 
+
 # ------------------------------------------------------------
 # Modem + Header
 # ------------------------------------------------------------
@@ -255,6 +287,7 @@ def network_apply_api():
 @app.route("/api/modem")
 @login_required
 def modem_api():
+
     return jsonify(get_modem_data())
 
 
@@ -276,6 +309,7 @@ def header_api():
         "tx": traffic["tx"]
     })
 
+
 # ------------------------------------------------------------
 # Clients
 # ------------------------------------------------------------
@@ -283,6 +317,7 @@ def header_api():
 @app.route("/api/clients")
 @login_required
 def clients_api():
+
     return jsonify(get_clients())
 
 
@@ -310,11 +345,12 @@ def client_alias():
     })
 
 
-# Old endpoint still works
 @app.route("/api/clients/rename", methods=["POST"])
 @login_required
 def rename_client():
+
     return client_alias()
+
 
 # ------------------------------------------------------------
 # System
@@ -326,9 +362,12 @@ def update_hostname():
 
     data = request.get_json()
 
-    success, message = set_hostname(data["hostname"])
+    success, message = set_hostname(
+        data["hostname"]
+    )
 
     if success:
+
         return jsonify({
             "success": True,
             "hostname": message
@@ -339,9 +378,124 @@ def update_hostname():
         "message": message
     }), 400
 
+
+@app.route("/api/system/security")
+@login_required
+def system_security():
+
+    return jsonify({
+        "idle_timeout": get_idle_timeout(),
+        "absolute_timeout": get_absolute_timeout()
+    })
+
+
+@app.route("/api/system/security", methods=["POST"])
+@login_required
+def update_security():
+
+    data = request.get_json()
+
+    idle_timeout = data.get("idle_timeout")
+    absolute_timeout = data.get("absolute_timeout")
+
+    try:
+        idle_timeout = int(idle_timeout)
+        absolute_timeout = int(absolute_timeout)
+    except (TypeError, ValueError):
+
+        return jsonify({
+            "success": False,
+            "message": "Timeout values must be numbers."
+        }), 400
+
+    if idle_timeout < 60:
+
+        return jsonify({
+            "success": False,
+            "message": "Idle timeout must be at least 1 minute."
+        }), 400
+
+    if absolute_timeout < 60:
+
+        return jsonify({
+            "success": False,
+            "message": "Absolute timeout must be at least 1 minute."
+        }), 400
+
+    if absolute_timeout < idle_timeout:
+
+        return jsonify({
+            "success": False,
+            "message": "Absolute timeout must be greater than idle timeout."
+        }), 400
+
+    set_session_timeouts(
+        idle_timeout=idle_timeout,
+        absolute_timeout=absolute_timeout
+    )
+
+    return jsonify({
+        "success": True,
+        "idle_timeout": idle_timeout,
+        "absolute_timeout": absolute_timeout
+    })
+
+
+@app.route("/api/system/password", methods=["POST"])
+@login_required
+def update_password():
+
+    data = request.get_json()
+
+    current_password = data.get(
+        "current_password",
+        ""
+    )
+
+    new_password = data.get(
+        "new_password",
+        ""
+    )
+
+    if not current_password or not new_password:
+
+        return jsonify({
+            "success": False,
+            "message": "All password fields are required."
+        }), 400
+
+    if len(new_password) < 8:
+
+        return jsonify({
+            "success": False,
+            "message": "Password must be at least 8 characters."
+        }), 400
+
+    success, message = change_password(
+        current_password,
+        new_password
+    )
+
+    if not success:
+
+        return jsonify({
+            "success": False,
+            "message": message
+        }), 400
+
+    return jsonify({
+        "success": True,
+        "message": message
+    })
+
+
 # ------------------------------------------------------------
 # Development
 # ------------------------------------------------------------
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=True
+    )
