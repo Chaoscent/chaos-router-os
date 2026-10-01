@@ -1514,3 +1514,36 @@ select.setting-input:disabled{
 #absoluteTimeoutInput::placeholder{
     color:var(--muted);
 }
+
+/* ========================================================= */
+/* System Page                                               */
+/* ========================================================= */
+
+.system-sections{
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+}
+
+.setting-group{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+}
+
+.setting-group + .setting-group{
+    margin-top:18px;
+}
+
+.setting-group .setting-row{
+    margin-top:0;
+}
+
+.system-sections .card > .setting-row{
+    margin-top:18px;
+}
+
+.system-sections .setting-status{
+    margin-top:8px;
+}
+
