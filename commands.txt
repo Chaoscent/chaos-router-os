@@ -1,0 +1,12 @@
+git clone https://github.com/chaoscent/chaos-router-os
+
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+
+
+git add .
+git commit -m ""
+git push
