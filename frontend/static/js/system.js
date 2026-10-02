@@ -16,6 +16,7 @@ window.Page.system = {
         hostnameInput.value = data.hostname;
 
         await this.loadSecurity();
+        await this.loadPing();
 
     },
 
@@ -39,6 +40,7 @@ window.Page.system = {
          * The backend still uses the default values when no custom
          * configuration exists.
          */
+
         if (
             data.idle_timeout !== null &&
             data.idle_timeout !== undefined
@@ -58,6 +60,42 @@ window.Page.system = {
         } else {
             absoluteTimeoutInput.value = "";
         }
+
+    },
+
+
+    async loadPing() {
+
+        const res = await fetch("/api/system/ping");
+
+        if (res.status === 401) {
+            location.href = "/login";
+            return;
+        }
+
+        if (!res.ok) {
+            pingStatus.textContent =
+                "Failed to load ping settings.";
+            return;
+        }
+
+        const data = await res.json();
+
+        pingEnabledInput.value =
+            data.enabled ? "true" : "false";
+
+        pingIntervalInput.value =
+            String(data.interval);
+
+        this.updatePingIntervalState();
+
+    },
+
+
+    updatePingIntervalState() {
+
+        pingIntervalInput.disabled =
+            pingEnabledInput.value !== "true";
 
     },
 
@@ -89,7 +127,8 @@ window.Page.system = {
 
         if (data.success) {
 
-            hostnameStatus.textContent = "✓ Hostname updated";
+            hostnameStatus.textContent =
+                "✓ Hostname updated";
 
             if (window.Header?.update) {
                 Header.update();
@@ -97,7 +136,8 @@ window.Page.system = {
 
         } else {
 
-            hostnameStatus.textContent = data.message;
+            hostnameStatus.textContent =
+                data.message;
 
         }
 
@@ -122,8 +162,10 @@ window.Page.system = {
             !Number.isInteger(idleMinutes) ||
             idleMinutes < 1
         ) {
+
             securityStatus.textContent =
                 "Idle timeout must be at least 1 minute.";
+
             return;
         }
 
@@ -131,14 +173,18 @@ window.Page.system = {
             !Number.isInteger(absoluteMinutes) ||
             absoluteMinutes < 1
         ) {
+
             securityStatus.textContent =
                 "Absolute timeout must be at least 1 minute.";
+
             return;
         }
 
         if (absoluteMinutes < idleMinutes) {
+
             securityStatus.textContent =
                 "Absolute timeout must be greater than idle timeout.";
+
             return;
         }
 
@@ -172,7 +218,73 @@ window.Page.system = {
         } else {
 
             securityStatus.textContent =
-                data.message || "Failed to save settings.";
+                data.message ||
+                "Failed to save settings.";
+
+        }
+
+    },
+
+
+    async savePing() {
+
+        pingStatus.textContent = "Saving...";
+
+        const enabled =
+            pingEnabledInput.value === "true";
+
+        const interval =
+            parseInt(
+                pingIntervalInput.value,
+                10
+            );
+
+        if (![5, 10, 30, 60].includes(interval)) {
+
+            pingStatus.textContent =
+                "Invalid ping interval.";
+
+            return;
+        }
+
+        const res = await fetch("/api/system/ping", {
+
+            method: "POST",
+
+            headers: {
+                "Content-Type": "application/json"
+            },
+
+            body: JSON.stringify({
+                enabled: enabled,
+                interval: interval
+            })
+
+        });
+
+        if (res.status === 401) {
+            location.href = "/login";
+            return;
+        }
+
+        const data = await res.json();
+
+        if (data.success) {
+
+            pingStatus.textContent =
+                "✓ Ping settings updated";
+
+            this.updatePingIntervalState();
+
+            if (window.Header?.loadPingConfig) {
+                Header.loadPingConfig();
+            }
+
+        } else {
+
+            pingStatus.textContent =
+                data.message ||
+                "Failed to save ping settings.";
 
         }
 
@@ -181,7 +293,8 @@ window.Page.system = {
 
     async changePassword() {
 
-        passwordStatus.textContent = "Changing password...";
+        passwordStatus.textContent =
+            "Changing password...";
 
         const currentPassword =
             currentPasswordInput.value;
@@ -215,20 +328,27 @@ window.Page.system = {
         }
 
 
-        const res = await fetch("/api/system/password", {
+        const res = await fetch(
+            "/api/system/password",
+            {
 
-            method: "POST",
+                method: "POST",
 
-            headers: {
-                "Content-Type": "application/json"
-            },
+                headers: {
+                    "Content-Type":
+                        "application/json"
+                },
 
-            body: JSON.stringify({
-                current_password: currentPassword,
-                new_password: newPassword
-            })
+                body: JSON.stringify({
+                    current_password:
+                        currentPassword,
 
-        });
+                    new_password:
+                        newPassword
+                })
+
+            }
+        );
 
 
         if (res.status === 401) {
@@ -256,7 +376,8 @@ window.Page.system = {
         } else {
 
             passwordStatus.textContent =
-                data.message || "Failed to change password.";
+                data.message ||
+                "Failed to change password.";
 
         }
 
@@ -273,17 +394,33 @@ window.Page.system = {
         };
 
 
-        hostnameInput.addEventListener("keydown", (e) => {
+        hostnameInput.addEventListener(
+            "keydown",
+            (e) => {
 
-            if (e.key === "Enter") {
-                this.save();
+                if (e.key === "Enter") {
+                    this.save();
+                }
+
             }
-
-        });
+        );
 
 
         saveSecurity.onclick = () => {
             this.saveSecurity();
+        };
+
+
+        pingEnabledInput.addEventListener(
+            "change",
+            () => {
+                this.updatePingIntervalState();
+            }
+        );
+
+
+        savePing.onclick = () => {
+            this.savePing();
         };
 
 

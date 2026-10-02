@@ -1,4 +1,6 @@
+import json
 import os
+from pathlib import Path
 
 from flask import (
     Flask,
@@ -70,6 +72,71 @@ app.secret_key = os.getenv("SECRET_KEY", "chaos-router-dev")
 
 # Runtime state (/tmp)
 NETWORK_PENDING_FILE = f"{RUNTIME_DIR}/network_pending.json"
+
+DASHBOARD_CONFIG_DIR = Path("/var/lib/chaos-router-os/config")
+DASHBOARD_CONFIG_FILE = DASHBOARD_CONFIG_DIR / "dashboard.json"
+
+DEFAULT_PING_ENABLED = False
+DEFAULT_PING_INTERVAL = 5
+VALID_PING_INTERVALS = {5, 10, 30, 60}
+
+
+def load_dashboard_config():
+    if not DASHBOARD_CONFIG_FILE.exists():
+        return {}
+
+    try:
+        with open(DASHBOARD_CONFIG_FILE) as f:
+            data = json.load(f)
+
+        if not isinstance(data, dict):
+            return {}
+
+        return data
+
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def save_dashboard_config(config):
+    DASHBOARD_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+
+    temp_file = DASHBOARD_CONFIG_FILE.with_suffix(".tmp")
+
+    with open(temp_file, "w") as f:
+        json.dump(config, f, indent=4)
+
+    temp_file.replace(DASHBOARD_CONFIG_FILE)
+
+
+def get_ping_config():
+    config = load_dashboard_config()
+
+    enabled = config.get("ping_enabled", DEFAULT_PING_ENABLED)
+    if not isinstance(enabled, bool):
+        enabled = DEFAULT_PING_ENABLED
+
+    interval = config.get("ping_interval", DEFAULT_PING_INTERVAL)
+
+    try:
+        interval = int(interval)
+    except (TypeError, ValueError):
+        interval = DEFAULT_PING_INTERVAL
+
+    if interval not in VALID_PING_INTERVALS:
+        interval = DEFAULT_PING_INTERVAL
+
+    return {
+        "enabled": enabled,
+        "interval": interval
+    }
+
+
+def set_ping_config(enabled, interval):
+    config = load_dashboard_config()
+    config["ping_enabled"] = bool(enabled)
+    config["ping_interval"] = int(interval)
+    save_dashboard_config(config)
 
 
 # ------------------------------------------------------------
@@ -302,7 +369,7 @@ def header_api():
         "network": modem["network"],
         "model": modem["model"],
         "carrier": modem["carrier"],
-        "ping": get_ping(),
+        "ping": None,
         "time": get_time(),
         "user": session["user"],
         "rx": traffic["rx"],
@@ -438,6 +505,71 @@ def update_security():
         "success": True,
         "idle_timeout": idle_timeout,
         "absolute_timeout": absolute_timeout
+    })
+
+
+@app.route("/api/system/ping")
+@login_required
+def system_ping():
+    config = get_ping_config()
+
+    return jsonify({
+        "enabled": config["enabled"],
+        "interval": config["interval"]
+    })
+
+
+@app.route("/api/system/ping", methods=["POST"])
+@login_required
+def update_ping():
+    data = request.get_json() or {}
+
+    enabled = data.get("enabled")
+    interval = data.get("interval")
+
+    if not isinstance(enabled, bool):
+        return jsonify({
+            "success": False,
+            "message": "Ping enabled value must be true or false."
+        }), 400
+
+    try:
+        interval = int(interval)
+    except (TypeError, ValueError):
+        return jsonify({
+            "success": False,
+            "message": "Ping interval must be a number."
+        }), 400
+
+    if interval not in VALID_PING_INTERVALS:
+        return jsonify({
+            "success": False,
+            "message": "Ping interval must be 5, 10, 30, or 60 seconds."
+        }), 400
+
+    set_ping_config(enabled, interval)
+
+    return jsonify({
+        "success": True,
+        "enabled": enabled,
+        "interval": interval
+    })
+
+
+@app.route("/api/system/ping/value")
+@login_required
+def system_ping_value():
+    config = get_ping_config()
+
+    if not config["enabled"]:
+        return jsonify({
+            "enabled": False,
+            "ping": None
+        })
+
+    return jsonify({
+        "enabled": True,
+        "ping": get_ping()
     })
 
 

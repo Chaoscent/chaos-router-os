@@ -109,6 +109,93 @@
         </div>
 
 
+        <!-- Ping -->
+
+        <div class="card">
+
+            <span>Ping</span>
+
+
+            <div class="setting-group">
+
+                <label for="pingEnabledInput">
+                    Ping display
+                </label>
+
+                <div class="setting-row">
+
+                    <select
+                        id="pingEnabledInput"
+                        class="setting-input">
+
+                        <option value="false">
+                            Disabled
+                        </option>
+
+                        <option value="true">
+                            Enabled
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <div class="setting-group">
+
+                <label for="pingIntervalInput">
+                    Ping interval
+                </label>
+
+                <div class="setting-row">
+
+                    <select
+                        id="pingIntervalInput"
+                        class="setting-input">
+
+                        <option value="5">
+                            5 seconds
+                        </option>
+
+                        <option value="10">
+                            10 seconds
+                        </option>
+
+                        <option value="30">
+                            30 seconds
+                        </option>
+
+                        <option value="60">
+                            60 seconds
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <div class="setting-row">
+
+                <button
+                    id="savePing"
+                    class="save-btn">
+                    Save
+                </button>
+
+            </div>
+
+            <div
+                id="pingStatus"
+                class="setting-status">
+            </div>
+
+        </div>
+
+
         <!-- Change Password -->
 
         <div class="card">
@@ -175,7 +262,7 @@
             <div
                 id="passwordStatus"
                 class="setting-status">
-                
+
             </div>
 
         </div>
