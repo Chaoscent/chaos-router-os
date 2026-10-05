@@ -284,6 +284,12 @@ from services.modem import get_modem_data
 
 from services import transaction
 
+from setup import (
+        is_setup_complete,
+        get_setup_info,
+        complete_setup
+)
+
 from security import (
         load_secret_key,
         csrf_token,
@@ -346,6 +352,42 @@ app.config.update(
 )
 
 app.jinja_env.globals["csrf_token"] = csrf_token
+
+
+@app.before_request
+def setup_gate():
+
+        # Not set up (fresh install or factory reset): only /setup works.
+        # Set up: /setup is gone.
+        path = request.path
+
+        is_setup_path = path == "/setup" or path.startswith("/api/setup/")
+
+        if is_setup_complete():
+
+                if is_setup_path:
+                        abort(404)
+
+                return None
+
+        if is_setup_path or path.startswith("/static/"):
+                return None
+
+        if path.startswith(("/api/", "/fragment/")) or request.method != "GET":
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": "The router is not set up yet. Open /setup.",
+
+                        "setup": True
+
+                }), 409
+
+        # Everything else, including captive portal checks from phones
+        # (/generate_204, /hotspot-detect.html, ...), opens the setup page.
+        return redirect("/setup")
 
 
 @app.before_request
@@ -501,6 +543,49 @@ def home():
 
 
         return render_template("base.html")
+
+
+
+
+
+@app.route("/setup")
+
+def setup_page():
+
+        return render_template("setup.html")
+
+
+
+
+
+@app.route("/api/setup/info")
+
+def setup_info_api():
+
+        return jsonify(get_setup_info())
+
+
+
+
+
+@app.route("/api/setup/complete", methods=["POST"])
+
+def setup_complete_api():
+
+        data = request.get_json(silent=True) or {}
+
+        ok, result = complete_setup(data)
+
+        if not ok:
+
+                return jsonify({"success": False, "message": result}), 400
+
+
+
+        # Signed in right away: setup ends on the dashboard.
+        login_user(result)
+
+        return jsonify({"success": True})
 
 
 

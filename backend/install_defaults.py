@@ -21,7 +21,7 @@ import app
 import auth
 
 from services import dhcp, wifi, wireguard, openvpn, routing, firewall
-from services.config import DEFAULTS_DIR, defaults_path, load_json, save_json
+from services.config import DEFAULTS_DIR, defaults_path, save_json
 
 
 def get_defaults():
@@ -35,7 +35,6 @@ def get_defaults():
     return {
         "dashboard": app.BUILTIN_DASHBOARD,
         "security": auth.BUILTIN_SECURITY,
-        "users": load_json(str(auth.BUILTIN_USERS_FILE), {}),
         "firewall": firewall.DEFAULT_SETTINGS,
         "routing": routing.DEFAULT_SETTINGS,
         "dhcp": dhcp.DEFAULT_SETTINGS,
@@ -59,8 +58,7 @@ def main():
             print(f"kept     {path}")
             continue
 
-        # The default login holds a password hash.
-        save_json(path, data, secret=name == "users")
+        save_json(path, data)
 
         print(f"written  {path}")
 

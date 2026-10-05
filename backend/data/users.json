@@ -1,5 +1,0 @@
-{
-    "admin": {
-        "password": "scrypt:32768:8:1$KfVp7S84PIl10kVy$ae27bda5bfa0c0c02e3076306ad8d0489b6a7fc3e56b86f5e27fff603e1fa2241dc40eccd923335def4aa3bc4300d39a10d6af0e8168d87d4ae216b36a84e163"
-    }
-}

@@ -1,25 +1,21 @@
 import time
-from pathlib import Path
 from functools import wraps
 
 from flask import session, redirect, url_for, request, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from services.config import (
-    load_json,
     load_defaults,
-    load_running
+    load_running,
+    load_persistent
 )
 
 from services import transaction
 
 
-# users.json: default login in /etc/chaos-router-os, changed
-# passwords in /var/lib/chaos-router-os.
+# users.json in /var/lib/chaos-router-os, created by /setup. There is
+# no default login: without an account the router is in setup mode.
 USERS = "users"
-
-# Fallback default login shipped with the code.
-BUILTIN_USERS_FILE = Path(__file__).parent / "data" / "users.json"
 
 # security.json: default timeouts in /etc/chaos-router-os,
 # the user's custom timeouts in /var/lib/chaos-router-os.
@@ -32,15 +28,9 @@ BUILTIN_SECURITY = {
 
 
 def load_users():
-    users = load_running(USERS, None)
+    users = load_running(USERS, None) or load_persistent(USERS, None)
 
-    if users:
-        return users
-
-    return (
-        load_defaults(USERS)
-        or load_json(str(BUILTIN_USERS_FILE), {})
-    )
+    return users if isinstance(users, dict) else {}
 
 
 def save_users(users):

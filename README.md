@@ -60,7 +60,7 @@ Networking-first installation.
 * Logs
 * System
 * Safe Apply (bad settings never brick the router)
-* Setup Wizard *(planned)*
+* Setup Wizard (first-time setup at `/setup`)
 * Caddy *(planned)*
 * MikroTik-style SPA navigation
 
@@ -196,7 +196,7 @@ pip install -r requirements.txt
 python backend/app.py
 ```
 
-The dashboard runs on port `5000`.
+The dashboard runs on port `5000`. There is no default login: on first start every page leads to `/setup`, where you create the admin account.
 
 Write the default settings to `/etc/chaos-router-os` (the installer will do this later):
 
@@ -251,7 +251,7 @@ A ready-made sudoers file will ship with the installer.
 | 🧪 | Logs (router events and service logs) |
 | ⬜ | Start the app at boot (systemd service) |
 | ⬜ | Installer with sudoers file |
-| ⬜ | Setup Wizard |
+| 🧪 | Setup Wizard (`/setup`: admin account, Wi-Fi; only until an account exists) |
 | ⬜ | Caddy |
 | ⬜ | Apps installer page |
 

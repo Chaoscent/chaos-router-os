@@ -251,8 +251,6 @@ def save_system(name, data, secret=False):
 # Migration from earlier locations
 # -------------------------------------------------------------------
 
-BACKEND_DIR = Path(__file__).resolve().parent.parent
-
 # (old path, new state name, holds secrets)
 LEGACY_FILES = [
     (Path(old_dir) / f"{name}.json", name, secret)
@@ -270,8 +268,7 @@ LEGACY_FILES = [
     )
 ] + [
     (STATE_DIR / "config" / "dashboard.json", "dashboard", False),
-    (DEFAULTS_DIR / "config" / "security.json", "security", False),
-    (BACKEND_DIR / "data" / "users.json", "users", True)
+    (DEFAULTS_DIR / "config" / "security.json", "security", False)
 ]
 
 

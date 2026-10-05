@@ -65,7 +65,8 @@ Without these it isn't a router yet.
   - Login: 5 failures within 15 minutes lock the client address out for 60 s, doubling up to 15 minutes; forgiven after 15 quiet minutes. Kept in memory (a restart clears it).
   - `X-Forwarded-For` is only trusted from localhost (Caddy), and its last entry is used (earlier ones can be faked by the client).
   - [ ] Once Caddy serves HTTPS: set `SESSION_COOKIE_SECURE`.
-- [ ] **No default credentials.** Remove the `backend/data/users.json` fallback. With no admin account, the router is in setup mode (see Setup Wizard).
+- [x] **No default credentials.** `backend/data/users.json` is gone, and `/etc` no longer ships a login. Without an admin account in `/var/lib`, the router is in setup mode.
+  - [ ] On routers that ran an older `install_defaults.py`, delete the stale `/etc/chaos-router-os/users.json` (no longer read).
 - [ ] **Root helper instead of a broad sudoers list.** Passwordless `cp`, `rm`, `cat`, `install` and `find` together equal full root. Replace them with one small root helper script that only accepts specific operations; sudoers allows only that script (plus the service commands that are needed).
 - [ ] **Backup encryption.** Backups contain passwords and VPN keys in plain text. Add optional password encryption.
 
@@ -130,22 +131,23 @@ Hardware Edition: show the same QR code on the OLED.
 
 ### Steps
 
-1. Admin username and password (stored as a hash).
-2. Wi-Fi country.
-3. Real Wi-Fi name and password.
-4. Optional: WAN or modem check.
-5. Finish.
+- [x] **The `/setup` page** (`backend/setup.py`, `frontend/templates/setup.html`, `frontend/static/js/setup.js`): three steps, built for phones.
+  1. Admin username and password (stored as a hash; 8+ characters, obvious ones refused).
+  2. Wi-Fi: country, network name, password (WPA2, 2.4 GHz). Optional; skipped automatically without a Wi-Fi radio.
+  3. Review, finish, signed in, on to the dashboard.
+- [ ] Optional: WAN or modem check step.
 
 ### Finishing
 
-- [ ] The setup network is replaced by the real one via `transaction.change("wifi")`. If the new network fails to start, Safe Apply reverts to the setup network instead of locking the user out.
-- [ ] The page tells the user to reconnect to the new Wi-Fi and gives the dashboard address.
-- [ ] `/setup` and `/api/setup/*` return 404 permanently.
+- [x] Wi-Fi is applied first through Safe Apply without confirmation (the browser may lose the connection). If it fails to start, it is rolled back, no account is created and the user can try again.
+- [x] The page tells the user to join the new Wi-Fi and gives the dashboard address.
+- [x] `/setup` and `/api/setup/*` return 404 once an admin account exists; a factory reset (empty `/var/lib`) brings setup back.
+- [ ] Test on the Pi 5 together with the installer's setup network.
 
 ### Fit with the existing code
 
 - **Setup mode = no admin account in `/var/lib`.** Not a separate flag file. A reboot mid-setup simply starts setup again, the same recovery idea as Safe Apply.
-- **API locked during setup.** Every route except `/setup` and `/api/setup/*` refuses requests until setup is complete.
+- **API locked during setup.** Every route except `/setup`, `/api/setup/*` and static files refuses requests (409) or redirects to `/setup` until setup is complete. Captive portal checks (`/generate_204`, `/hotspot-detect.html`, ...) redirect to `/setup` too; DNS still has to point them at the router (installer).
 
 ---
 

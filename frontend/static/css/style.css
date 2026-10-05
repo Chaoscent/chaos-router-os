@@ -2701,3 +2701,196 @@ main > *{
     font-size:12px;
     white-space:nowrap;
 }
+
+/* ========================================================= */
+/* Setup wizard (/setup)                                     */
+/* ========================================================= */
+
+.setup-body{
+    min-height:100vh;
+    overflow-y:auto;
+}
+
+.setup{
+    width:min(560px,100%);
+    margin:0 auto;
+    padding:48px 16px;
+}
+
+.setup-header{
+    margin-bottom:24px;
+    text-align:center;
+}
+
+.setup-header h1{
+    font-size:28px;
+    margin-bottom:6px;
+}
+
+.setup-header p{
+    color:var(--muted);
+}
+
+/* Step indicator */
+.setup-steps{
+    display:flex;
+    gap:8px;
+    margin-bottom:18px;
+    padding:0;
+    list-style:none;
+    counter-reset:step;
+}
+
+.setup-steps li{
+    flex:1;
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:10px 12px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    color:var(--muted);
+    font-size:14px;
+    counter-increment:step;
+}
+
+.setup-steps li::before{
+    content:counter(step);
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:22px;
+    height:22px;
+    flex-shrink:0;
+    border-radius:50%;
+    background:var(--panel2);
+    font-size:12px;
+    font-weight:700;
+}
+
+.setup-steps li.active{
+    border-color:var(--accent);
+    color:var(--text);
+}
+
+.setup-steps li.active::before{
+    background:var(--accent);
+    color:#fff;
+}
+
+.setup-steps li.done::before{
+    content:"✓";
+    background:rgba(34,197,94,.18);
+    color:#8ce5aa;
+}
+
+.setup-card{
+    padding:28px;
+}
+
+.setup-card h2{
+    font-size:22px;
+    margin-bottom:8px;
+}
+
+.setup-hint{
+    color:var(--muted);
+    line-height:1.5;
+    margin-bottom:20px;
+}
+
+.setup-field{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    margin-bottom:16px;
+}
+
+.setup-field label{
+    font-size:14px;
+    font-weight:600;
+}
+
+.setup-note{
+    color:var(--muted);
+    font-size:12px;
+}
+
+.setup-password{
+    display:flex;
+    gap:8px;
+}
+
+.setup-password .setting-input{
+    flex:1;
+    min-width:0;
+}
+
+.setup-show{
+    flex-shrink:0;
+    min-width:72px;
+}
+
+.setup-check{
+    margin-bottom:18px;
+}
+
+.setup-summary{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+    margin:16px 0 20px;
+}
+
+.setup-error{
+    margin-top:4px;
+    margin-bottom:12px;
+    padding:12px 14px;
+    background:rgba(239,68,68,.10);
+    border:1px solid rgba(239,68,68,.35);
+    border-radius:10px;
+    color:#ffb4b4;
+    line-height:1.5;
+}
+
+.setup-actions{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    margin-top:8px;
+}
+
+/* Next/Finish stays on the right when Back is hidden. */
+.setup-actions .save-btn{
+    margin-left:auto;
+}
+
+a.setup-open{
+    text-decoration:none;
+    margin-top:4px;
+}
+
+@media (max-width:640px){
+
+    .setup{
+        padding:24px 16px;
+    }
+
+    .setup-card{
+        padding:20px;
+    }
+
+    .setup-steps li{
+        justify-content:center;
+        padding:8px;
+        font-size:13px;
+    }
+
+    .setup-actions .save-btn,
+    .setup-actions .secondary-btn{
+        flex:1;
+        width:auto;
+    }
+
+}

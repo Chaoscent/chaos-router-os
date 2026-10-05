@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="csrf-token" content="{{ csrf_token() }}">
+<title>Set Up Chaos Router</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body class="setup-body">
+
+<main class="setup">
+
+    <header class="setup-header">
+        <h1>Chaos Router OS</h1>
+        <p>Let's set up your router. This takes about a minute.</p>
+    </header>
+
+    <ol class="setup-steps" aria-label="Setup steps">
+        <li data-step="1">Account</li>
+        <li data-step="2">Wi-Fi</li>
+        <li data-step="3">Finish</li>
+    </ol>
+
+    <section class="card setup-card">
+
+        <!-- Step 1: admin account -->
+
+        <div class="setup-step" data-step="1">
+
+            <h2>Create your admin account</h2>
+
+            <p class="setup-hint">
+                You sign in to this dashboard with it. There is no default
+                password, so choose one you will remember.
+            </p>
+
+            <div class="setup-field">
+                <label for="setupUsername">Username</label>
+                <input id="setupUsername" class="setting-input" value="admin"
+                       autocomplete="username" autocapitalize="off" spellcheck="false">
+            </div>
+
+            <div class="setup-field">
+                <label for="setupPassword">Password</label>
+                <div class="setup-password">
+                    <input id="setupPassword" class="setting-input" type="password"
+                           autocomplete="new-password" placeholder="At least 8 characters">
+                    <button type="button" class="secondary-btn setup-show" data-for="setupPassword">Show</button>
+                </div>
+            </div>
+
+            <div class="setup-field">
+                <label for="setupPasswordConfirm">Confirm password</label>
+                <input id="setupPasswordConfirm" class="setting-input" type="password"
+                       autocomplete="new-password">
+            </div>
+
+        </div>
+
+        <!-- Step 2: Wi-Fi -->
+
+        <div class="setup-step hidden" data-step="2">
+
+            <h2>Wi-Fi network</h2>
+
+            <div id="setupWifiForm">
+
+                <p class="setup-hint">
+                    The network your devices connect to. You can change
+                    everything later on the WiFi page.
+                </p>
+
+                <label class="modal-check setup-check">
+                    <input id="setupWifiEnabled" type="checkbox" checked>
+                    <span>Set up Wi-Fi now</span>
+                </label>
+
+                <div id="setupWifiFields">
+
+                    <div class="setup-field">
+                        <label for="setupCountry">Country</label>
+                        <select id="setupCountry" class="setting-input"></select>
+                        <small class="setup-note">Sets the radio channels and power allowed where you live.</small>
+                    </div>
+
+                    <div class="setup-field">
+                        <label for="setupSsid">Network name</label>
+                        <input id="setupSsid" class="setting-input" maxlength="32"
+                               autocapitalize="off" spellcheck="false">
+                    </div>
+
+                    <div class="setup-field">
+                        <label for="setupWifiPassword">Wi-Fi password</label>
+                        <div class="setup-password">
+                            <input id="setupWifiPassword" class="setting-input" type="password"
+                                   maxlength="63" autocomplete="new-password" placeholder="8-63 characters">
+                            <button type="button" class="secondary-btn setup-show" data-for="setupWifiPassword">Show</button>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <p id="setupNoWifi" class="setup-hint hidden">
+                No Wi-Fi radio was found, so Wi-Fi is skipped for now. You can
+                set it up later on the WiFi page.
+            </p>
+
+        </div>
+
+        <!-- Step 3: review -->
+
+        <div class="setup-step hidden" data-step="3">
+
+            <h2>Ready to go</h2>
+
+            <div id="setupSummary" class="setup-summary"></div>
+
+            <p id="setupReconnect" class="setup-hint hidden"></p>
+
+        </div>
+
+        <!-- Done -->
+
+        <div class="setup-step hidden" data-step="done">
+
+            <h2>Your router is ready</h2>
+
+            <p id="setupDoneText" class="setup-hint"></p>
+
+            <a href="/" class="save-btn setup-open">Open the dashboard</a>
+
+        </div>
+
+        <div id="setupError" class="setup-error hidden" role="alert"></div>
+
+        <div class="setup-actions">
+            <button id="setupBack" type="button" class="secondary-btn">Back</button>
+            <button id="setupNext" type="button" class="save-btn">Next</button>
+        </div>
+
+    </section>
+
+</main>
+
+<script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
+<script src="{{ url_for('static', filename='js/select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/setup.js') }}"></script>
+
+</body>
+</html>
