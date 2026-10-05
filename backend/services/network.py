@@ -1,3 +1,4 @@
+import ipaddress
 import os
 import subprocess
 import socket
@@ -824,18 +825,46 @@ DEFAULT_LAN_CONFIG = {
 def get_network_settings():
     """
     {"interfaces": {"eth0": {...}}, "eth0_role": "lan" | "wan",
-    "lan_config": {...}} from the running config. lan_config keeps
-    eth0's LAN settings while it is the WAN.
+    "lan_config": {...}, "lan": {...}} from the running config.
+    lan_config keeps eth0's LAN settings while it is the WAN; lan is
+    the LAN bridge (see LAN bridge below).
     """
 
     settings = load_settings(NETWORK, {"interfaces": {}})
 
     role = settings.get("eth0_role")
 
-    return {
+    result = {
         "interfaces": dict(settings.get("interfaces") or {}),
         "eth0_role": role if role in ETH0_ROLES else "lan",
         "lan_config": settings.get("lan_config") or None
+    }
+
+    result["lan"] = _lan_settings(settings.get("lan"), result)
+
+    return result
+
+
+def _lan_settings(lan, settings):
+    """
+    The LAN bridge settings. Off until switched on from the Network
+    page; the address is prefilled from eth0's LAN settings.
+    """
+
+    lan = lan if isinstance(lan, dict) else {}
+
+    eth0 = settings["interfaces"].get(ETH0) or {}
+
+    source = (
+        settings["lan_config"]
+        or (eth0 if settings["eth0_role"] == "lan" and eth0.get("mode") == "Static" else None)
+        or DEFAULT_LAN_CONFIG
+    )
+
+    return {
+        "bridge": lan.get("bridge") is True,
+        "ip": lan.get("ip") or source["ip"],
+        "subnet": lan.get("subnet") or source["subnet"]
     }
 
 
@@ -855,6 +884,53 @@ def get_wan_interface():
 def is_wan_interface(name):
 
     return name == get_wan_interface()
+
+
+# Interfaces that can serve the LAN: Ethernet (eth0, enx... USB
+# adapters), Wi-Fi (wlan0, wlan1, ...) and bridges. The modem (wwan*),
+# VPN tunnels and loopback never do.
+LAN_PREFIXES = ("eth", "en", "wlan", "wl", "br")
+
+INTERFACE_NAME_RE = re.compile(r"^[A-Za-z0-9_.-]{1,15}$")
+
+
+def is_lan_capable(name):
+    """
+    Whether this kind of interface can serve a LAN at all, by name
+    (it does not have to exist right now, e.g. an unplugged USB Wi-Fi
+    adapter). eth0 counts even while it is the WAN.
+    """
+
+    name = str(name or "")
+
+    return bool(INTERFACE_NAME_RE.fullmatch(name)) and name.startswith(LAN_PREFIXES)
+
+
+def is_lan_name(name):
+    """
+    Whether this interface serves the LAN right now: LAN-capable and
+    not the WAN.
+    """
+
+    return is_lan_capable(name) and not is_wan_interface(name)
+
+
+def get_lan_interface_names():
+    """
+    LAN interfaces that exist now, e.g. ["eth0", "wlan0", "wlan1"].
+    eth0 drops out while it is the WAN.
+    """
+
+    try:
+        names = sorted(os.listdir("/sys/class/net"))
+    except OSError:
+        return []
+
+    # Bridge ports are served through their bridge (br0).
+    return [
+        name for name in names
+        if is_lan_name(name) and not get_bridge_master(name)
+    ]
 
 
 def get_network_baseline():
@@ -892,7 +968,45 @@ def apply_network_settings():
 
     settings = get_network_settings()
 
+    bridged = settings["lan"]["bridge"]
+
+    # eth0 is a bridge port while it is a LAN port and the bridge is on;
+    # then it has no address of its own.
+    eth0_in_bridge = bridged and settings["eth0_role"] == "lan"
+
+    if bridged:
+
+        ok, result = apply_lan_bridge(settings["lan"])
+
+        if not ok:
+            return False, f"LAN bridge: {result}"
+
+    if eth0_in_bridge:
+
+        ok, result = add_bridge_port(ETH0)
+
+        if not ok:
+            return False, f"{ETH0}: {result}"
+
+    else:
+
+        # Back to eth0's own connection (WAN, or LAN without bridge).
+        ok, result = remove_bridge_port(ETH0)
+
+        if not ok:
+            return False, f"{ETH0}: {result}"
+
+    if not bridged:
+
+        ok, result = remove_lan_bridge()
+
+        if not ok:
+            return False, f"LAN bridge: {result}"
+
     for name, config in settings["interfaces"].items():
+
+        if name == ETH0 and eth0_in_bridge:
+            continue
 
         role = settings["eth0_role"] if name == ETH0 else "lan"
 
@@ -902,6 +1016,222 @@ def apply_network_settings():
             return False, f"{name}: {result}"
 
     return True, "Network configuration applied."
+
+
+# -------------------------------------------------------------------
+# LAN bridge (br0)
+#
+# One LAN for all ports: br0 holds the router's LAN address; eth0 (in
+# LAN mode) is a port through NetworkManager, Wi-Fi access points
+# join through hostapd (bridge=br0). DHCP, DNS and the firewall then
+# serve br0. Off by default: switching it on moves eth0's address.
+# -------------------------------------------------------------------
+
+BRIDGE = "br0"
+
+BRIDGE_CONNECTION = "chaos-lan"
+
+PORT_CONNECTION_PREFIX = "chaos-lan-"
+
+
+def _connection_names():
+
+    output = run(["nmcli", "-t", "-f", "NAME", "connection", "show"])
+
+    return set((output or "").splitlines())
+
+
+def _nmcli(*args):
+
+    return run_command(["nmcli", *args])
+
+
+def apply_lan_bridge(lan):
+    """
+    Creates or updates the br0 connection with the LAN address and
+    brings it up.
+    """
+
+    ok, message = require_networkmanager()
+
+    if not ok:
+        return False, message
+
+    address = f"{lan['ip']}/{mask_to_cidr(lan['subnet'])}"
+
+    properties = [
+        "ipv4.method", "manual",
+        "ipv4.addresses", address,
+        "ipv4.gateway", "",
+        # The LAN never carries the internet route.
+        "ipv4.never-default", "yes",
+        "ipv6.method", "link-local",
+        "bridge.stp", "no",
+        "connection.autoconnect", "yes"
+    ]
+
+    if BRIDGE_CONNECTION in _connection_names():
+        ok, result = _nmcli("connection", "modify", BRIDGE_CONNECTION, *properties)
+    else:
+        ok, result = _nmcli(
+            "connection", "add", "type", "bridge",
+            "ifname", BRIDGE, "con-name", BRIDGE_CONNECTION, *properties
+        )
+
+    if not ok:
+        return False, result
+
+    return _nmcli("connection", "up", BRIDGE_CONNECTION)
+
+
+def remove_lan_bridge():
+
+    if not has_networkmanager() or BRIDGE_CONNECTION not in _connection_names():
+        return True, "OK"
+
+    return _nmcli("connection", "delete", BRIDGE_CONNECTION)
+
+
+def add_bridge_port(interface):
+    """
+    Makes an Ethernet interface a port of br0. Activating the port
+    connection takes the interface's own connection down.
+    """
+
+    name = PORT_CONNECTION_PREFIX + interface
+
+    if name not in _connection_names():
+
+        ok, result = _nmcli(
+            "connection", "add", "type", "ethernet",
+            "ifname", interface, "con-name", name,
+            "master", BRIDGE, "slave-type", "bridge",
+            "connection.autoconnect", "yes",
+            # Preferred over the interface's own connection at boot.
+            "connection.autoconnect-priority", "50"
+        )
+
+        if not ok:
+            return False, result
+
+    return _nmcli("connection", "up", name)
+
+
+def remove_bridge_port(interface):
+    """
+    Takes an interface out of br0 and brings its own connection back.
+    """
+
+    name = PORT_CONNECTION_PREFIX + interface
+
+    if not has_networkmanager() or name not in _connection_names():
+        return True, "OK"
+
+    ok, result = _nmcli("connection", "delete", name)
+
+    if not ok:
+        return False, result
+
+    # NetworkManager picks the interface's own connection again.
+    return _nmcli("device", "connect", interface)
+
+
+def get_bridge_master(interface):
+    """
+    The bridge an interface is a port of (e.g. "br0"), or None.
+    """
+
+    try:
+        return os.path.basename(os.readlink(f"/sys/class/net/{interface}/master"))
+    except OSError:
+        return None
+
+
+def effective_interface(interface):
+    """
+    Where an interface's traffic is actually seen: a bridge port's
+    traffic arrives on the bridge, so DHCP and DNS must serve that.
+    """
+
+    return get_bridge_master(interface) or interface
+
+
+def get_bridge_ports(bridge=BRIDGE):
+
+    try:
+        return sorted(os.listdir(f"/sys/class/net/{bridge}/brif"))
+    except OSError:
+        return []
+
+
+def validate_lan_bridge(data):
+    """
+    Returns (True, lan settings) or (False, message).
+    """
+
+    lan = dict(get_network_settings()["lan"])
+    lan.update(data or {})
+
+    if not isinstance(lan.get("bridge"), bool):
+        return False, "Invalid bridge setting."
+
+    if not _valid_ipv4(lan.get("ip")):
+        return False, "Invalid IP address."
+
+    if not _valid_ipv4(lan.get("subnet")):
+        return False, "Invalid subnet mask."
+
+    try:
+
+        bits = "".join(bin(int(o))[2:].zfill(8) for o in lan["subnet"].split("."))
+
+        if not re.match(r"^1*0*$", bits):
+            raise ValueError
+
+        prefix = bits.count("1")
+
+    except ValueError:
+        return False, "Invalid subnet mask."
+
+    if not 8 <= prefix <= 30:
+        return False, "Subnet mask must be between /8 and /30."
+
+    network = ipaddress.IPv4Interface(f"{lan['ip']}/{prefix}").network
+
+    if lan["ip"] in (str(network.network_address), str(network.broadcast_address)):
+        return False, f"{lan['ip']} is the network or broadcast address of {network}."
+
+    return True, {"bridge": lan["bridge"], "ip": lan["ip"], "subnet": lan["subnet"]}
+
+
+def set_lan_bridge(data):
+
+    ok, result = validate_lan_bridge(data)
+
+    if not ok:
+        return transaction.result(False, result)
+
+    settings = get_network_settings()
+    settings["lan"] = result
+
+    return transaction.change(
+        NETWORK, settings,
+        hint=f"If this page stops responding, open http://{result['ip']}/ to confirm."
+    )
+
+
+def get_lan_bridge_status():
+
+    settings = get_network_settings()
+
+    return {
+        "settings": settings["lan"],
+        "eth0_role": settings["eth0_role"],
+        "active": os.path.exists(f"/sys/class/net/{BRIDGE}"),
+        "ports": get_bridge_ports(),
+        "address": get_ip(BRIDGE),
+        "eth0_address": get_ip(ETH0)
+    }
 
 
 def change_interface(config):

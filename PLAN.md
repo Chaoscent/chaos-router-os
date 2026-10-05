@@ -51,7 +51,9 @@ Without these it isn't a router yet.
 ## 1b. Website before v1
 
 - [x] **Mobile layout.** Below 900 px the sidebar is a slide-in menu (☰ button in the header; closes on a page pick, a tap outside or Escape). 16 px side gutter on phones; tables scroll inside their card; dashboard numbers two per row. All pages fit a 390 px wide phone without sideways scrolling.
-- [ ] **Reboot and factory reset** on the System page. Factory reset = delete `/var/lib/chaos-router-os` (after offering a backup download) and reboot: the router comes back on the `/etc` defaults. Both behind a confirmation dialog.
+- [x] **Reboot** on the System page ("Power" card): confirmation (warns about unconfirmed changes, which a reboot reverts), `systemctl reboot` via sudo two seconds after answering, then the page waits for the router to go down and come back and reloads. Refused with a clear message when sudo does not allow it. Logged in the event log.
+  - [ ] Test on the Pi 5.
+- [ ] **Factory reset** (placeholder button on the System page): delete `/var/lib/chaos-router-os` (after offering a backup download) and reboot; the router comes back on the `/etc` defaults and opens `/setup`. Behind a confirmation that asks for the password.
 - [ ] **Version and updates** on the System page: show the installed version, check for a newer release, and start the updater (see Updater). Needs a version source (e.g. a `VERSION` file written by the installer).
 
 ---
@@ -77,6 +79,11 @@ Without these it isn't a router yet.
 - [ ] **Wi-Fi country.** Pi OS keeps Wi-Fi rfkill-blocked until a country is set. The installer sets a first value; the Setup Wizard and WiFi page set the real one.
 - [ ] **IPv6.** Nothing handles it yet (router advertisements, DHCPv6, forwarding). IPv6 forwarding is deliberately left off: turning it on makes the kernel ignore router advertisements, which can cut off the modem's IPv6.
 - [ ] **DNS local domain.** Changing the local domain only takes effect after the DNS settings are saved again.
+- [x] **LAN bridge (`br0`)** for one LAN across Ethernet and Wi-Fi: "LAN" card on the Network page (off by default, Safe Apply with confirmation). NetworkManager runs `br0` (connection `chaos-lan`) with the router's LAN address; eth0 in LAN mode is a port (`chaos-lan-eth0`) and leaves it in WAN mode; the access point joins via hostapd `bridge=br0`. DHCP/DNS settings that name a port are served on `br0`; bridge ports drop out of the LAN interface list.
+  - [ ] Test on the Pi 5: bridge with eth0 + wlan1 (6 GHz), DHCP on br0, Wi-Fi clients get addresses, revert and reboot.
+  - [ ] Without the bridge, an access point still has no address (DHCP refuses it). Turn the bridge on in the Setup Wizard / installer defaults, or warn on the WiFi page when the bridge is off.
+  - [ ] Only one access point at a time (one hostapd config). Running wlan0 (2.4/5 GHz) and wlan1 (6 GHz) together needs one hostapd instance per radio.
+- [x] LAN interfaces are detected instead of a fixed list (eth0, wlan0, br0): every Ethernet (`eth*`, `en*`), Wi-Fi (`wlan*`, `wl*`) and bridge (`br*`) interface except the WAN. DHCP, DNS and the firewall's essential rules now include extra adapters like wlan1.
 - [ ] **Apps page.** Still a placeholder. Hide it or label it "coming in v2" before v1.
 - [ ] **Active Clients is not a real count.** The dashboard shows 1 whenever there is any traffic. Count clients that sent traffic recently instead (per-client counters, e.g. from the neighbour table plus iptables accounting or conntrack).
 - [ ] **OpenVPN on slower CPUs.** Consider putting `CHACHA20-POLY1305` first in `CIPHERS`; it's faster than AES on a Pi 4, which lacks AES instructions.

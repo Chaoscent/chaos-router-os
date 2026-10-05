@@ -8,7 +8,8 @@ from services.network import (
     run,
     run_command,
     privileged,
-    get_wan_interface
+    get_wan_interface,
+    get_lan_interface_names
 )
 
 from services.config import (
@@ -34,12 +35,6 @@ UFW_SEARCH_PATH = os.pathsep.join([
     "/usr/sbin",
     "/sbin"
 ])
-
-LAN_INTERFACES = (
-    "eth0",
-    "wlan0",
-    "br0"
-)
 
 ACTIONS = ("allow", "deny", "reject", "limit")
 DIRECTIONS = ("in", "out")
@@ -746,16 +741,11 @@ def verify_firewall():
 
 def get_lan_interfaces():
     """
-    LAN interfaces that exist now; eth0 drops out in WAN mode.
+    LAN interfaces that exist now (eth0, wlan0, wlan1, ...); eth0
+    drops out in WAN mode.
     """
 
-    interfaces = get_interfaces()
-    wan = get_wan_interface()
-
-    return [
-        name for name in LAN_INTERFACES
-        if name in interfaces and name != wan
-    ]
+    return get_lan_interface_names()
 
 
 def get_essential_rules():

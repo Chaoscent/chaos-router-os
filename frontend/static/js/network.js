@@ -7,7 +7,12 @@ window.Page.network = {
     original: {},
     pendingInterface: null,
     pendingRole: null,
+    pendingLan: null,
     eth0Role: "lan",
+
+    // LAN bridge status from /api/network/lan, and the edited values.
+    lan: null,
+    lanBridgeDraft: false,
     outsideClickHandler: null,
 
     // Editable network fields: card key, error message, validator.
@@ -289,6 +294,7 @@ window.Page.network = {
             if (data.eth0_role && data.eth0_role !== this.eth0Role) {
                 this.eth0Role = data.eth0_role;
                 this.renderRoleToggle();
+                this.updateEth0BridgeState();
             }
 
         } catch (err) {
@@ -424,6 +430,9 @@ window.Page.network = {
 
             }
 
+            // Cards are rebuilt: lock eth0 again while it is a bridge port.
+            this.updateEth0BridgeState();
+
         } catch (err) {
 
             console.error("Failed to load network interfaces:", err);
@@ -485,6 +494,7 @@ window.Page.network = {
         }
 
         this.pendingRole = null;
+        this.pendingLan = null;
 
         this.$("networkModalTitle").textContent = "Apply Network Changes";
         this.$("networkModalIntro").textContent =
@@ -539,6 +549,9 @@ window.Page.network = {
 
         if (this.pendingRole)
             return this.applyRole();
+
+        if (this.pendingLan)
+            return this.applyLan();
 
         const name = this.pendingInterface;
         const card = name && this.interfaces[name];
@@ -636,7 +649,7 @@ window.Page.network = {
 
     renderRoleToggle(root = document) {
 
-        root.querySelectorAll(".role-option").forEach(button => {
+        root.querySelectorAll(".role-option[data-role]").forEach(button => {
 
             const active = button.dataset.role === this.eth0Role;
 
@@ -657,6 +670,7 @@ window.Page.network = {
         const body = this.$("modalBody");
 
         this.pendingRole = role;
+        this.pendingLan = null;
         this.pendingInterface = null;
 
         this.$("networkModalTitle").textContent =
@@ -740,13 +754,252 @@ window.Page.network = {
     },
 
     // ------------------------------------------------------------
+    // LAN bridge (br0)
+    // ------------------------------------------------------------
+
+    async loadLan() {
+
+        const res = await this.get("/api/network/lan");
+
+        if (!res || !res.ok)
+            return;
+
+        this.lan = await res.json();
+        this.lanBridgeDraft = this.lan.settings.bridge;
+
+        this.$("lanIpInput").value = this.lan.settings.ip;
+        this.$("lanSubnetInput").value = this.lan.settings.subnet;
+
+        this.renderLan();
+        this.updateEth0BridgeState();
+
+    },
+
+    lanChanged() {
+
+        const s = this.lan?.settings;
+
+        return !!s && (
+            this.lanBridgeDraft !== s.bridge
+            || this.$("lanIpInput").value.trim() !== s.ip
+            || this.$("lanSubnetInput").value.trim() !== s.subnet
+        );
+
+    },
+
+    renderLan() {
+
+        if (!this.lan)
+            return;
+
+        document.querySelectorAll(".lan-bridge-card .role-option").forEach(button => {
+            const active = button.dataset.bridge === String(this.lanBridgeDraft);
+            button.classList.toggle("active", active);
+            button.setAttribute("aria-pressed", String(active));
+        });
+
+        this.$("lanBridgeInfo").textContent = this.lanBridgeDraft
+            ? "Ethernet and Wi-Fi share one network and one DHCP range."
+            : "Each port works on its own; Wi-Fi gets no LAN address.";
+
+        const ip = this.$("lanIpInput");
+        const subnet = this.$("lanSubnetInput");
+
+        ip.disabled = subnet.disabled = !this.lanBridgeDraft;
+
+        const ipOk = this.isIPv4(ip.value.trim());
+        const subnetOk = this.isSubnetMask(subnet.value.trim());
+
+        this.setFieldState(ip, !this.lanBridgeDraft || ipOk, "Invalid IP.");
+        this.setFieldState(subnet, !this.lanBridgeDraft || subnetOk, "Invalid subnet.");
+
+        const { active, ports, address } = this.lan;
+
+        this.$("lanBridgeStatus").textContent = active
+            ? `br0 is up${address && address !== "Unknown" ? ` at ${address}` : ""}. Ports: ${ports.length ? ports.join(", ") : "none yet"}.`
+            : this.lan.settings.bridge ? "br0 is not up yet." : "";
+
+        this.$("lanBridgeApply").disabled =
+            !this.lanChanged() || (this.lanBridgeDraft && !(ipOk && subnetOk));
+
+    },
+
+    /** eth0 has no address of its own while it is a bridge port. */
+    updateEth0BridgeState() {
+
+        const card = this.interfaces.eth0;
+
+        if (!card || !this.lan)
+            return;
+
+        const bridged = this.lan.settings.bridge && this.eth0Role === "lan";
+
+        let note = card.node.querySelector(".bridge-note");
+
+        if (bridged && !note) {
+            note = document.createElement("p");
+            note.className = "bridge-note";
+            note.textContent = "Port of the LAN bridge (br0). Its address is set in the LAN card below.";
+            card.node.querySelector(".interface-header > div").appendChild(note);
+        }
+
+        if (!bridged && note)
+            note.remove();
+
+        card.node.classList.toggle("bridged", bridged);
+
+        card.mode.disabled = bridged;
+        this.FIELDS.forEach(({ key }) => { card[key].disabled = bridged || card[key].disabled; });
+
+        const trigger = card.node.querySelector(".chaos-select-trigger");
+
+        if (trigger)
+            trigger.disabled = bridged;
+
+        if (bridged)
+            card.save.disabled = true;
+
+    },
+
+    openLanModal() {
+
+        const modal = this.$("confirmModal");
+        const body = this.$("modalBody");
+
+        const lan = {
+            bridge: this.lanBridgeDraft,
+            ip: this.$("lanIpInput").value.trim(),
+            subnet: this.$("lanSubnetInput").value.trim()
+        };
+
+        this.pendingLan = lan;
+        this.pendingRole = null;
+        this.pendingInterface = null;
+
+        const wasOn = this.lan.settings.bridge;
+        const eth0Joins = this.eth0Role === "lan";
+        const eth0Address = this.lan.eth0_address;
+
+        this.$("networkModalTitle").textContent =
+            !lan.bridge ? "Turn off the LAN bridge" :
+            wasOn ? "Change the LAN address" : "Turn on the LAN bridge";
+
+        this.$("networkModalIntro").textContent = lan.bridge
+            ? `The router's LAN address becomes ${lan.ip}. Devices get addresses in this network from DHCP.`
+            : "Ethernet and Wi-Fi go back to working on their own.";
+
+        const rows = lan.bridge
+            ? [
+                ["LAN (br0)", `${lan.ip} / ${lan.subnet}`],
+                ["eth0", eth0Joins
+                    ? `joins br0${eth0Address && eth0Address !== "Unknown" && !wasOn ? ` (drops ${eth0Address})` : ""}`
+                    : "stays the WAN"],
+                ["Wi-Fi access point", "joins br0"],
+                ["DHCP / DNS", "served on br0"]
+            ]
+            : [
+                ["eth0", "gets its own connection back"],
+                ["Wi-Fi access point", "leaves br0"],
+                ["br0", "removed"]
+            ];
+
+        body.innerHTML = "";
+
+        for (const [label, value] of rows) {
+
+            const row = document.createElement("div");
+            row.className = "modal-change";
+
+            const labelElement = document.createElement("label");
+            labelElement.textContent = label;
+
+            const valueElement = document.createElement("strong");
+            valueElement.textContent = value;
+
+            row.append(labelElement, valueElement);
+            body.appendChild(row);
+
+        }
+
+        if (lan.bridge && eth0Joins && !wasOn) {
+
+            const warning = document.createElement("p");
+            warning.className = "modal-note";
+            warning.textContent = "If eth0 is plugged into another router (your home network), switch eth0 to WAN first, or this connection will drop.";
+            body.appendChild(warning);
+
+        }
+
+        modal.classList.remove("hidden");
+
+    },
+
+    async applyLan() {
+
+        const lan = this.pendingLan;
+        const modalConfirm = this.$("modalConfirm");
+
+        modalConfirm.disabled = true;
+        modalConfirm.textContent = "Applying...";
+
+        try {
+
+            await this.post("/api/network/lan", lan, "Failed to apply the LAN settings.");
+
+            this.pendingLan = null;
+
+            this.closeConfirmModal();
+
+            await this.loadInterfaces();
+            await this.loadLan();
+            await this.updateStatus();
+
+        } catch (err) {
+
+            console.error("LAN bridge apply failed:", err);
+
+            alert("Apply failed:\n\n" + err.message);
+
+        } finally {
+
+            modalConfirm.disabled = false;
+            modalConfirm.textContent = "Apply";
+
+        }
+
+    },
+
+    initLan() {
+
+        document.querySelectorAll(".lan-bridge-card .role-option").forEach(button => {
+            button.addEventListener("click", event => {
+                event.preventDefault();
+                this.lanBridgeDraft = button.dataset.bridge === "true";
+                this.renderLan();
+            });
+        });
+
+        ["lanIpInput", "lanSubnetInput"].forEach(id => {
+            this.$(id).addEventListener("input", () => this.renderLan());
+        });
+
+        this.$("lanBridgeApply").addEventListener("click", event => {
+            event.preventDefault();
+            if (!this.$("lanBridgeApply").disabled) this.openLanModal();
+        });
+
+        this.loadLan();
+
+    },
+
+    // ------------------------------------------------------------
     // Lifecycle
     // ------------------------------------------------------------
 
     init() {
 
         this.updateStatus();
-        this.loadInterfaces();
+        this.loadInterfaces().then(() => this.initLan());
 
         this.timer = setInterval(() => this.updateStatus(), 3000);
 

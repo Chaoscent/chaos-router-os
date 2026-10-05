@@ -172,6 +172,18 @@ def _validate_network(data):
 
     result = {"interfaces": cleaned, "eth0_role": role}
 
+    if "lan" in data:
+
+        from services.network import validate_lan_bridge
+
+        _require(isinstance(data["lan"], dict), "Invalid LAN bridge settings.")
+
+        ok, lan = validate_lan_bridge(data["lan"])
+
+        _require(ok, f"LAN bridge: {lan}")
+
+        result["lan"] = lan
+
     lan = data.get("lan_config")
 
     if lan:

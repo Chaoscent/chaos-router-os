@@ -1,8 +1,13 @@
 import os
+import shutil
 import socket
 import subprocess
+import threading
+import time
 import psutil
 from datetime import datetime
+
+from services.network import privileged, run_command
 
 
 def get_hostname():
@@ -98,6 +103,19 @@ def get_ram():
     return f"{psutil.virtual_memory().percent:.1f}%"
 
 
+# Primes psutil: the first non-blocking reading is always 0.
+psutil.cpu_percent(interval=None)
+
+
+def get_cpu_load():
+    """
+    CPU load in % across all cores since the previous call (the
+    dashboard asks every second), without blocking the request.
+    """
+
+    return f"{psutil.cpu_percent(interval=None):.0f}%"
+
+
 def get_time():
     return datetime.now().strftime("%H:%M:%S")
 
@@ -128,3 +146,61 @@ def get_ping(destination="1.1.1.1"):
 
     except Exception:
         return "-- ms"
+
+# -------------------------------------------------------------------
+# Reboot
+# -------------------------------------------------------------------
+
+# Time for the browser to receive the answer before the router goes down.
+REBOOT_DELAY = 2
+
+
+def can_reboot():
+    """
+    (True, "OK") or (False, why): systemd is there and the app may run
+    `systemctl reboot` (as root or through passwordless sudo).
+    """
+
+    if not shutil.which("systemctl"):
+        return False, "systemctl is not available."
+
+    if os.geteuid() == 0:
+        return True, "OK"
+
+    # Lists the permission without running anything.
+    ok, _ = run_command(["sudo", "-n", "-l", "systemctl", "reboot"])
+
+    if not ok:
+        return False, "The app is not allowed to reboot (passwordless sudo for systemctl is missing)."
+
+    return True, "OK"
+
+
+def reboot_system():
+    """
+    Reboots after REBOOT_DELAY seconds, so the request can still be
+    answered. Unconfirmed changes are reverted by the reboot, because
+    the running config is rebuilt from /var/lib.
+    Returns (success, message).
+    """
+
+    ok, message = can_reboot()
+
+    if not ok:
+        return False, message
+
+    def reboot_later():
+
+        time.sleep(REBOOT_DELAY)
+
+        ok, result = run_command(privileged(["systemctl", "reboot"]))
+
+        if not ok:
+
+            from services.logs import log_event
+
+            log_event("system", f"Reboot failed: {result}", "error")
+
+    threading.Thread(target=reboot_later, name="reboot", daemon=True).start()
+
+    return True, "The router is rebooting."

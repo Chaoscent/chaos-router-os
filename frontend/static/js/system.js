@@ -633,6 +633,95 @@ window.Page.system = {
     },
 
 
+    // ------------------------------------------------------------
+    // Reboot
+    // ------------------------------------------------------------
+
+    async reboot() {
+
+        // A reboot reverts changes that wait for confirmation.
+        const pending = window.ChaosApply?.pending;
+
+        const confirmed = await ChaosModal.confirm({
+            title: "Reboot the router?",
+            subtitle: pending
+                ? "Unconfirmed changes (" + pending.areas.map(a => a.label).join(", ") + ") will be reverted. Devices lose their connection for about a minute."
+                : "Devices lose their connection for about a minute.",
+            confirmText: "Reboot"
+        });
+
+        if (!confirmed) return;
+
+        rebootButton.disabled = true;
+        rebootStatus.textContent = "Rebooting...";
+
+        let data = {};
+
+        try {
+
+            const res = await fetch("/api/system/reboot", { method: "POST" });
+
+            data = await res.json();
+
+            if (!res.ok || !data.success) {
+                rebootButton.disabled = false;
+                rebootStatus.textContent = data.message || "The router could not be rebooted.";
+                return;
+            }
+
+        } catch {
+            // The router may already be going down.
+        }
+
+        this.waitForRouter();
+
+    },
+
+    /** Waits until the router is gone and back, then reloads. */
+    async waitForRouter() {
+
+        const started = Date.now();
+        let wentDown = false;
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        while (Date.now() - started < 5 * 60 * 1000) {
+
+            await sleep(3000);
+
+            const seconds = Math.round((Date.now() - started) / 1000);
+
+            let up = false;
+
+            try {
+                const res = await fetch("/login", { cache: "no-store" });
+                up = res.ok || res.redirected;
+            } catch {
+                up = false;
+            }
+
+            if (!up) wentDown = true;
+
+            // Back after going down (or still up after 40 s: reloaded fast).
+            if (up && (wentDown || seconds > 40)) {
+                rebootStatus.textContent = "The router is back. Reloading...";
+                await sleep(1000);
+                location.href = "/";
+                return;
+            }
+
+            rebootStatus.textContent = wentDown
+                ? `Rebooting... waiting for the router (${seconds} s)`
+                : `Rebooting... (${seconds} s)`;
+
+        }
+
+        rebootStatus.textContent =
+            "The router has not come back after 5 minutes. Check its power and network, then reload this page.";
+
+    },
+
+
     cancelRestore() {
 
         this.backupText = null;
@@ -693,6 +782,8 @@ window.Page.system = {
         changePassword.onclick = () => {
             this.changePassword();
         };
+
+        rebootButton.onclick = () => this.reboot();
 
     },
 

@@ -56,13 +56,15 @@ from services.system import (
 
         set_hostname,
 
-        get_ip,
-
         get_uptime,
 
         get_cpu_temp,
 
         get_ram,
+
+        get_cpu_load,
+
+        reboot_system,
 
         get_time,
 
@@ -101,6 +103,10 @@ from services.network import (
         change_interface,
 
         set_eth0_role,
+
+        set_lan_bridge,
+
+        get_lan_bridge_status,
 
         get_eth0_role,
 
@@ -783,7 +789,7 @@ def dashboard_api():
 
                 "hostname": get_hostname(),
 
-                "ip": get_ip(),
+                "cpu_load": get_cpu_load(),
 
                 "uptime": get_uptime(),
 
@@ -856,6 +862,32 @@ def network_api():
                 "wan_interface": get_wan_interface()
 
         })
+
+
+
+
+
+@app.route("/api/network/lan")
+
+@login_required
+
+def network_lan_api():
+
+        return jsonify(get_lan_bridge_status())
+
+
+
+
+
+@app.route("/api/network/lan", methods=["POST"])
+
+@login_required
+
+def network_lan_save_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return safe_apply_response(set_lan_bridge(data))
 
 
 
@@ -2531,6 +2563,23 @@ def system_ping():
                 "destination": config["destination"]
 
         })
+
+
+
+
+
+@app.route("/api/system/reboot", methods=["POST"])
+
+@login_required
+
+def system_reboot_api():
+
+        ok, message = reboot_system()
+
+        if ok:
+                log_event("system", f"Reboot requested by {session.get('user')} from {get_viewer_ip()}.")
+
+        return jsonify({"success": ok, "message": message}), 200 if ok else 400
 
 
 

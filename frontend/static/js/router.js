@@ -37,11 +37,19 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
 let currentPage = null;
 
+// Counts navigations: a page that finishes loading after a newer one
+// was requested is dropped, so its script never runs on the wrong page.
+let navigation = 0;
+
 async function loadPage(route){
+
+    const id = ++navigation;
 
     if(window.Page?.[currentPage]?.destroy){
         window.Page[currentPage].destroy();
     }
+
+    currentPage = null;
 
     try{
 
@@ -57,8 +65,11 @@ async function loadPage(route){
             throw new Error();
         }
 
-        document.getElementById("content").innerHTML =
-            await response.text();
+        const html = await response.text();
+
+        if(id !== navigation) return;
+
+        document.getElementById("content").innerHTML = html;
 
         document.querySelectorAll(".sidebar a").forEach(link=>{
             link.classList.toggle(
@@ -67,15 +78,17 @@ async function loadPage(route){
             );
         });
 
-        currentPage = route;
-
         await loadController(route);
+
+        if(id !== navigation) return;
+
+        currentPage = route;
 
         window.Page?.[route]?.init?.();
 
     }catch{
 
-        if(route !== DEFAULT_ROUTE){
+        if(id === navigation && route !== DEFAULT_ROUTE){
             location.hash = `#/${DEFAULT_ROUTE}`;
         }
 

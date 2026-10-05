@@ -245,6 +245,7 @@ A ready-made sudoers file will ship with the installer.
 | 🧪 | Firewall page (ufw, default policies, rules) |
 | 🧪 | Routing & NAT (IP forwarding, masquerading to the WAN) |
 | 🧪 | eth0 LAN/WAN switch (Ethernet uplink instead of the modem) |
+| 🧪 | LAN bridge (br0: Ethernet and Wi-Fi in one network) |
 | 🧪 | VPN page: WireGuard server |
 | 🧪 | VPN page: OpenVPN server with its own certificate authority |
 | 🧪 | VPN page: WireGuard and OpenVPN client profiles |

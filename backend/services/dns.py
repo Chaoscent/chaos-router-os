@@ -18,15 +18,18 @@ from services.config import load_settings, load_running
 
 from services import transaction
 
-from services.network import unit_stays_active
+from services.network import (
+    unit_stays_active,
+    get_lan_interface_names,
+    effective_interface
+)
 
 from services.dhcp import (
     has_dnsmasq,
     install_dnsmasq_config,
     remove_dnsmasq_config,
     restart_dnsmasq,
-    get_dhcp_settings,
-    LAN_INTERFACES
+    get_dhcp_settings
 )
 
 from services.firewall import get_interfaces
@@ -109,7 +112,7 @@ def get_interface_choices():
 
     choices = []
 
-    for name in list(LAN_INTERFACES) + list(VPN_INTERFACES):
+    for name in get_lan_interface_names() + list(VPN_INTERFACES):
 
         if name not in existing and name not in VPN_INTERFACES:
             continue
@@ -327,7 +330,8 @@ def render_dns_config(settings):
     for wan in sorted({DEFAULT_WAN_INTERFACE, get_wan_interface()}):
         lines.append(f"except-interface={wan}")
 
-    for interface in settings["interfaces"]:
+    # Bridge ports (eth0 in br0) are served on their bridge.
+    for interface in dict.fromkeys(effective_interface(i) for i in settings["interfaces"]):
         lines.append(f"interface={interface}")
 
     lines.append(f"cache-size={settings['cache_size']}")

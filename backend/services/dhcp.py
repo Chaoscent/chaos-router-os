@@ -13,7 +13,10 @@ from services.network import (
     run_command,
     privileged,
     unit_stays_active,
-    is_wan_interface
+    is_wan_interface,
+    is_lan_capable,
+    get_lan_interface_names,
+    effective_interface
 )
 
 # -------------------------------------------------------------------
@@ -32,19 +35,19 @@ DNSMASQ_LEASE_FILES = (
     "/var/lib/dnsmasq/dnsmasq.leases"
 )
 
-# Interfaces that may serve DHCP. wwan0 is the uplink and never does.
-LAN_INTERFACES = (
-    "eth0",
-    "wlan0",
-    "br0"
-)
-
 LEASE_TIMES = (
     "1h",
     "12h",
     "24h",
     "7d"
 )
+
+LEASE_SECONDS = {
+    "1h": 3600,
+    "12h": 12 * 3600,
+    "24h": 24 * 3600,
+    "7d": 7 * 86400
+}
 
 DEFAULT_SETTINGS = {
     "enabled": False,
@@ -129,10 +132,9 @@ def get_lan_interfaces():
 
     interfaces = []
 
-    for name in LAN_INTERFACES:
-
-        if run(["ip", "link", "show", name]) is None:
-            continue
+    # Every LAN-capable interface that exists, including extra Wi-Fi
+    # adapters (wlan1) and USB Ethernet. Never the WAN.
+    for name in get_lan_interface_names():
 
         network = get_interface_network(name)
 
@@ -220,7 +222,9 @@ def validate_dhcp_settings(data):
 
     interface = settings.get("interface")
 
-    if interface not in LAN_INTERFACES:
+    # eth0 is accepted while it is the WAN: DHCP is paused at apply
+    # time, so the settings survive switching eth0 back and forth.
+    if not is_lan_capable(interface):
         return False, "Unsupported DHCP interface."
 
     lease_time = settings.get("lease_time")
@@ -258,7 +262,7 @@ def validate_dhcp_settings(data):
 
     # Only check the address range against the live interface when
     # the server is enabled. Disabled settings may be incomplete.
-    network = get_interface_network(interface)
+    network = get_interface_network(effective_interface(interface))
 
     if enabled:
 
@@ -347,7 +351,8 @@ def validate_dhcp_settings(data):
 
 def render_dnsmasq_config(settings):
 
-    interface = settings["interface"]
+    # A bridge port (eth0 in br0) is served on its bridge.
+    interface = effective_interface(settings["interface"])
 
     network = get_interface_network(interface)
 
@@ -624,6 +629,8 @@ def get_dhcp_leases():
 
     now = int(time.time())
 
+    lease_seconds = LEASE_SECONDS.get(get_dhcp_settings()["lease_time"])
+
     for line in lines:
 
         parts = line.split()
@@ -650,6 +657,15 @@ def get_dhcp_leases():
             "expires_in": (
                 None if expiry == 0
                 else max(expiry - now, 0)
+            ),
+
+            "expires_at": expiry or None,
+
+            # dnsmasq only stores the expiry; the lease was handed out
+            # (or last renewed) one lease time before it.
+            "renewed_at": (
+                expiry - lease_seconds
+                if expiry and lease_seconds else None
             ),
 
             "reserved": mac in reserved

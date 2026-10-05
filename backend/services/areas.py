@@ -55,14 +55,15 @@ class Area:
 
 AREAS = {area.name: area for area in (
 
-    # eth0's LAN/WAN mode decides the WAN for everything below.
+    # eth0's LAN/WAN mode decides the WAN, and the LAN bridge where
+    # the LAN is served, for everything below.
     Area(
         "network", "Network",
         apply=network.apply_network_settings,
         baseline=network.get_network_baseline,
         confirm=True,
         dependents=(
-            "firewall", "routing", "dhcp", "dns",
+            "wifi", "firewall", "routing", "dhcp", "dns",
             "wireguard", "openvpn", "vpn_profiles"
         )
     ),

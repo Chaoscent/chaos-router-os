@@ -38,7 +38,7 @@ window.Page.dashboard = {
         const data = await res.json();
 
         hostname.textContent = data.hostname;
-        ip.textContent = data.ip;
+        cpuLoad.textContent = data.cpu_load;
         cpu.textContent = data.cpu_temp;
         ram.textContent = data.ram;
         uptime.textContent = data.uptime;

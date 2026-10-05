@@ -11,7 +11,9 @@ from services.network import (
     run,
     run_command,
     privileged,
-    unit_stays_active
+    unit_stays_active,
+    get_network_settings,
+    BRIDGE
 )
 
 from services.dhcp import get_dhcp_leases
@@ -297,6 +299,8 @@ def render_hostapd_config(settings):
         "# Changes are overwritten from the WiFi page.",
         "",
         f"interface={settings['interface']}",
+        # One LAN: the access point joins the LAN bridge.
+        *([f"bridge={BRIDGE}"] if get_network_settings()["lan"]["bridge"] else []),
         "driver=nl80211",
         "ctrl_interface=/var/run/hostapd",
         "ctrl_interface_group=0",

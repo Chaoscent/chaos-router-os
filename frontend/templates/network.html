@@ -81,6 +81,50 @@
     <div id="interfaceContainer"></div>
 
 
+    <!-- LAN bridge (br0): one network for Ethernet and Wi-Fi -->
+
+    <div class="card interface-card lan-bridge-card">
+
+        <div class="interface-header">
+
+            <div>
+                <h2 class="interface-name">LAN</h2>
+                <p class="interface-type">One network for Ethernet and Wi-Fi (br0)</p>
+            </div>
+
+            <div class="role-switch">
+                <div class="role-toggle" role="group" aria-label="LAN bridge">
+                    <button type="button" class="role-option" data-bridge="false">Off</button>
+                    <button type="button" class="role-option" data-bridge="true">On</button>
+                </div>
+                <p id="lanBridgeInfo" class="role-info"></p>
+            </div>
+
+        </div>
+
+        <div class="settings-grid lan-bridge-grid">
+
+            <div class="setting-field">
+                <label for="lanIpInput">Router address</label>
+                <input id="lanIpInput" class="setting-input" type="text" autocomplete="off" spellcheck="false">
+            </div>
+
+            <div class="setting-field">
+                <label for="lanSubnetInput">Subnet mask</label>
+                <input id="lanSubnetInput" class="setting-input" type="text" autocomplete="off" spellcheck="false">
+            </div>
+
+        </div>
+
+        <div id="lanBridgeStatus" class="setting-status"></div>
+
+        <div class="interface-footer">
+            <button id="lanBridgeApply" class="save-btn interface-save" type="button" disabled>Apply</button>
+        </div>
+
+    </div>
+
+
     <!-- Apply Confirmation -->
 
     <div

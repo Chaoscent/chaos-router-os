@@ -215,7 +215,7 @@ window.Page.dhcp = {
 
             dhcpLeaseTable.innerHTML = `
                 <tr class="empty-row">
-                    <td colspan="4">No active leases.</td>
+                    <td colspan="5">No active leases.</td>
                 </tr>
             `;
 
@@ -232,7 +232,11 @@ window.Page.dhcp = {
                     <small>${this.escape(lease.mac)}</small>
                 </td>
                 <td>${this.escape(lease.ip)}</td>
-                <td>${this.formatExpiry(lease.expires_in)}</td>
+                <td>${this.formatTimestamp(lease.renewed_at)}</td>
+                <td>
+                    ${this.formatTimestamp(lease.expires_at, "Never")}
+                    ${lease.expires_at ? `<br><small>${this.formatExpiry(lease.expires_in)}</small>` : ""}
+                </td>
                 <td class="table-action">
                     ${lease.reserved
                         ? '<span class="status online">Static</span>'
@@ -253,18 +257,39 @@ window.Page.dhcp = {
     },
 
 
+    /** Unix time -> "5 Oct, 21:14" (with the year when it differs). */
+    formatTimestamp(epoch, empty = "—") {
+
+        if (!epoch) return empty;
+
+        const date = new Date(epoch * 1000);
+        const now = new Date();
+
+        const day = date.toLocaleDateString([], {
+            day: "numeric",
+            month: "short",
+            ...(date.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {})
+        });
+
+        const clock = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+        return `${day}, ${clock}`;
+
+    },
+
+
     formatExpiry(seconds) {
 
-        if (seconds === null) return "Never";
+        if (seconds === null) return "Never expires";
         if (seconds <= 0) return "Expired";
 
         const d = Math.floor(seconds / 86400);
         const h = Math.floor(seconds % 86400 / 3600);
         const m = Math.floor(seconds % 3600 / 60);
 
-        if (d) return `${d}d ${h}h`;
-        if (h) return `${h}h ${m}m`;
-        return `${m}m`;
+        if (d) return `in ${d}d ${h}h`;
+        if (h) return `in ${h}h ${m}m`;
+        return `in ${m}m`;
 
     },
 
