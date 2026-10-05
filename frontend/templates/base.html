@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Chaos Router OS</title>
 
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
@@ -11,7 +12,7 @@
 
 <div class="app">
 
-    <aside class="sidebar">
+    <aside id="sidebar" class="sidebar">
 
         <div class="logo">Chaos Router OS</div>
 
@@ -50,6 +51,9 @@
 
     </aside>
 
+    <!-- Phones: tapping outside the open menu closes it. -->
+    <div id="navBackdrop" class="nav-backdrop"></div>
+
     <main>
 
         <header class="chaos-header">
@@ -58,11 +62,23 @@
 
                 <div class="header-left">
 
-                    <div class="status online">Online</div>
+                    <!-- Phones and narrow windows: opens the sidebar. -->
+                    <button id="navToggle" class="nav-toggle" type="button"
+                            aria-label="Menu" aria-controls="sidebar" aria-expanded="false">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                             aria-hidden="true">
+                            <line x1="4" y1="7" x2="20" y2="7"></line>
+                            <line x1="4" y1="12" x2="20" y2="12"></line>
+                            <line x1="4" y1="17" x2="20" y2="17"></line>
+                        </svg>
+                    </button>
+
+                    <div id="headerStatus" class="status">--</div>
 
                     <div class="header-item">
                         <span>Network</span>
-                        <strong id="headerNetwork">5G</strong>
+                        <strong id="headerNetwork">--</strong>
                     </div>
 
                     <div class="header-item">
@@ -72,7 +88,7 @@
 
                     <div class="header-item">
                         <span>Carrier</span>
-                        <strong id="headerCarrier">Chaos Mock</strong>
+                        <strong id="headerCarrier">--</strong>
                     </div>
 
                 </div>
@@ -94,7 +110,7 @@
                         <strong id="headerUser">admin</strong>
                     </div>
 
-                    <button class="logout-btn" onclick="location.href='/logout'">
+                    <button class="logout-btn" onclick="chaosLogout()">
                         Logout
                     </button>
 
@@ -176,6 +192,7 @@
 
 </div>
 
+<script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
 <script src="{{ url_for('static', filename='js/header.js') }}"></script>
 <script src="{{ url_for('static', filename='js/select.js') }}"></script>
 <script src="{{ url_for('static', filename='js/modal.js') }}"></script>

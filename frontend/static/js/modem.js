@@ -15,17 +15,27 @@ async update(){
 
     const d=await res.json();
 
-    carrier.textContent=d.carrier;
-    network.textContent=d.network;
-    signal.textContent=`${d.signal}%`;
+    // Unknown values are null: show "--", never invented numbers.
+    const show=(value,unit="")=>value===null||value===undefined?"--":`${value}${unit}`;
 
-    rsrp.textContent=`${d.rsrp} dBm`;
-    rsrq.textContent=`${d.rsrq} dB`;
-    sinr.textContent=`${d.sinr} dB`;
+    modemNotice.classList.toggle("hidden",d.state==="ready");
 
-    band.textContent=d.band;
-    sim.textContent=d.sim;
-    imei.textContent=d.imei;
+    modemNotice.textContent=
+        d.state==="absent"
+            ?"No modem found. Plug in the modem; this page updates by itself."
+            :`${d.model||"The modem"} was found but does not answer yet. It can take a minute after startup.`;
+
+    carrier.textContent=show(d.carrier);
+    network.textContent=d.state==="absent"?"No modem":show(d.network);
+    signal.textContent=show(d.signal,"%");
+
+    rsrp.textContent=show(d.rsrp," dBm");
+    rsrq.textContent=show(d.rsrq," dB");
+    sinr.textContent=show(d.sinr," dB");
+
+    band.textContent=show(d.band);
+    sim.textContent=show(d.sim);
+    imei.textContent=show(d.imei);
 
 },
 

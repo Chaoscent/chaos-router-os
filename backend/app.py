@@ -284,6 +284,15 @@ from services.modem import get_modem_data
 
 from services import transaction
 
+from security import (
+        load_secret_key,
+        csrf_token,
+        check_csrf,
+        login_retry_after,
+        record_login_failure,
+        record_login_success
+)
+
 from services.logs import (
 
         log_event,
@@ -328,7 +337,21 @@ app = Flask(
 
 
 
-app.secret_key = os.getenv("SECRET_KEY", "chaos-router-dev")
+# Random per router (see security.py), never a known default.
+app.secret_key = load_secret_key()
+
+app.config.update(
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax"
+)
+
+app.jinja_env.globals["csrf_token"] = csrf_token
+
+
+@app.before_request
+def csrf_protect():
+
+        return check_csrf()
 
 # Largest request accepted (config backups are the biggest uploads).
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
@@ -497,19 +520,39 @@ def login_page():
 
 def api_login():
 
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
 
-        username = data.get("username", "")
+        username = str(data.get("username", ""))
 
-        password = data.get("password", "")
+        password = str(data.get("password", ""))
+
+        address = get_viewer_ip()
+
+
+
+        wait = login_retry_after(address)
+
+        if wait:
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": f"Too many failed attempts. Try again in {wait} seconds.",
+
+                        "retry_after": wait
+
+                }), 429
 
 
 
         if verify_login(username, password):
 
+                record_login_success(address)
+
                 login_user(username)
 
-                log_event("auth", f"{username} logged in from {get_viewer_ip()}.")
+                log_event("auth", f"{username} logged in from {address}.")
 
                 return jsonify({
 
@@ -519,26 +562,45 @@ def api_login():
 
 
 
+        lockout = record_login_failure(address)
+
         log_event(
 
                 "auth",
 
-                f"Failed login for '{username[:64]}' from {get_viewer_ip()}.",
+                f"Failed login for '{username[:64]}' from {address}."
+
+                + (f" Locked out for {lockout} seconds." if lockout else ""),
 
                 "warning"
 
         )
 
+        if lockout:
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": f"Too many failed attempts. Try again in {lockout} seconds.",
+
+                        "retry_after": lockout
+
+                }), 429
+
         return jsonify({
 
-                "success": False
+                "success": False,
+
+                "message": "Invalid username or password."
 
         }), 401
 
 
 
 
-@app.route("/logout")
+# POST only (with the CSRF token), so other sites cannot log you out.
+@app.route("/logout", methods=["POST"])
 
 def logout():
 
@@ -547,7 +609,7 @@ def logout():
 
         session.clear()
 
-        return redirect(url_for("login_page"))
+        return jsonify({"success": True})
 
 
 
@@ -659,6 +721,8 @@ def dashboard_api():
                 "download": traffic["rx"],
 
                 "upload": traffic["tx"],
+
+                "interface": traffic["interface"],
 
                 "history": get_history()
 
@@ -1991,6 +2055,11 @@ def header_api():
 
         return jsonify({
 
+                # Online = the router has a default route to the internet.
+                "online": get_default_interface() != "Unknown",
+
+                "modem_state": modem["state"],
+
                 "network": modem["network"],
 
                 "model": modem["model"],
@@ -2005,7 +2074,9 @@ def header_api():
 
                 "rx": traffic["rx"],
 
-                "tx": traffic["tx"]
+                "tx": traffic["tx"],
+
+                "interface": traffic["interface"]
 
         })
 
@@ -2024,13 +2095,14 @@ def header_api():
 def get_viewer_ip():
 
         # Behind Caddy the request comes from localhost; the browser's
-        # address is in X-Forwarded-For.
+        # address is in X-Forwarded-For. Caddy appends it last, earlier
+        # entries come from the client and can be faked.
         if request.remote_addr in ("127.0.0.1", "::1"):
 
                 forwarded = request.headers.get("X-Forwarded-For", "")
 
                 if forwarded:
-                        return forwarded.split(",")[0].strip()
+                        return forwarded.split(",")[-1].strip()
 
 
 

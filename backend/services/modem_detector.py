@@ -25,8 +25,8 @@ def detect_modem():
         output = subprocess.check_output(["lsusb"], text=True)
     except:
         return {
-            "vendor": "Unknown",
-            "model": "No Modem",
+            "vendor": None,
+            "model": None,
             "usb_id": None
         }
 
@@ -47,8 +47,9 @@ def detect_modem():
                 "usb_id": usb_id
             }
 
+    # Nothing known on USB. ModemManager may still find a modem.
     return {
-        "vendor": "Unknown",
-        "model": "Unknown Modem",
+        "vendor": None,
+        "model": None,
         "usb_id": None
     }

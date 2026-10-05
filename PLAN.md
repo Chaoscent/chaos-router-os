@@ -42,12 +42,29 @@ Without these it isn't a router yet.
 - [ ] **Start at boot.** A systemd unit for the app. Without it, Safe Apply's boot recovery (`sync_boot` + `apply_all`) never runs unless the app is started by hand.
 - [ ] **Production server.** Run under gunicorn or waitress (one or two workers), bound to localhost, with Caddy in front. The Flask dev server must not face the LAN.
 - [ ] **Hardware testing.** Everything marked 🧪 has only been tested with fakes in WSL. Most likely to need fixes: Wi-Fi, 6 GHz, the OpenVPN PKI, the firewall.
+- [x] **Mock modem data removed.** `get_modem_data()` reports `state`: `ready`, `not_ready` (modem found, no answer yet) or `absent`. Unknown values are `null` and shown as "--"; the header and Modem page say "No modem" / "Not ready". The header's Online/Offline pill follows the default route instead of always saying "Online".
+  - [ ] Check the `mmcli` parsing against the real RM520N-GL on the Pi 5: signal values per section (`rsrp`, `rsrq`, `s/n`, 5G preferred over LTE), access tech ("lte, 5gnr" → "5G NSA"), SIM state. The parsing was written from documented output, not tested on the modem.
+  - [ ] Show the active band. ModemManager does not report it; it needs AT commands (`AT+QENG="servingcell"` on Quectel) through `mmcli --command`.
+
+---
+
+## 1b. Website before v1
+
+- [x] **Mobile layout.** Below 900 px the sidebar is a slide-in menu (☰ button in the header; closes on a page pick, a tap outside or Escape). 16 px side gutter on phones; tables scroll inside their card; dashboard numbers two per row. All pages fit a 390 px wide phone without sideways scrolling.
+- [ ] **Reboot and factory reset** on the System page. Factory reset = delete `/var/lib/chaos-router-os` (after offering a backup download) and reboot: the router comes back on the `/etc` defaults. Both behind a confirmation dialog.
+- [ ] **Version and updates** on the System page: show the installed version, check for a newer release, and start the updater (see Updater). Needs a version source (e.g. a `VERSION` file written by the installer).
 
 ---
 
 ## 2. Security before v1
 
-- [ ] **CSRF protection and login rate limiting.** Check what exists; a router UI is a classic CSRF target.
+- [x] **CSRF protection and login rate limiting** (`backend/security.py`, `frontend/static/js/csrf.js`).
+  - The session key is random per router (`/var/lib/chaos-router-os/system/secret_key.json`, mode 600, not in backups). Before, it defaulted to the public string `chaos-router-dev`, so anyone could forge a session cookie.
+  - Every POST/PUT/PATCH/DELETE needs the session's CSRF token (`X-CSRF-Token`, added by `csrf.js`) and must not come from another site (`Origin`). Also covers the login form. Session cookie: `HttpOnly`, `SameSite=Lax`.
+  - Logout is a POST with the token.
+  - Login: 5 failures within 15 minutes lock the client address out for 60 s, doubling up to 15 minutes; forgiven after 15 quiet minutes. Kept in memory (a restart clears it).
+  - `X-Forwarded-For` is only trusted from localhost (Caddy), and its last entry is used (earlier ones can be faked by the client).
+  - [ ] Once Caddy serves HTTPS: set `SESSION_COOKIE_SECURE`.
 - [ ] **No default credentials.** Remove the `backend/data/users.json` fallback. With no admin account, the router is in setup mode (see Setup Wizard).
 - [ ] **Root helper instead of a broad sudoers list.** Passwordless `cp`, `rm`, `cat`, `install` and `find` together equal full root. Replace them with one small root helper script that only accepts specific operations; sudoers allows only that script (plus the service commands that are needed).
 - [ ] **Backup encryption.** Backups contain passwords and VPN keys in plain text. Add optional password encryption.
@@ -59,7 +76,8 @@ Without these it isn't a router yet.
 - [ ] **Wi-Fi country.** Pi OS keeps Wi-Fi rfkill-blocked until a country is set. The installer sets a first value; the Setup Wizard and WiFi page set the real one.
 - [ ] **IPv6.** Nothing handles it yet (router advertisements, DHCPv6, forwarding). IPv6 forwarding is deliberately left off: turning it on makes the kernel ignore router advertisements, which can cut off the modem's IPv6.
 - [ ] **DNS local domain.** Changing the local domain only takes effect after the DNS settings are saved again.
-- [ ] **Apps page.** Still a placeholder.
+- [ ] **Apps page.** Still a placeholder. Hide it or label it "coming in v2" before v1.
+- [ ] **Active Clients is not a real count.** The dashboard shows 1 whenever there is any traffic. Count clients that sent traffic recently instead (per-client counters, e.g. from the neighbour table plus iptables accounting or conntrack).
 - [ ] **OpenVPN on slower CPUs.** Consider putting `CHACHA20-POLY1305` first in `CIPHERS`; it's faster than AES on a Pi 4, which lacks AES instructions.
 
 ---

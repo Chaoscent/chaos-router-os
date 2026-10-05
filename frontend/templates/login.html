@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="csrf-token" content="{{ csrf_token() }}">
 <title>Chaos Router OS</title>
 
 <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
@@ -118,6 +119,8 @@ body{
 
 </div>
 
+<script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
+
 <script>
 async function login(){
 
@@ -150,9 +153,17 @@ async function login(){
         return;
     }
 
-    error.textContent = res
-        ? "Invalid username or password."
-        : "Could not reach the router.";
+    let message = "Could not reach the router.";
+
+    if(res){
+        try{
+            message = (await res.json()).message || "Invalid username or password.";
+        }catch{
+            message = "Invalid username or password.";
+        }
+    }
+
+    error.textContent = message;
 
     error.style.display = "block";
 

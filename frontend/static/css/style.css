@@ -23,6 +23,57 @@ body{
     color:var(--text);
 }
 
+/* ========================= */
+/* Scrollbars                */
+/* ========================= */
+
+/* Slim, rounded and in the theme colours everywhere: pages, menus,
+   tables, logs and dialogs. Chromium browsers (Chrome, Edge, Vivaldi,
+   Brave) use these rules. */
+::-webkit-scrollbar{
+    width:10px;
+    height:10px;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner{
+    background:transparent;
+}
+
+/* The transparent border keeps a gap around the thumb. */
+::-webkit-scrollbar-thumb{
+    background:var(--border);
+    background-clip:padding-box;
+    border:2px solid transparent;
+    border-radius:999px;
+}
+
+::-webkit-scrollbar-thumb:hover{
+    background:#3f4859;
+    background-clip:padding-box;
+}
+
+::-webkit-scrollbar-thumb:active{
+    background:var(--accent);
+    background-clip:padding-box;
+}
+
+::-webkit-scrollbar-button{
+    display:none;
+}
+
+/* Firefox has no ::-webkit-scrollbar: the standard properties give it
+   the same colours. Kept out of Chromium, which would otherwise ignore
+   the rules above. */
+@supports not selector(::-webkit-scrollbar){
+
+    *{
+        scrollbar-width:thin;
+        scrollbar-color:var(--border) transparent;
+    }
+
+}
+
 .app{
     display:flex;
     height:100vh;
@@ -42,10 +93,11 @@ body{
     background:var(--panel);
     border-right:1px solid var(--border);
     padding:20px 16px;
+}
 
-    /* Only very short windows need to scroll; keep it subtle. */
-    scrollbar-width:thin;
-    scrollbar-color:var(--border) transparent;
+/* Only very short windows need to scroll; keep it subtle. */
+.sidebar::-webkit-scrollbar{
+    width:6px;
 }
 
 /* Fits "Chaos Router OS" on one line; wraps instead of being cut off
@@ -184,6 +236,26 @@ main{
     background:#22c55e;
 }
 
+.status.offline{
+    background:rgba(239,68,68,.12);
+    color:#ffb4b4;
+}
+
+.status.offline::before{
+    background:#ef4444;
+}
+
+/* Modem page: no modem / not ready yet. */
+.modem-notice{
+    margin-bottom:18px;
+    padding:14px 18px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-left:3px solid #f59e0b;
+    border-radius:12px;
+    color:var(--text);
+}
+
 .logout-btn{
     background:transparent;
     border:1px solid var(--border);
@@ -202,8 +274,8 @@ main{
 /* Workspace                 */
 /* ========================= */
 
+/* Pages use the full width of the window, like the header. */
 .page{
-    max-width:1500px;
     animation:fadeSlide .18s ease;
 }
 
@@ -310,7 +382,7 @@ main{
 }
 
 .pulse-fill{
-    width:8%;
+    width:0;
     height:100%;
     border-radius:999px;
     background:linear-gradient(90deg,#3b82f6,#60a5fa);
@@ -379,7 +451,7 @@ main{
     position:fixed;
     top:0;
     right:-340px;
-    width:320px;
+    width:min(320px,100vw);
     height:100vh;
     background:var(--panel);
     border-left:1px solid var(--border);
@@ -424,17 +496,29 @@ main{
     gap:18px;
 }
 
+/* Label left, value right. Labels stay on one line; long values
+   wrap onto a second line instead of pressing against the label. */
 .info-row{
     display:flex;
     justify-content:space-between;
-    align-items:center;
+    align-items:baseline;
+    gap:16px;
     padding-bottom:12px;
     border-bottom:1px solid rgba(255,255,255,.05);
 }
 
 .info-row span{
+    flex-shrink:0;
     color:var(--muted);
     font-size:14px;
+    white-space:nowrap;
+}
+
+.info-row strong{
+    min-width:0;
+    text-align:right;
+    line-height:1.4;
+    overflow-wrap:anywhere;
 }
 
 .inspector-actions{
@@ -768,10 +852,64 @@ select.setting-input:disabled{
 /* Responsive                */
 /* ========================= */
 
+/* ========================= */
+/* Mobile menu               */
+/* ========================= */
+
+.nav-toggle,
+.nav-backdrop{
+    display:none;
+}
+
 @media (max-width:900px){
 
     main{
         padding:20px;
+    }
+
+    .nav-toggle{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        width:40px;
+        height:40px;
+        padding:0;
+        background:var(--panel2);
+        color:var(--text);
+        border:1px solid var(--border);
+        border-radius:10px;
+        cursor:pointer;
+    }
+
+    .nav-toggle:hover{
+        border-color:#3f4859;
+    }
+
+    /* The sidebar slides in over the page. */
+    .sidebar{
+        position:fixed;
+        top:0;
+        bottom:0;
+        left:0;
+        z-index:900;
+        width:min(260px,82vw);
+        transform:translateX(-100%);
+        transition:transform .22s ease;
+        box-shadow:none;
+    }
+
+    body.nav-open .sidebar{
+        transform:none;
+        box-shadow:0 0 60px rgba(0,0,0,.5);
+    }
+
+    body.nav-open .nav-backdrop{
+        display:block;
+        position:fixed;
+        inset:0;
+        z-index:850;
+        background:rgba(0,0,0,.5);
+        backdrop-filter:blur(2px);
     }
 
     .header-row{
@@ -804,6 +942,24 @@ select.setting-input:disabled{
 }
 
 @media (max-width:640px){
+
+    /* 16px side gutter on phones. */
+    main{
+        padding:16px;
+    }
+
+    .chaos-header{
+        padding:14px 16px;
+    }
+
+    .header-left,
+    .header-right{
+        gap:14px;
+    }
+
+    .page-header h1{
+        font-size:28px;
+    }
 
     .setting-row{
         flex-direction:column;
@@ -1130,32 +1286,37 @@ select.setting-input:disabled{
     box-shadow:
         0 18px 45px rgba(0,0,0,.38);
 
-    opacity:0;
-    visibility:hidden;
+    /* Closed menus take no space: a hidden but laid-out menu (e.g. the
+       59 channels of 6 GHz) would stretch the page and show a
+       scrollbar. Long lists scroll inside the menu. */
+    display:none;
 
-    transform:
-        translateY(-5px)
-        scale(.985);
+    max-height:min(320px,50vh);
+    overflow-y:auto;
+    overscroll-behavior:contain;
 
     transform-origin:top;
-
-    transition:
-        opacity .14s ease,
-        transform .14s ease,
-        visibility .14s ease;
 
     z-index:100;
 
 }
 
+@keyframes chaosSelectIn{
+    from{
+        opacity:0;
+        transform:translateY(-5px) scale(.985);
+    }
+    to{
+        opacity:1;
+        transform:translateY(0) scale(1);
+    }
+}
+
 .chaos-select.open .chaos-select-menu{
 
-    opacity:1;
-    visibility:visible;
+    display:block;
 
-    transform:
-        translateY(0)
-        scale(1);
+    animation:chaosSelectIn .14s ease;
 
 }
 
@@ -1514,11 +1675,6 @@ select.setting-input:disabled{
 /* ========================================================= */
 
 /* Keep System sections visually separated. */
-.system-sections{
-    display:flex;
-    flex-direction:column;
-    gap:18px;
-}
 
 
 /* Remove browser number-field spinner arrows. */
@@ -1549,10 +1705,16 @@ select.setting-input:disabled{
 /* System Page                                               */
 /* ========================================================= */
 
+/* Masonry columns: cards stack under each other without row gaps,
+   up to three columns side by side, one column on narrow screens. */
 .system-sections{
-    display:flex;
-    flex-direction:column;
-    gap:18px;
+    columns:3 440px;
+    column-gap:18px;
+}
+
+.system-sections > .card{
+    break-inside:avoid;
+    margin-bottom:18px;
 }
 
 .setting-group{
@@ -2172,93 +2334,10 @@ main > *{
     flex-direction:column;
 }
 
+/* The dashboard fills the window: the graph takes the spare height,
+   text scales with the window. */
 .dashboard{
     flex:1;
-    display:flex;
-    flex-direction:column;
-    gap:16px;
-}
-
-/* Title and subtitle on one line. */
-.dashboard .page-header{
-    display:flex;
-    align-items:baseline;
-    gap:14px;
-    margin-bottom:0;
-}
-
-.dashboard .page-header h1{
-    font-size:28px;
-    margin-bottom:0;
-}
-
-.dashboard .card-grid{
-    gap:16px;
-}
-
-.dashboard .card{
-    min-height:0;
-    padding:18px 22px;
-}
-
-.dashboard .card span{
-    margin-bottom:6px;
-    font-size:14px;
-}
-
-.dashboard-metrics .card-metric{
-    font-size:clamp(26px,2vw,34px);
-    line-height:1.2;
-}
-
-/* The graph card grows into the remaining height. */
-.dashboard-graph{
-    flex:1 1 0;
-    min-height:200px;
-    display:flex;
-    flex-direction:column;
-}
-
-.dashboard-graph svg{
-    display:block;
-    flex:1 1 0;
-    min-height:0;
-}
-
-/* All six system cards in one row on wide screens. */
-.dashboard-system{
-    grid-template-columns:repeat(6,minmax(0,1fr));
-}
-
-.dashboard-system .card-value{
-    font-size:clamp(17px,1.3vw,23px);
-    line-height:1.3;
-}
-
-@media (max-width:1100px){
-
-    .dashboard-system{
-        grid-template-columns:repeat(3,minmax(0,1fr));
-    }
-
-}
-
-@media (max-width:640px){
-
-    .dashboard-system{
-        grid-template-columns:repeat(2,minmax(0,1fr));
-    }
-
-    .dashboard .page-header{
-        flex-direction:column;
-        gap:4px;
-    }
-
-}
-
-/* ========================================================= */
-
-.dashboard{
     display:flex;
     flex-direction:column;
     gap:14px;
@@ -2292,14 +2371,118 @@ main > *{
 }
 
 .dashboard-metrics .card-metric{
-    font-size:clamp(22px,1.6vw,28px);
+    font-size:clamp(22px,1.6vw,36px);
     line-height:1.2;
 }
 
-/* The graph takes the spare height on taller windows. */
-.dashboard-graph svg{
+/* The graph card grows into the remaining height (more specific
+   than .dashboard .card, so the minimum height holds). */
+.dashboard .dashboard-graph{
+    flex:1 1 0;
+    min-height:200px;
+    display:flex;
+    flex-direction:column;
+}
+
+.graph-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    gap:16px;
+    flex-wrap:wrap;
+}
+
+.graph-legend{
+    display:flex;
+    gap:16px;
+    font-size:13px;
+    color:var(--muted);
+}
+
+/* More specific than .card span (display:block). */
+.graph-header .legend-item{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    margin:0;
+    font-size:13px;
+}
+
+.graph-header #graphInterface{
+    display:inline;
+    margin:0;
+}
+
+.legend-swatch{
+    display:inline-block;
+    width:10px;
+    height:10px;
+    margin-right:6px;
+    border-radius:3px;
+    vertical-align:middle;
+}
+
+.legend-item .legend-swatch{
+    margin-right:0;
+}
+
+.legend-swatch.download{
+    background:#4ea1ff;
+}
+
+.legend-swatch.upload{
+    background:#6ee7b7;
+}
+
+/* The SVG is drawn at this area's pixel size by dashboard.js. */
+.graph-area{
+    position:relative;
+    flex:1 1 0;
+    min-height:0;
+    margin-top:8px;
+}
+
+.graph-area svg{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
     display:block;
-    height:clamp(110px,24vh,280px);
+    cursor:crosshair;
+    touch-action:pan-y;
+}
+
+.graph-label{
+    fill:var(--muted);
+    font-size:12px;
+    font-family:inherit;
+    font-variant-numeric:tabular-nums;
+}
+
+.graph-tooltip{
+    position:absolute;
+    z-index:2;
+    min-width:180px;
+    padding:10px 12px;
+    background:rgba(15,17,23,.94);
+    border:1px solid var(--border);
+    border-radius:10px;
+    box-shadow:0 8px 24px rgba(0,0,0,.35);
+    font-size:13px;
+    line-height:1.7;
+    pointer-events:none;
+    white-space:nowrap;
+}
+
+.graph-tooltip strong{
+    float:right;
+    margin-left:16px;
+    font-variant-numeric:tabular-nums;
+}
+
+.graph-tooltip-time{
+    color:var(--muted);
+    font-size:12px;
 }
 
 /* All six system cards in one row on wide screens. */
@@ -2308,7 +2491,7 @@ main > *{
 }
 
 .dashboard-system .card-value{
-    font-size:clamp(15px,1.1vw,20px);
+    font-size:clamp(15px,1.1vw,24px);
     line-height:1.3;
 }
 
@@ -2322,7 +2505,8 @@ main > *{
 
 @media (max-width:640px){
 
-    .dashboard-system{
+    .dashboard-system,
+    .dashboard-metrics{
         grid-template-columns:repeat(2,minmax(0,1fr));
     }
 

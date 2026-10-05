@@ -3,6 +3,11 @@ window.Header = {
     timer: null,
     pingTimer: null,
 
+    // Throughput bar range, logarithmic: empty below 10 kbps (idle
+    // background chatter), full at 1 Gbps.
+    BAR_MIN_MBPS: 0.01,
+    BAR_MAX_MBPS: 1000,
+
     pingEnabled: false,
     pingInterval: 5,
 
@@ -26,16 +31,26 @@ window.Header = {
                 await res.json();
 
 
+            headerStatus.textContent =
+                data.online ? "Online" : "Offline";
+
+            headerStatus.className =
+                `status ${data.online ? "online" : "offline"}`;
+
+
+            // Only real modem data; never placeholders.
             headerNetwork.textContent =
-                data.network;
+                data.modem_state === "absent" ? "No modem" :
+                data.modem_state === "not_ready" ? "Not ready" :
+                data.network || "--";
 
 
             headerModule.textContent =
-                data.model;
+                data.model || (data.modem_state === "absent" ? "No modem" : "--");
 
 
             headerCarrier.textContent =
-                data.carrier;
+                data.carrier || "--";
 
 
             /*
@@ -55,27 +70,55 @@ window.Header = {
 
 
             pulseDown.textContent =
-                `↓ ${data.rx.toFixed(1)} Mbps`;
+                `↓ ${this.formatRate(data.rx)}`;
 
 
             pulseUp.textContent =
-                `↑ ${data.tx.toFixed(1)} Mbps`;
+                `↑ ${this.formatRate(data.tx)}`;
 
 
-            const total =
-                Math.min(
-                    data.rx + data.tx,
-                    200
-                );
-
+            // Empty when idle, never a fake minimum.
+            const total = data.rx + data.tx;
 
             pulseFill.style.width =
-                `${Math.max(
-                    8,
-                    total / 2
-                )}%`;
+                `${this.barPercent(total)}%`;
+
+            pulseFill.parentElement.title = data.interface
+                ? `${this.formatRate(total)} total on ${data.interface}`
+                : this.formatRate(total);
 
         } catch {}
+
+    },
+
+
+    /** Mbps -> "850 kbps", "12.4 Mbps", "1.2 Gbps". */
+    formatRate(mbps) {
+
+        const value = Number(mbps) || 0;
+
+        if (value >= 1000)
+            return `${(value / 1000).toFixed(2)} Gbps`;
+
+        if (value >= 1)
+            return `${value.toFixed(value >= 100 ? 0 : 1)} Mbps`;
+
+        const kbps = value * 1000;
+
+        return `${kbps.toFixed(kbps >= 10 || kbps === 0 ? 0 : 1)} kbps`;
+
+    },
+
+
+    barPercent(mbps) {
+
+        if (!(mbps > this.BAR_MIN_MBPS)) return 0;
+
+        const min = Math.log10(this.BAR_MIN_MBPS);
+        const max = Math.log10(this.BAR_MAX_MBPS);
+        const pct = (Math.log10(mbps) - min) / (max - min) * 100;
+
+        return Math.min(100, pct);
 
     },
 

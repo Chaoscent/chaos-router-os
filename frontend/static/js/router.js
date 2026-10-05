@@ -1,5 +1,40 @@
 const DEFAULT_ROUTE = "dashboard";
 
+
+// ------------------------------------------------------------
+// Mobile menu: the sidebar slides in on narrow screens.
+// ------------------------------------------------------------
+
+function setNavOpen(open){
+
+    document.body.classList.toggle("nav-open", open);
+
+    document.getElementById("navToggle")
+        ?.setAttribute("aria-expanded", String(open));
+
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+
+    document.getElementById("navToggle")?.addEventListener("click", ()=>{
+        setNavOpen(!document.body.classList.contains("nav-open"));
+    });
+
+    document.getElementById("navBackdrop")?.addEventListener("click", ()=>{
+        setNavOpen(false);
+    });
+
+    // Picking a page closes the menu.
+    document.querySelectorAll(".sidebar nav a").forEach(link=>{
+        link.addEventListener("click", ()=>setNavOpen(false));
+    });
+
+    document.addEventListener("keydown", event=>{
+        if(event.key === "Escape") setNavOpen(false);
+    });
+
+});
+
 let currentPage = null;
 
 async function loadPage(route){

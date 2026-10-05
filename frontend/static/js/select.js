@@ -163,8 +163,14 @@ window.ChaosSelect = {
             this.closeAll();
 
             if (!wasOpen) {
+
                 wrapper.classList.add("open");
                 trigger.setAttribute("aria-expanded", "true");
+
+                // Long lists open at the current choice.
+                menu.querySelector(".chaos-select-option.selected")
+                    ?.scrollIntoView({ block: "nearest" });
+
             }
 
         });

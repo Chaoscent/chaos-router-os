@@ -32,31 +32,27 @@
 
     <div class="card dashboard-graph">
 
-        <span>Network Activity (60 seconds)</span>
+        <div class="graph-header">
 
-        <!-- dashboard.js draws in a 600x180 space; the SVG stretches to fit. -->
-        <svg id="trafficGraph"
-             viewBox="0 0 600 180"
-             preserveAspectRatio="none"
-             width="100%">
+            <span>Internet Throughput (last 60 seconds)<span id="graphInterface"></span></span>
 
-            <polyline id="downloadLine"
-                fill="none"
-                stroke="#4ea1ff"
-                stroke-width="3"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                vector-effect="non-scaling-stroke"/>
+            <div class="graph-legend">
+                <span class="legend-item"><i class="legend-swatch download"></i>Download</span>
+                <span class="legend-item"><i class="legend-swatch upload"></i>Upload</span>
+            </div>
 
-            <polyline id="uploadLine"
-                fill="none"
-                stroke="#6ee7b7"
-                stroke-width="3"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                vector-effect="non-scaling-stroke"/>
+        </div>
 
-        </svg>
+        <!-- dashboard.js draws axes, lines and the hover cursor at the
+             graph's real pixel size, so text never stretches. -->
+        <div class="graph-area">
+
+            <svg id="trafficGraph" role="img"
+                 aria-label="Download and upload throughput over the last 60 seconds"></svg>
+
+            <div id="graphTooltip" class="graph-tooltip hidden"></div>
+
+        </div>
 
     </div>
 
