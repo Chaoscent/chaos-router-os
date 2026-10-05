@@ -13,7 +13,7 @@ from services.network import (
     run,
     run_command,
     privileged,
-    get_default_interface
+    get_wan_interface
 )
 
 from services import firewall
@@ -173,29 +173,9 @@ def stop_unit(unit):
 # Networking
 # -------------------------------------------------------------------
 
-def get_wan_interface():
-
-    interface = get_default_interface()
-
-    # While a VPN client owns the default route, NAT still goes out
-    # through the modem.
-    if (
-        interface == "Unknown"
-        or interface.startswith(("wg", "ovpn", "tun", "tap"))
-    ):
-        return DEFAULT_WAN_INTERFACE
-
-    return interface
-
-
 def get_lan_interfaces():
 
-    interfaces = firewall.get_interfaces()
-
-    return [
-        name for name in firewall.LAN_INTERFACES
-        if name in interfaces
-    ]
+    return firewall.get_lan_interfaces()
 
 
 def get_lan_networks():

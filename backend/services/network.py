@@ -172,10 +172,7 @@ def require_networkmanager():
 
     if not has_networkmanager():
 
-        return False, (
-            "NetworkManager/nmcli is not installed. "
-            "Network configuration requires NetworkManager."
-        )
+        return False, "NetworkManager is not available."
 
     return True, "OK"
 
@@ -627,7 +624,8 @@ def mask_to_cidr(mask):
 
 def apply_interface_config(
     config,
-    dry_run=True
+    dry_run=True,
+    role="lan"
 ):
 
     valid, message = validate_lan_config(
@@ -732,6 +730,19 @@ def apply_interface_config(
 
         ]
 
+    # Only the WAN may carry the default route. On the LAN a gateway
+    # would otherwise pull the internet away from the modem.
+    if role == "wan":
+        commands[0] += [
+            "ipv4.never-default", "no",
+            "ipv4.route-metric", WAN_ROUTE_METRIC
+        ]
+    else:
+        commands[0] += [
+            "ipv4.never-default", "yes",
+            "ipv4.route-metric", "-1"
+        ]
+
     # Apply the connection.
     commands.append([
         "nmcli",
@@ -788,14 +799,62 @@ NETWORK = "network"
 INTERFACE_FIELDS = ("interface", "mode", "ip", "subnet", "gateway", "dns")
 
 
+# eth0 is the LAN port by default. In WAN mode it is the internet
+# uplink instead of the modem.
+ETH0 = "eth0"
+
+ETH0_ROLES = ("lan", "wan")
+
+MODEM_INTERFACE = "wwan0"
+
+# Below the modem's route metric, so eth0 wins while it is the WAN.
+WAN_ROUTE_METRIC = "50"
+
+# eth0's LAN address when no earlier LAN config is known.
+DEFAULT_LAN_CONFIG = {
+    "interface": ETH0,
+    "mode": "Static",
+    "ip": "192.168.1.1",
+    "subnet": "255.255.255.0",
+    "gateway": "192.168.1.1",
+    "dns": "192.168.1.1"
+}
+
+
 def get_network_settings():
     """
-    {"interfaces": {"eth0": {...}}} from the running config.
+    {"interfaces": {"eth0": {...}}, "eth0_role": "lan" | "wan",
+    "lan_config": {...}} from the running config. lan_config keeps
+    eth0's LAN settings while it is the WAN.
     """
 
     settings = load_settings(NETWORK, {"interfaces": {}})
 
-    return {"interfaces": dict(settings.get("interfaces") or {})}
+    role = settings.get("eth0_role")
+
+    return {
+        "interfaces": dict(settings.get("interfaces") or {}),
+        "eth0_role": role if role in ETH0_ROLES else "lan",
+        "lan_config": settings.get("lan_config") or None
+    }
+
+
+def get_eth0_role():
+
+    return get_network_settings()["eth0_role"]
+
+
+def get_wan_interface():
+    """
+    The internet uplink: eth0 in WAN mode, otherwise the modem.
+    """
+
+    return ETH0 if get_eth0_role() == "wan" else MODEM_INTERFACE
+
+
+def is_wan_interface(name):
+
+    return name == get_wan_interface()
 
 
 def get_network_baseline():
@@ -826,14 +885,18 @@ def get_network_baseline():
 
         interfaces[iface["name"]] = config
 
-    return {"interfaces": interfaces}
+    return {"interfaces": interfaces, "eth0_role": "lan"}
 
 
 def apply_network_settings():
 
-    for name, config in get_network_settings()["interfaces"].items():
+    settings = get_network_settings()
 
-        ok, result = apply_interface_config(config, dry_run=False)
+    for name, config in settings["interfaces"].items():
+
+        role = settings["eth0_role"] if name == ETH0 else "lan"
+
+        ok, result = apply_interface_config(config, dry_run=False, role=role)
 
         if not ok:
             return False, f"{name}: {result}"
@@ -860,6 +923,58 @@ def change_interface(config):
 
     if config.get("mode") == "Static":
         hint = f"If this page stops responding, open http://{config['ip']}/ to confirm."
+
+    return transaction.change(NETWORK, settings, hint=hint)
+
+
+def set_eth0_role(role):
+    """
+    Switches eth0 between LAN port and internet uplink. WAN mode makes
+    it a DHCP client with the default route; LAN mode restores its
+    previous LAN settings.
+    """
+
+    if role not in ETH0_ROLES:
+        return transaction.result(False, "Invalid mode.")
+
+    settings = get_network_settings()
+
+    if settings["eth0_role"] == role:
+        return transaction.result(False, f"eth0 is already in {role.upper()} mode.")
+
+    current = (
+        settings["interfaces"].get(ETH0)
+        or get_network_baseline()["interfaces"].get(ETH0)
+    )
+
+    if not current:
+        return transaction.result(False, "eth0 was not found.")
+
+    if role == "wan":
+
+        # Kept for switching back.
+        if current.get("mode") == "Static":
+            settings["lan_config"] = current
+
+        settings["interfaces"][ETH0] = {
+            "interface": ETH0,
+            "mode": "DHCP Client"
+        }
+
+        hint = (
+            "If you are connected through eth0, reconnect over Wi-Fi "
+            "to confirm."
+        )
+
+    else:
+
+        lan = settings["lan_config"] or DEFAULT_LAN_CONFIG
+
+        settings["interfaces"][ETH0] = dict(lan)
+
+        hint = f"If this page stops responding, open http://{lan['ip']}/ to confirm."
+
+    settings["eth0_role"] = role
 
     return transaction.change(NETWORK, settings, hint=hint)
 

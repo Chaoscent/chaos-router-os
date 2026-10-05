@@ -29,8 +29,15 @@ Without these it isn't a router yet.
 
 - [x] **LAN NAT and IP forwarding.** Done: `services/routing.py`, the "Routing & NAT" card on the Firewall page. Applied at boot from the installed defaults (on by default), even before the first change. Still to do:
   - [ ] Test on the Pi 5: LAN devices get internet through the modem.
-  - [ ] "Automatic" WAN is detected when routing is applied. If the default route only appears after boot (e.g. an Ethernet uplink), NAT points at the modem until the settings are saved again. Re-apply when the default route changes (NetworkManager dispatcher).
-  - [ ] The firewall's essential rule "Forward LAN to WAN" is hard-coded to `wwan0`; use the routing WAN instead.
+  - [x] The WAN is no longer guessed from the default route: it is eth0 when eth0 is switched to WAN mode on the Network page, otherwise `wwan0`.
+  - [x] The firewall's essential rules follow the WAN (eth0 in WAN mode).
+  - [ ] Test the eth0 LAN/WAN switch on the Pi 5: default route on eth0, NAT on eth0, DHCP paused on eth0.
+  - [x] Essential firewall rules are a setting, rebuilt on every apply (and on every eth0 mode switch), not one-off copies.
+  - [x] **Security:** SSH and the dashboard are only allowed on LAN interfaces, never on the WAN.
+- [x] **Firewall on by default.** The installer ships `/etc/chaos-router-os/firewall.json`: on, incoming and routed denied, outgoing allowed, essential rules on. Applied at boot before the first change.
+  - [ ] Test on the Pi 5 that a fresh install keeps SSH and the dashboard reachable from eth0 and Wi-Fi.
+  - [ ] Once Caddy is in front, drop port 5000 from the essential rules (`CHAOS_PORT`).
+  - [ ] Dev setups that enabled the firewall before this change still have the old "allow from any" essential copies as user rules; delete them on the Firewall page.
   - [ ] Consider TCP MSS clamping for the modem link (mobile networks often have a smaller MTU).
 - [ ] **Start at boot.** A systemd unit for the app. Without it, Safe Apply's boot recovery (`sync_boot` + `apply_all`) never runs unless the app is started by hand.
 - [ ] **Production server.** Run under gunicorn or waitress (one or two workers), bound to localhost, with Caddy in front. The Flask dev server must not face the LAN.

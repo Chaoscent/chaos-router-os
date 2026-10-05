@@ -114,7 +114,7 @@ def apply_blocked():
         if not devices:
             return True, "No devices blocked."
 
-        return False, "iptables is not installed."
+        return False, "iptables is not available."
 
     for tool in tools:
 

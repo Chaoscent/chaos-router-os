@@ -101,7 +101,6 @@ window.Page.dns = {
         const { status, settings } = this.data;
 
         dnsState.textContent =
-            !status.installed ? "Not installed" :
             !status.running ? "Stopped" :
             settings.enabled ? "Running" : "Off";
 

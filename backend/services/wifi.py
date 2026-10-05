@@ -477,10 +477,7 @@ def apply_wifi_settings():
         if not settings["enabled"]:
             return True, "Access point turned off."
 
-        return False, (
-            "hostapd is not installed. "
-            "Install it with: sudo apt install hostapd"
-        )
+        return False, "hostapd is not available."
 
     interface = settings["interface"]
 

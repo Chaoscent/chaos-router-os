@@ -7,11 +7,13 @@ import shutil
 from services.network import (
     run,
     run_command,
-    privileged
+    privileged,
+    get_wan_interface
 )
 
 from services.config import (
     load_defaults,
+    has_defaults,
     load_running,
     load_system,
     save_system
@@ -32,8 +34,6 @@ UFW_SEARCH_PATH = os.pathsep.join([
     "/usr/sbin",
     "/sbin"
 ])
-
-WAN_INTERFACE = "wwan0"
 
 LAN_INTERFACES = (
     "eth0",
@@ -67,9 +67,18 @@ COMMENT_RE = re.compile(r"^[A-Za-z0-9 ._:()/+-]{1,64}$")
 
 ESSENTIAL_COMMENT = "Chaos Router OS"
 
-# firewall.json: enabled, policies, logging and the user's rules.
+# Comment prefix of the rules kept by the "essentials" setting.
+ESSENTIAL_PREFIX = f"{ESSENTIAL_COMMENT}: Essential"
+
+# The dashboard: HTTP, HTTPS (Caddy) and the app's own port.
+WEB_PORTS = ("80", "443", os.getenv("CHAOS_PORT", "5000"))
+
+# firewall.json: enabled, policies, logging, the essential rules
+# switch and the user's rules.
 FIREWALL = "firewall"
 
+# Fallback when /etc/chaos-router-os has no firewall.json (and the
+# base for importing an existing ufw setup).
 BUILTIN_FIREWALL = {
     "enabled": False,
     "policies": {
@@ -78,7 +87,16 @@ BUILTIN_FIREWALL = {
         "routed": "deny"
     },
     "logging": "low",
+    "essentials": False,
     "rules": []
+}
+
+# Shipped to /etc/chaos-router-os/firewall.json by the installer: on,
+# nothing comes in from the internet, the LAN keeps working.
+DEFAULT_SETTINGS = {
+    **BUILTIN_FIREWALL,
+    "enabled": True,
+    "essentials": True
 }
 
 # system/firewall_rules.json: the rules each owner ("user",
@@ -86,11 +104,13 @@ BUILTIN_FIREWALL = {
 # config, so it is never reverted.
 RULE_LEDGER = "firewall_rules"
 
-# Rules owned by the VPN modules are not imported as user rules.
+# Rules owned by the VPN modules and the essential rules are not
+# imported as user rules.
 VPN_COMMENTS = (
     f"{ESSENTIAL_COMMENT}: WireGuard",
     f"{ESSENTIAL_COMMENT}: OpenVPN",
-    f"{ESSENTIAL_COMMENT}: VPN client"
+    f"{ESSENTIAL_COMMENT}: VPN client",
+    ESSENTIAL_PREFIX
 )
 
 
@@ -113,10 +133,7 @@ def ufw(args):
     path = get_ufw_path()
 
     if not path:
-        return False, (
-            "ufw is not installed. "
-            "Install it with: sudo apt install ufw"
-        )
+        return False, "ufw is not available."
 
     return run_command(privileged([path] + args))
 
@@ -211,12 +228,17 @@ def is_ufw_active():
 def get_firewall_settings():
     """
     The running firewall config. Before the first change from the
-    dashboard, it mirrors what ufw runs now.
+    dashboard, it is the installed defaults, or (without them) what
+    ufw runs now.
     """
 
     running = load_running(FIREWALL, None)
 
     if running is None:
+
+        if has_defaults(FIREWALL):
+            return load_defaults(FIREWALL, BUILTIN_FIREWALL)
+
         return import_from_ufw()
 
     settings = load_defaults(FIREWALL, BUILTIN_FIREWALL)
@@ -288,6 +310,11 @@ def get_firewall_status():
         "policies": settings["policies"],
         "forwarding": is_forwarding_enabled(),
         "interfaces": get_interfaces(),
+        "essentials": settings["essentials"],
+        "essential_rules": [
+            {**parse_rule(shlex.join(r["args"])), "description": r["description"]}
+            for r in get_essential_rules()
+        ] if settings["essentials"] else [],
         "rules": [rule_view(r) for r in settings["rules"]],
         "rules_error": None
     }
@@ -648,10 +675,7 @@ def apply_firewall():
         if not settings["enabled"]:
             return True, "Firewall off."
 
-        return False, (
-            "ufw is not installed. "
-            "Install it with: sudo apt install ufw"
-        )
+        return False, "ufw is not available."
 
     current = get_policies()
 
@@ -676,6 +700,14 @@ def apply_firewall():
             return False, result
 
     ok, result = sync_rules("user", [r["args"] for r in settings["rules"]])
+
+    if not ok:
+        return False, result
+
+    # Rebuilt on every apply, so they follow the LAN/WAN setup.
+    ok, result = sync_rules("essentials", [
+        r["args"] for r in get_essential_rules()
+    ] if settings["essentials"] else [])
 
     if not ok:
         return False, result
@@ -712,39 +744,45 @@ def verify_firewall():
 # Essential rules
 # -------------------------------------------------------------------
 
-def get_essential_rules(ui_port=None):
+def get_lan_interfaces():
     """
-    Rules that keep the router reachable and the LAN working
-    once incoming and routed traffic are denied by default.
+    LAN interfaces that exist now; eth0 drops out in WAN mode.
     """
-
-    rules = [
-        {
-            "description": "SSH",
-            "args": ["allow", "in", "from", "any", "to", "any",
-                     "port", "22", "proto", "tcp"]
-        }
-    ]
-
-    web_ports = ["80", "443"]
-
-    if ui_port and str(ui_port) not in web_ports:
-        web_ports.append(str(ui_port))
-
-    for port in web_ports:
-
-        rules.append({
-            "description": f"Web interface ({port}/tcp)",
-            "args": ["allow", "in", "from", "any", "to", "any",
-                     "port", port, "proto", "tcp"]
-        })
 
     interfaces = get_interfaces()
+    wan = get_wan_interface()
 
-    for lan in LAN_INTERFACES:
+    return [
+        name for name in LAN_INTERFACES
+        if name in interfaces and name != wan
+    ]
 
-        if lan not in interfaces:
-            continue
+
+def get_essential_rules():
+    """
+    Rules that keep the router reachable and the LAN working once
+    incoming and routed traffic are denied by default. Everything is
+    limited to the LAN interfaces: nothing is opened towards the WAN.
+    """
+
+    rules = []
+    wan = get_wan_interface()
+
+    for lan in get_lan_interfaces():
+
+        rules.append({
+            "description": f"SSH on {lan}",
+            "args": ["allow", "in", "on", lan, "from", "any", "to", "any",
+                     "port", "22", "proto", "tcp"]
+        })
+
+        for port in WEB_PORTS:
+
+            rules.append({
+                "description": f"Web interface {port} on {lan}",
+                "args": ["allow", "in", "on", lan, "from", "any", "to", "any",
+                         "port", port, "proto", "tcp"]
+            })
 
         rules.append({
             "description": f"DHCP on {lan}",
@@ -758,20 +796,18 @@ def get_essential_rules(ui_port=None):
                      "port", "53"]
         })
 
-        if WAN_INTERFACE in interfaces:
-
-            rules.append({
-                "description": f"Forward {lan} to {WAN_INTERFACE}",
-                "args": ["route", "allow", "in", "on", lan,
-                         "out", "on", WAN_INTERFACE]
-            })
+        rules.append({
+            "description": f"Internet for {lan}",
+            "args": ["route", "allow", "in", "on", lan,
+                     "out", "on", wan]
+        })
 
     for rule in rules:
 
-        # Mark the rule so it is recognisable in the rule list.
+        # Mark the rule so it is recognisable in ufw.
         rule["args"] = rule["args"] + [
             "comment",
-            f"{ESSENTIAL_COMMENT}: {rule['description']}"
+            f"{ESSENTIAL_PREFIX}: {rule['description']}"
         ]
 
         rule["command"] = "ufw " + shlex.join(rule["args"])
@@ -783,24 +819,21 @@ def get_essential_rules(ui_port=None):
 # Enable / defaults
 # -------------------------------------------------------------------
 
-def set_firewall_enabled(enabled, essentials=False, ui_port=None):
+def set_firewall_enabled(enabled, essentials=None):
 
     settings = get_firewall_settings()
     settings["enabled"] = enabled
 
-    if enabled and essentials:
+    if essentials is not None:
+        settings["essentials"] = essentials
 
-        existing = [strip_comment(r["args"]) for r in settings["rules"]]
+    return transaction.change(FIREWALL, settings)
 
-        for rule in get_essential_rules(ui_port):
 
-            if strip_comment(rule["args"]) in existing:
-                continue
+def set_essentials(enabled):
 
-            settings["rules"].append({
-                "id": next_rule_id(settings["rules"]),
-                "args": rule["args"]
-            })
+    settings = get_firewall_settings()
+    settings["essentials"] = enabled
 
     return transaction.change(FIREWALL, settings)
 

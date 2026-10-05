@@ -329,10 +329,7 @@ def apply_server():
         if not server["enabled"]:
             return True, "WireGuard server stopped."
 
-        return False, (
-            "WireGuard is not installed. "
-            "Install it with: sudo apt install wireguard-tools"
-        )
+        return False, "WireGuard is not available."
 
     if not server["enabled"]:
 
@@ -388,10 +385,7 @@ def save_server(settings):
         private, public = generate_keypair()
 
         if not private:
-            return transaction.result(False, (
-                "Could not generate keys. "
-                "Install WireGuard with: sudo apt install wireguard-tools"
-            ))
+            return transaction.result(False, "Could not generate keys.")
 
         data["server"]["private_key"] = private
         data["server"]["public_key"] = public

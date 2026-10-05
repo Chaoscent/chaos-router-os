@@ -93,11 +93,16 @@ window.Page.dhcp = {
         const { settings, status } = this.data;
 
         dhcpServerState.textContent =
+            status.paused ? "Paused" :
             settings.enabled ? "Enabled" : "Disabled";
 
         dhcpServiceState.textContent =
-            !status.installed ? "Not installed" :
             status.running ? "Running" : "Stopped";
+
+        // eth0 in WAN mode: never hand out addresses to the uplink.
+        if (status.paused && !dhcpStatus.textContent) {
+            dhcpStatus.textContent = status.paused;
+        }
 
         this.updateRouterIP();
 

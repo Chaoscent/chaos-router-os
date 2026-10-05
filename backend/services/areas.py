@@ -6,7 +6,7 @@ then the firewall, then the services that depend on both.
 """
 
 from dataclasses import dataclass
-from typing import Callable, Optional
+from typing import Callable, Optional, Tuple
 
 from services import (
     network,
@@ -48,22 +48,34 @@ class Area:
     # change, once the installer has written its defaults there.
     boot_defaults: bool = False
 
+    # Areas that read this one's settings (e.g. which interface is the
+    # WAN) and are re-applied whenever it changes or is reverted.
+    dependents: Tuple[str, ...] = ()
+
 
 AREAS = {area.name: area for area in (
 
+    # eth0's LAN/WAN mode decides the WAN for everything below.
     Area(
         "network", "Network",
         apply=network.apply_network_settings,
         baseline=network.get_network_baseline,
-        confirm=True
+        confirm=True,
+        dependents=(
+            "firewall", "routing", "dhcp", "dns",
+            "wireguard", "openvpn", "vpn_profiles"
+        )
     ),
 
+    # Ships on (see firewall.DEFAULT_SETTINGS): applied at boot from
+    # the installed defaults before the first change.
     Area(
         "firewall", "Firewall",
         apply=firewall.apply_firewall,
         verify=firewall.verify_firewall,
         baseline=firewall.get_firewall_settings,
-        confirm=True
+        confirm=True,
+        boot_defaults=True
     ),
 
     # Not confirmed: turning NAT off cuts the internet, not the

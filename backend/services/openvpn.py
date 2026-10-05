@@ -140,10 +140,7 @@ def easyrsa(*args):
     path = get_easyrsa()
 
     if not path:
-        return False, (
-            "easy-rsa is not installed. "
-            "Install it with: sudo apt install easy-rsa"
-        )
+        return False, "easy-rsa is not available."
 
     return run_command(privileged([
         path,
@@ -554,10 +551,7 @@ def apply_server():
         if not server["enabled"]:
             return True, "OpenVPN server stopped."
 
-        return False, (
-            "OpenVPN is not installed. "
-            "Install it with: sudo apt install openvpn easy-rsa"
-        )
+        return False, "OpenVPN is not available."
 
     if not server["enabled"]:
 
@@ -635,10 +629,7 @@ def add_client(name):
         return False, f"A client named {name} already exists."
 
     if not has_openvpn():
-        return False, (
-            "OpenVPN is not installed. "
-            "Install it with: sudo apt install openvpn easy-rsa"
-        )
+        return False, "OpenVPN is not available."
 
     ok, result = init_pki()
 

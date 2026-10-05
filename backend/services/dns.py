@@ -228,7 +228,7 @@ def validate_dns_settings(data):
     dnssec = settings.get("dnssec") is True
 
     if dnssec and settings.get("enabled") and not os.path.exists(TRUST_ANCHORS):
-        return False, "DNSSEC needs dnsmasq's trust anchors (sudo apt install dnsmasq)."
+        return False, "DNSSEC needs dnsmasq's trust anchors, which were not found."
 
     records = []
     seen = set()
@@ -415,10 +415,7 @@ def apply_dns_settings():
         if not settings["enabled"]:
             return True, "DNS server off."
 
-        return False, (
-            "dnsmasq is not installed. "
-            "Install it with: sudo apt install dnsmasq"
-        )
+        return False, "dnsmasq is not available."
 
     ok, result = install_dnsmasq_config(
         render_dns_config(settings),

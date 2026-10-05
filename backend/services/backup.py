@@ -166,7 +166,25 @@ def _validate_network(data):
 
         cleaned[name] = {k: config[k] for k in INTERFACE_FIELDS if k in config}
 
-    return {"interfaces": cleaned}
+    role = data.get("eth0_role", "lan")
+
+    _require(role in ("lan", "wan"), "Invalid eth0 mode.")
+
+    result = {"interfaces": cleaned, "eth0_role": role}
+
+    lan = data.get("lan_config")
+
+    if lan:
+
+        _require(isinstance(lan, dict), "Invalid eth0 LAN settings.")
+
+        ok, message = validate_lan_config(lan)
+
+        _require(ok, f"eth0 LAN settings: {message}")
+
+        result["lan_config"] = {k: lan[k] for k in INTERFACE_FIELDS if k in lan}
+
+    return result
 
 
 def _validate_firewall(data):
@@ -183,6 +201,8 @@ def _validate_firewall(data):
         _require(policies.get(direction) in POLICIES, f"Invalid {direction} policy.")
 
     _require(data.get("logging") in LOG_LEVELS, "Invalid logging level.")
+
+    _require(isinstance(data.get("essentials", False), bool), "Invalid essential rules setting.")
 
     rules = []
 
@@ -206,6 +226,7 @@ def _validate_firewall(data):
         "enabled": data["enabled"],
         "policies": {d: policies[d] for d in POLICY_DIRECTIONS},
         "logging": data["logging"],
+        "essentials": data.get("essentials", False),
         "rules": rules
     }
 

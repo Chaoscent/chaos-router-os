@@ -12,7 +12,8 @@ from services.network import (
     run,
     run_command,
     privileged,
-    unit_stays_active
+    unit_stays_active,
+    is_wan_interface
 )
 
 # -------------------------------------------------------------------
@@ -484,22 +485,33 @@ def save_dhcp_settings(data, confirm=None):
     return outcome
 
 
+def is_paused(settings=None):
+    """
+    DHCP never serves the internet uplink: while its interface is the
+    WAN (eth0 in WAN mode) the server is paused, not removed.
+    """
+
+    settings = settings or get_dhcp_settings()
+
+    return settings["enabled"] and is_wan_interface(settings["interface"])
+
+
 def apply_dhcp_settings():
     """
     Applies the running DHCP settings to dnsmasq.
     """
 
-    settings = get_dhcp_settings()
+    settings = dict(get_dhcp_settings())
+
+    if is_paused(settings):
+        settings["enabled"] = False
 
     if not has_dnsmasq():
 
         if not settings["enabled"]:
             return True, "DHCP server disabled."
 
-        return False, (
-            "dnsmasq is not installed. "
-            "Install it with: sudo apt install dnsmasq"
-        )
+        return False, "dnsmasq is not available."
 
     if settings["enabled"]:
         ok, result = install_dnsmasq_config(
@@ -519,12 +531,15 @@ def apply_dhcp_settings():
     if settings["enabled"]:
         return True, "DHCP server applied."
 
+    if is_paused():
+        return True, f"DHCP server paused: {settings['interface']} is the WAN."
+
     return True, "DHCP server disabled."
 
 
 def verify_dhcp_settings():
 
-    if not get_dhcp_settings()["enabled"]:
+    if not get_dhcp_settings()["enabled"] or is_paused():
         return True, "OK"
 
     return unit_stays_active("dnsmasq")
@@ -657,8 +672,15 @@ def get_dhcp_status():
 
     installed = has_dnsmasq()
 
+    settings = get_dhcp_settings()
+
     return {
         "installed": installed,
         "running": installed and is_dnsmasq_running(),
-        "config_file": DNSMASQ_CONF_FILE
+        "config_file": DNSMASQ_CONF_FILE,
+        "paused": (
+            f"Paused: {settings['interface']} is in WAN mode. Switch it back "
+            f"to LAN on the Network page, or serve DHCP on another interface."
+            if is_paused(settings) else None
+        )
     }

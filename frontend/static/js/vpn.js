@@ -139,8 +139,6 @@ window.Page.vpn = {
 
     serviceState(info) {
 
-        if (!info.installed) return "Not installed";
-
         return info.running ? "Running" : "Off";
 
     },

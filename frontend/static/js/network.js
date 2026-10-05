@@ -6,6 +6,8 @@ window.Page.network = {
     interfaces: {},
     original: {},
     pendingInterface: null,
+    pendingRole: null,
+    eth0Role: "lan",
     outsideClickHandler: null,
 
     // Editable network fields: card key, error message, validator.
@@ -284,6 +286,11 @@ window.Page.network = {
 
             }
 
+            if (data.eth0_role && data.eth0_role !== this.eth0Role) {
+                this.eth0Role = data.eth0_role;
+                this.renderRoleToggle();
+            }
+
         } catch (err) {
 
             console.error("Network status update failed:", err);
@@ -324,6 +331,9 @@ window.Page.network = {
         });
 
         this.interfaces[name] = card;
+
+        if (name === "eth0")
+            this.addRoleToggle(q(".interface-header"));
 
         this.setupCustomSelect(node);
 
@@ -474,6 +484,12 @@ window.Page.network = {
             return;
         }
 
+        this.pendingRole = null;
+
+        this.$("networkModalTitle").textContent = "Apply Network Changes";
+        this.$("networkModalIntro").textContent =
+            "You're about to change the selected interface configuration.";
+
         body.innerHTML = "";
 
         const changes = rows.filter(([, oldValue, newValue]) => oldValue !== newValue);
@@ -521,6 +537,9 @@ window.Page.network = {
 
     async applyChanges() {
 
+        if (this.pendingRole)
+            return this.applyRole();
+
         const name = this.pendingInterface;
         const card = name && this.interfaces[name];
         const modalConfirm = this.$("modalConfirm");
@@ -562,6 +581,154 @@ window.Page.network = {
             console.error("Network apply failed:", err);
 
             alert("Apply failed:\n\n" + err.message);
+
+        } finally {
+
+            modalConfirm.disabled = false;
+            modalConfirm.textContent = "Apply";
+
+        }
+
+    },
+
+    // ------------------------------------------------------------
+    // eth0 LAN / WAN mode
+    // ------------------------------------------------------------
+
+    ROLE_INFO: {
+        lan: "LAN port: devices plug in here. The modem is the internet uplink.",
+        wan: "WAN port: the internet comes in here instead of through the modem."
+    },
+
+    addRoleToggle(header) {
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "role-switch";
+
+        wrapper.innerHTML = `
+            <div class="role-toggle" role="group" aria-label="eth0 mode">
+                <button type="button" class="role-option" data-role="lan">LAN</button>
+                <button type="button" class="role-option" data-role="wan">WAN</button>
+            </div>
+            <p class="role-info"></p>
+        `;
+
+        wrapper.querySelectorAll(".role-option").forEach(button => {
+
+            button.addEventListener("click", event => {
+
+                event.preventDefault();
+                event.stopPropagation();
+
+                if (button.dataset.role !== this.eth0Role)
+                    this.openRoleModal(button.dataset.role);
+
+            });
+
+        });
+
+        header.appendChild(wrapper);
+
+        // The card is not in the page yet.
+        this.renderRoleToggle(wrapper);
+
+    },
+
+    renderRoleToggle(root = document) {
+
+        root.querySelectorAll(".role-option").forEach(button => {
+
+            const active = button.dataset.role === this.eth0Role;
+
+            button.classList.toggle("active", active);
+            button.setAttribute("aria-pressed", String(active));
+
+        });
+
+        root.querySelectorAll(".role-info").forEach(info => {
+            info.textContent = this.ROLE_INFO[this.eth0Role];
+        });
+
+    },
+
+    openRoleModal(role) {
+
+        const modal = this.$("confirmModal");
+        const body = this.$("modalBody");
+
+        this.pendingRole = role;
+        this.pendingInterface = null;
+
+        this.$("networkModalTitle").textContent =
+            role === "wan" ? "Switch eth0 to WAN" : "Switch eth0 to LAN";
+
+        this.$("networkModalIntro").textContent = role === "wan"
+            ? "eth0 becomes the internet uplink. It gets its address from the network it is plugged into, and internet traffic leaves through it instead of the modem."
+            : "eth0 becomes a LAN port again with its previous LAN address. Internet traffic goes back to the modem.";
+
+        const rows = role === "wan"
+            ? [
+                ["Internet uplink", "wwan0 (modem) → eth0"],
+                ["eth0 address", "→ DHCP client"],
+                ["DHCP server on eth0", "paused"]
+            ]
+            : [
+                ["Internet uplink", "eth0 → wwan0 (modem)"],
+                ["eth0 address", "→ previous LAN settings"],
+                ["DHCP server on eth0", "resumed"]
+            ];
+
+        body.innerHTML = "";
+
+        for (const [label, value] of rows) {
+
+            const row = document.createElement("div");
+            row.className = "modal-change";
+
+            const labelElement = document.createElement("label");
+            labelElement.textContent = label;
+
+            const valueElement = document.createElement("strong");
+            valueElement.textContent = value;
+
+            row.append(labelElement, valueElement);
+            body.appendChild(row);
+
+        }
+
+        modal.classList.remove("hidden");
+
+    },
+
+    async applyRole() {
+
+        const role = this.pendingRole;
+        const modalConfirm = this.$("modalConfirm");
+
+        modalConfirm.disabled = true;
+        modalConfirm.textContent = "Applying...";
+
+        try {
+
+            await this.post(
+                "/api/network/eth0-role",
+                { role },
+                "Failed to switch eth0."
+            );
+
+            this.eth0Role = role;
+            this.pendingRole = null;
+
+            this.closeConfirmModal();
+
+            await this.loadInterfaces();
+            await this.updateStatus();
+
+        } catch (err) {
+
+            console.error("eth0 mode switch failed:", err);
+
+            alert("Switch failed:\n\n" + err.message);
 
         } finally {
 

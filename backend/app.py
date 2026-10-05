@@ -100,6 +100,12 @@ from services.network import (
 
         change_interface,
 
+        set_eth0_role,
+
+        get_eth0_role,
+
+        get_wan_interface,
+
         set_device_alias
 
 )
@@ -137,6 +143,8 @@ from services.firewall import (
         get_essential_rules,
 
         set_firewall_enabled,
+
+        set_essentials as set_firewall_essentials,
 
         set_policies as set_firewall_policies,
 
@@ -692,9 +700,29 @@ def network_api():
 
                 "connection": get_connection_type(interface),
 
-                "wan": "Connected" if interface != "Unknown" else "Disconnected"
+                "wan": "Connected" if interface != "Unknown" else "Disconnected",
+
+                "eth0_role": get_eth0_role(),
+
+                "wan_interface": get_wan_interface()
 
         })
+
+
+
+
+
+@app.route("/api/network/eth0-role", methods=["POST"])
+
+@login_required
+
+def network_eth0_role_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return safe_apply_response(
+                set_eth0_role(data.get("role"))
+        )
 
 
 
@@ -1548,24 +1576,6 @@ def firewall_response(outcome):
 
 
 
-def get_ui_port():
-
-        # Port the browser used to reach this UI, so enabling the
-        # firewall never locks the user out of the page they are on.
-        host = request.host
-
-        if ":" in host and not host.endswith("]"):
-
-                return host.rsplit(":", 1)[1]
-
-
-
-        return "443" if request.scheme == "https" else "80"
-
-
-
-
-
 @app.route("/api/firewall")
 
 @login_required
@@ -1593,9 +1603,25 @@ def firewall_essentials_api():
 
                 }
 
-                for rule in get_essential_rules(get_ui_port())
+                for rule in get_essential_rules()
 
         ])
+
+
+
+
+
+@app.route("/api/firewall/essentials", methods=["POST"])
+
+@login_required
+
+def firewall_essentials_setting_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return firewall_response(
+                set_firewall_essentials(data.get("enabled") is True)
+        )
 
 
 
@@ -1609,13 +1635,13 @@ def firewall_enable_api():
 
         data = request.get_json(silent=True) or {}
 
+        essentials = data.get("essentials")
+
         return firewall_response(set_firewall_enabled(
 
                 data.get("enabled") is True,
 
-                essentials=data.get("essentials") is True,
-
-                ui_port=get_ui_port()
+                essentials=essentials if isinstance(essentials, bool) else None
 
         ))
 

@@ -62,6 +62,17 @@
 
             <div id="fwToggleStatus" class="setting-status"></div>
 
+            <label class="modal-check fw-essentials">
+                <input id="fwEssentialsToggle" type="checkbox">
+                <span>Essential rules</span>
+            </label>
+
+            <p class="setting-hint">
+                Lets LAN devices reach SSH, this dashboard, DHCP, DNS and the
+                internet. Nothing is opened towards the WAN. The rules follow
+                the LAN/WAN setup automatically.
+            </p>
+
         </div>
 
 
@@ -75,7 +86,8 @@
                 Forwarding lets the router pass traffic between the LAN and
                 the internet. NAT shares the router's internet address with
                 every LAN device and VPN client. Both are needed for LAN
-                devices to get online.
+                devices to get online. The internet interface is the modem,
+                or eth0 when it is switched to WAN on the Network page.
             </p>
 
             <div class="settings-grid">
@@ -97,10 +109,8 @@
                 </div>
 
                 <div class="setting-field">
-                    <label for="routeWanInput">Internet interface (WAN)</label>
-                    <select id="routeWanInput" class="setting-input">
-                        <option value="auto">Automatic</option>
-                    </select>
+                    <label>Internet interface (WAN)</label>
+                    <div id="routeWan" class="setting-input setting-readonly">--</div>
                 </div>
 
             </div>

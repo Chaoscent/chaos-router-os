@@ -169,6 +169,8 @@ Everything Chaos Router OS writes to these folders is JSON.
 
 ```text
 /etc/chaos-router-os/        Defaults. Shipped with the OS, never written by the app.
+                             Includes a firewall that is on: nothing comes in
+                             from the internet, the LAN keeps working.
 /var/lib/chaos-router-os/    Persistent config: only applied and verified settings.
   └── system/                Records of what is actually on the system
                              (firewall rules, OpenVPN certificate backup, event log).
@@ -206,7 +208,7 @@ For development and tests, the three config folders can be moved with `CHAOS_DEF
 
 ### System Requirements
 
-Features only work when their service is installed. Each page says which package is missing.
+The installer will set all of these up. For development, install them by hand:
 
 ```bash
 sudo apt install dnsmasq hostapd ufw iptables wireguard-tools openvpn easy-rsa openresolv iw rfkill
@@ -242,6 +244,7 @@ A ready-made sudoers file will ship with the installer.
 | 🧪 | Clients page (reserve DHCP IP, block device, ping, Wake-on-LAN) |
 | 🧪 | Firewall page (ufw, default policies, rules) |
 | 🧪 | Routing & NAT (IP forwarding, masquerading to the WAN) |
+| 🧪 | eth0 LAN/WAN switch (Ethernet uplink instead of the modem) |
 | 🧪 | VPN page: WireGuard server |
 | 🧪 | VPN page: OpenVPN server with its own certificate authority |
 | 🧪 | VPN page: WireGuard and OpenVPN client profiles |

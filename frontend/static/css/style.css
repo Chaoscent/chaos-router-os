@@ -2407,3 +2407,113 @@ main > *{
 .backup-results .failed{
     color:#ffb4b4;
 }
+
+/* ========================= */
+/* eth0 LAN / WAN switch     */
+/* ========================= */
+
+.interface-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:16px;
+    flex-wrap:wrap;
+}
+
+.role-switch{
+    display:flex;
+    flex-direction:column;
+    align-items:flex-end;
+    gap:8px;
+    max-width:320px;
+}
+
+.role-toggle{
+    display:inline-flex;
+    padding:4px;
+    gap:4px;
+    background:var(--panel2);
+    border:1px solid var(--border);
+    border-radius:12px;
+}
+
+.role-option{
+    min-width:72px;
+    padding:8px 18px;
+    background:transparent;
+    color:var(--muted);
+    border:1px solid transparent;
+    border-radius:9px;
+    font:inherit;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    transition:background var(--transition),color var(--transition),box-shadow var(--transition),transform .12s ease;
+}
+
+.role-option:hover:not(.active){
+    color:var(--text);
+    background:rgba(255,255,255,.04);
+}
+
+.role-option:active{
+    transform:scale(.97);
+}
+
+.role-option.active{
+    background:var(--accent);
+    color:#fff;
+    box-shadow:0 4px 14px rgba(78,161,255,.25);
+    cursor:default;
+}
+
+.role-option:focus-visible{
+    outline:2px solid #70b3ff;
+    outline-offset:2px;
+}
+
+.role-info{
+    margin:0;
+    color:var(--muted);
+    font-size:13px;
+    line-height:1.4;
+    text-align:right;
+}
+
+@media (max-width:700px){
+
+    .role-switch{
+        align-items:flex-start;
+        max-width:none;
+    }
+
+    .role-info{
+        text-align:left;
+    }
+
+}
+
+/* Read-only value shaped like an input. */
+.setting-readonly{
+    display:flex;
+    align-items:center;
+    color:var(--muted);
+    cursor:default;
+    user-select:text;
+}
+
+/* Firewall: built-in rules */
+
+.fw-essentials{
+    margin-top:16px;
+}
+
+.rule-builtin{
+    display:inline-block;
+    padding:4px 10px;
+    border:1px solid var(--border);
+    border-radius:999px;
+    color:var(--muted);
+    font-size:12px;
+    white-space:nowrap;
+}

@@ -425,8 +425,7 @@ def import_profile(data):
         if "DNS" in [k for sec in result for k, _ in sec["items"]] \
                 and "DNS =" not in profile["config"]:
             notes.append(
-                "DNS was skipped because resolvconf is not installed "
-                "(sudo apt install openresolv)."
+                "DNS was skipped because resolvconf is not available."
             )
 
     else:
@@ -577,10 +576,10 @@ def apply_profiles():
 def tool_missing(profile):
 
     if profile["type"] == "wireguard" and not has_wireguard():
-        return "WireGuard is not installed. Install it with: sudo apt install wireguard-tools"
+        return "WireGuard is not available."
 
     if profile["type"] == "openvpn" and not has_openvpn():
-        return "OpenVPN is not installed. Install it with: sudo apt install openvpn"
+        return "OpenVPN is not available."
 
     return None
 

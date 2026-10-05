@@ -96,6 +96,40 @@ def _apply(area):
         return False, f"{area.label} failed: {e}"
 
 
+def _is_configured(area):
+
+    if load_running(area.name, None) is not None:
+        return True
+
+    return area.boot_defaults and has_defaults(area.name)
+
+
+def _apply_with_dependents(area):
+    """
+    Applies an area, then re-applies the configured areas that depend
+    on it. A failing dependent fails the whole change.
+    """
+
+    ok, message = _apply(area)
+
+    if not ok:
+        return ok, message
+
+    for name in area.dependents:
+
+        dependent = get_area(name)
+
+        if not dependent.apply or not _is_configured(dependent):
+            continue
+
+        dep_ok, dep_message = _apply(dependent)
+
+        if not dep_ok:
+            return False, f"{dependent.label}: {dep_message}"
+
+    return ok, message
+
+
 def _restore(area):
     """
     Back to the persistent config, applied again.
@@ -106,7 +140,7 @@ def _restore(area):
     if not area.apply:
         return
 
-    ok, message = _apply(area)
+    ok, message = _apply_with_dependents(area)
 
     if not ok:
         log(f"Restoring {area.label} failed: {message}", "error")
@@ -159,7 +193,7 @@ def change(name, data, confirm=None, hint=None, apply=True):
 
         save_running(name, data, secret=area.secret)
 
-        ok, message = _apply(area) if apply else (True, "Saved.")
+        ok, message = _apply_with_dependents(area) if apply else (True, "Saved.")
 
         if not ok:
 
@@ -360,14 +394,8 @@ def apply_all():
 
     for name, area in AREAS.items():
 
-        if not area.apply:
-            continue
-
-        configured = load_running(name, None) is not None
-
-        if not configured and not (
-            area.boot_defaults and has_defaults(name)
-        ):
+        # Dependents are not re-applied: every area runs in order anyway.
+        if not area.apply or not _is_configured(area):
             continue
 
         ok, message = _apply(area)

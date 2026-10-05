@@ -13,7 +13,6 @@ window.Page.firewall = {
         "fwLoggingInput",
         "routeForwardingInput",
         "routeNatInput",
-        "routeWanInput",
         "fwActionInput",
         "fwDirectionInput",
         "fwInterfaceInput",
@@ -101,9 +100,7 @@ window.Page.firewall = {
         const data = this.data;
         const policies = data.policies;
 
-        fwState.textContent =
-            !data.installed ? "Not installed" :
-            data.active ? "Active" : "Inactive";
+        fwState.textContent = data.active ? "Active" : "Inactive";
 
         fwIncomingState.textContent = this.labels[policies.incoming];
         fwOutgoingState.textContent = this.labels[policies.outgoing];
@@ -113,16 +110,15 @@ window.Page.firewall = {
             ? this.labels[policies.routed]
             : "Not forwarding";
 
-        fwRuleCount.textContent = data.rules.length;
+        fwRuleCount.textContent = data.rules.length + data.essential_rules.length;
 
-        fwToggle.disabled = !data.installed;
+        fwEssentialsToggle.checked = data.essentials;
+
+        fwToggle.disabled = false;
         fwToggle.textContent = data.active ? "Disable Firewall" : "Enable Firewall";
         fwToggle.classList.toggle("danger-btn", data.active);
 
-        if (!data.installed) {
-            fwToggleStatus.textContent =
-                "ufw is not installed. Install it with: sudo apt install ufw";
-        } else if (!fwToggleStatus.dataset.keep) {
+        if (!fwToggleStatus.dataset.keep) {
             fwToggleStatus.textContent = data.active
                 ? "The firewall is filtering traffic."
                 : "The firewall is off. All traffic is allowed.";
@@ -215,13 +211,18 @@ window.Page.firewall = {
 
     renderRules() {
 
-        const { rules, rules_error } = this.data;
+        const { rules, rules_error, essential_rules } = this.data;
 
         fwRuleTable.innerHTML = "";
 
         fwRuleStatus.textContent = rules_error || "";
 
-        if (!rules.length) {
+        // Built-in rules first: managed by the essentials switch.
+        essential_rules.forEach(rule => {
+            fwRuleTable.appendChild(this.ruleRow(rule, null));
+        });
+
+        if (!rules.length && !essential_rules.length) {
 
             fwRuleTable.innerHTML = `
                 <tr class="empty-row">
@@ -233,39 +234,85 @@ window.Page.firewall = {
         }
 
         rules.forEach(rule => {
-
-            const row = document.createElement("tr");
-
-            const badge =
-                rule.action === "allow" ? "online" :
-                rule.action === "limit" ? "" : "blocked";
-
-            const from = rule.from_port
-                ? `${rule.from} port ${rule.from_port}`
-                : rule.from;
-
-            row.innerHTML = `
-                <td>
-                    <span class="status ${badge}">
-                        ${this.escape(this.labels[rule.action] || rule.action)}
-                    </span>
-                </td>
-                <td>${this.escape(this.describeTraffic(rule))}</td>
-                <td>${this.escape(this.describePort(rule))}</td>
-                <td>${this.escape(from === "any" ? "Any" : from)}</td>
-                <td>${this.escape(rule.to === "any" ? "Any" : rule.to)}</td>
-                <td><small>${this.escape(rule.comment) || "—"}</small></td>
-                <td class="table-action">
-                    <button class="table-btn danger">Delete</button>
-                </td>
-            `;
-
-            row.querySelector("button").onclick =
-                () => this.deleteRule(rule);
-
-            fwRuleTable.appendChild(row);
-
+            fwRuleTable.appendChild(this.ruleRow(rule, () => this.deleteRule(rule)));
         });
+
+    },
+
+
+    ruleRow(rule, onDelete) {
+
+        const row = document.createElement("tr");
+
+        const badge =
+            rule.action === "allow" ? "online" :
+            rule.action === "limit" ? "" : "blocked";
+
+        const from = rule.from_port
+            ? `${rule.from} port ${rule.from_port}`
+            : rule.from;
+
+        row.innerHTML = `
+            <td>
+                <span class="status ${badge}">
+                    ${this.escape(this.labels[rule.action] || rule.action)}
+                </span>
+            </td>
+            <td>${this.escape(this.describeTraffic(rule))}</td>
+            <td>${this.escape(this.describePort(rule))}</td>
+            <td>${this.escape(from === "any" ? "Any" : from)}</td>
+            <td>${this.escape(rule.to === "any" ? "Any" : rule.to)}</td>
+            <td><small>${this.escape(onDelete ? rule.comment : rule.description) || "—"}</small></td>
+            <td class="table-action">
+                ${onDelete
+                    ? '<button class="table-btn danger">Delete</button>'
+                    : '<span class="rule-builtin">Built-in</span>'}
+            </td>
+        `;
+
+        if (onDelete)
+            row.querySelector("button").onclick = onDelete;
+
+        return row;
+
+    },
+
+
+    async toggleEssentials() {
+
+        const enable = fwEssentialsToggle.checked;
+
+        if (!enable) {
+
+            const confirmed = await ChaosModal.confirm({
+                title: "Remove essential rules?",
+                subtitle: "Unless your own rules allow it, LAN devices lose DHCP, DNS and internet access, and this page may become unreachable while the firewall is on.",
+                confirmText: "Remove"
+            });
+
+            if (!confirmed) {
+                fwEssentialsToggle.checked = true;
+                return;
+            }
+
+        }
+
+        fwEssentialsToggle.disabled = true;
+        fwToggleStatus.textContent = "Saving...";
+
+        const res = await this.send("/api/firewall/essentials", { enabled: enable });
+
+        fwEssentialsToggle.disabled = false;
+
+        if (!res) return;
+
+        fwToggleStatus.textContent = res.data.success
+            ? (enable ? "✓ Essential rules on" : "✓ Essential rules removed")
+            : res.data.message;
+
+        fwToggleStatus.dataset.keep = "1";
+
+        await this.load();
 
     },
 
@@ -291,13 +338,13 @@ window.Page.firewall = {
 
             body.innerHTML = `
                 <label class="modal-check">
-                    <input id="fwEssentialsInput" type="checkbox" checked>
-                    <span>Add essential rules first (recommended)</span>
+                    <input id="fwEssentialsInput" type="checkbox" ${this.data.essentials || !this.data.rules.length ? "checked" : ""}>
+                    <span>Essential rules (recommended)</span>
                 </label>
 
                 <p class="modal-note">
-                    Keeps SSH and this page reachable, and lets LAN devices
-                    keep using DHCP, DNS and the internet.
+                    Keeps SSH and this page reachable from the LAN, and lets
+                    LAN devices keep using DHCP, DNS and the internet.
                 </p>
 
                 <ul class="modal-list">
@@ -335,7 +382,8 @@ window.Page.firewall = {
 
         const res = await this.send("/api/firewall/enable", {
             enabled: enable,
-            essentials: essentials ? essentials.checked : false
+            // Disabling keeps the essentials setting as it is.
+            essentials: essentials ? essentials.checked : null
         });
 
         fwToggle.disabled = false;
@@ -416,37 +464,16 @@ window.Page.firewall = {
 
     renderRouting() {
 
-        const { settings, wan, interfaces } = this.routing;
+        const { settings, wan, eth0_role } = this.routing;
 
         routeForwardingInput.value = String(settings.forwarding);
         routeNatInput.value = String(settings.nat);
 
-        const names = [...interfaces];
+        routeWan.textContent = eth0_role === "wan"
+            ? `${wan} (Ethernet, WAN mode)`
+            : `${wan} (modem)`;
 
-        // Keep a chosen interface that is currently down (e.g. the modem).
-        if (settings.wan_interface !== "auto" && !names.includes(settings.wan_interface)) {
-            names.push(settings.wan_interface);
-        }
-
-        routeWanInput.innerHTML = "";
-
-        const auto = document.createElement("option");
-        auto.value = "auto";
-        auto.textContent = `Automatic (${wan})`;
-        routeWanInput.appendChild(auto);
-
-        names.forEach(name => {
-
-            const option = document.createElement("option");
-            option.value = name;
-            option.textContent = name;
-            routeWanInput.appendChild(option);
-
-        });
-
-        routeWanInput.value = settings.wan_interface;
-
-        [routeForwardingInput, routeNatInput, routeWanInput]
+        [routeForwardingInput, routeNatInput]
             .forEach(select => ChaosSelect.refresh(select));
 
         if (!routeStatus.dataset.keep) {
@@ -460,11 +487,7 @@ window.Page.firewall = {
 
     describeRouting() {
 
-        const { installed, forwarding, nat, wan } = this.routing;
-
-        if (!installed) {
-            return "iptables is not installed. Install it with: sudo apt install iptables";
-        }
+        const { forwarding, nat, wan } = this.routing;
 
         if (forwarding && nat) {
             return `LAN devices reach the internet through ${wan}.`;
@@ -503,8 +526,7 @@ window.Page.firewall = {
 
         const res = await this.send("/api/routing/settings", {
             forwarding: forwarding,
-            nat: nat,
-            wan_interface: routeWanInput.value
+            nat: nat
         });
 
         if (!res) return;
@@ -615,6 +637,8 @@ window.Page.firewall = {
         fwToggle.onclick = () => this.toggle();
 
         fwSavePolicies.onclick = () => this.savePolicies();
+
+        fwEssentialsToggle.onchange = () => this.toggleEssentials();
 
         routeSave.onclick = () => this.saveRouting();
 

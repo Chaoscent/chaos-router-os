@@ -6,6 +6,9 @@ router pass traffic between interfaces at all. NAT (masquerading)
 rewrites LAN addresses to the router's WAN address on the way out,
 so LAN devices and VPN clients reach the internet.
 
+The WAN is eth0 while it is in WAN mode, otherwise the modem (set on
+the Network page; see network.get_wan_interface).
+
 The NAT rule lives in a dedicated chain in the nat table, hooked into
 POSTROUTING. ufw only manages the filter table, so enabling, disabling
 or reloading the firewall never removes it.
@@ -14,27 +17,23 @@ Only IPv4 is handled. Turning on IPv6 forwarding makes the kernel
 ignore router advertisements, which can cut the modem's IPv6 off.
 """
 
-import re
-
 from services.config import load_settings
 
 from services import transaction
 
 from services.network import (
     run_command,
-    privileged
+    privileged,
+    get_wan_interface,
+    get_eth0_role
 )
 
 from services.vpn_common import (
     which,
-    get_wan_interface,
     get_lan_networks
 )
 
-from services.firewall import (
-    get_interfaces,
-    is_forwarding_enabled
-)
+from services.firewall import is_forwarding_enabled
 
 # -------------------------------------------------------------------
 # Configuration
@@ -44,16 +43,12 @@ ROUTING = "routing"
 
 DEFAULT_SETTINGS = {
     "forwarding": True,
-    "nat": True,
-    # "auto" follows the default route (the modem when it is unknown).
-    "wan_interface": "auto"
+    "nat": True
 }
 
 CHAIN = "CHAOS-NAT"
 
 FORWARD_SYSCTL = "net.ipv4.ip_forward"
-
-INTERFACE_RE = re.compile(r"^[A-Za-z0-9_.-]{1,15}$")
 
 
 # -------------------------------------------------------------------
@@ -62,7 +57,9 @@ INTERFACE_RE = re.compile(r"^[A-Za-z0-9_.-]{1,15}$")
 
 def get_routing_settings():
 
-    return load_settings(ROUTING, DEFAULT_SETTINGS)
+    settings = load_settings(ROUTING, DEFAULT_SETTINGS)
+
+    return {key: settings[key] for key in DEFAULT_SETTINGS}
 
 
 def get_routing_baseline():
@@ -73,8 +70,7 @@ def get_routing_baseline():
 
     return {
         "forwarding": is_forwarding_enabled(),
-        "nat": False,
-        "wan_interface": "auto"
+        "nat": False
     }
 
 
@@ -91,17 +87,9 @@ def validate_routing_settings(data):
         if not isinstance(settings.get(key), bool):
             return False, f"Invalid value for {key}."
 
-    wan = settings.get("wan_interface")
-
-    if wan != "auto" and not (
-        isinstance(wan, str) and INTERFACE_RE.fullmatch(wan)
-    ):
-        return False, "Invalid WAN interface."
-
     return True, {
         "forwarding": settings["forwarding"],
-        "nat": settings["nat"],
-        "wan_interface": wan
+        "nat": settings["nat"]
     }
 
 
@@ -118,16 +106,6 @@ def save_routing_settings(data):
     return outcome
 
 
-def resolve_wan(settings=None):
-
-    settings = settings or get_routing_settings()
-
-    if settings["wan_interface"] == "auto":
-        return get_wan_interface()
-
-    return settings["wan_interface"]
-
-
 # -------------------------------------------------------------------
 # Status
 # -------------------------------------------------------------------
@@ -142,7 +120,7 @@ def iptables(*args):
     tool = which("iptables")
 
     if not tool:
-        return False, "iptables is not installed."
+        return False, "iptables is not available."
 
     return run_command(privileged([tool, "-t", "nat", *args]))
 
@@ -162,14 +140,14 @@ def is_nat_active(wan):
 def get_routing_status():
 
     settings = get_routing_settings()
-    wan = resolve_wan(settings)
+    wan = get_wan_interface()
 
     return {
         "settings": settings,
         "wan": wan,
+        "eth0_role": get_eth0_role(),
         "forwarding": is_forwarding_enabled(),
         "nat": is_nat_active(wan),
-        "interfaces": get_interfaces(),
         "lan_networks": get_lan_networks(),
         "installed": bool(which("iptables") and which("sysctl"))
     }
@@ -203,7 +181,7 @@ def apply_nat(enabled, wan):
         if not enabled:
             return True, "NAT off."
 
-        return False, "iptables is not installed."
+        return False, "iptables is not available."
 
     # Creating fails harmlessly when the chain exists.
     iptables("-N", CHAIN)
@@ -236,10 +214,7 @@ def apply_nat(enabled, wan):
 def apply_routing():
 
     settings = get_routing_settings()
-    wan = resolve_wan(settings)
-
-    if wan not in get_interfaces() and settings["wan_interface"] != "auto":
-        return False, f"Interface {wan} does not exist."
+    wan = get_wan_interface()
 
     ok, result = set_forwarding(settings["forwarding"])
 
@@ -263,7 +238,7 @@ def verify_routing():
     if is_forwarding_enabled() != settings["forwarding"]:
         return False, "IP forwarding did not reach the requested state."
 
-    if settings["nat"] and not is_nat_active(resolve_wan(settings)):
+    if settings["nat"] and not is_nat_active(get_wan_interface()):
         return False, "The NAT rule is not active."
 
     return True, "OK"

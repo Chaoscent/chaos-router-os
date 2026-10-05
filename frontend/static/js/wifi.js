@@ -93,7 +93,6 @@ window.Page.wifi = {
             : status.running ? "Broadcasting" : "Not running";
 
         wifiServiceState.textContent =
-            !status.installed ? "Not installed" :
             status.running ? "Running" : "Stopped";
 
         wifiChannelState.textContent =
