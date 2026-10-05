@@ -468,10 +468,12 @@ def get_validators():
     from services.dhcp import validate_dhcp_settings
     from services.wifi import validate_wifi_settings
     from services.dns import validate_dns_settings
+    from services.routing import validate_routing_settings
 
     return {
         "network": _validate_network,
         "firewall": _validate_firewall,
+        "routing": _validate_with(validate_routing_settings),
         "blocked_devices": _validate_blocked,
         "dhcp": _validate_with(validate_dhcp_settings),
         "dns": _validate_with(validate_dns_settings),

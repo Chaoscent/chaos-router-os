@@ -213,7 +213,7 @@ sudo apt install dnsmasq hostapd ufw iptables wireguard-tools openvpn easy-rsa o
 ```
 
 The app runs as a normal user and uses `sudo -n` for system changes, so that user needs passwordless sudo for:
-`systemctl`, `journalctl`, `nmcli`, `hostnamectl`, `ufw`, `iptables`, `ip6tables`, `iw`, `rfkill`, `wg`, `openvpn`, `easyrsa`, `install`, `mkdir`, `cp`, `rm`, `cat`, `test`, `find`.
+`systemctl`, `journalctl`, `nmcli`, `hostnamectl`, `sysctl`, `ufw`, `iptables`, `ip6tables`, `iw`, `rfkill`, `wg`, `openvpn`, `easyrsa`, `install`, `mkdir`, `cp`, `rm`, `cat`, `test`, `find`.
 
 A ready-made sudoers file will ship with the installer.
 
@@ -241,6 +241,7 @@ A ready-made sudoers file will ship with the installer.
 | 🧪 | DNS page (dnsmasq, upstream providers, local records, blocklist, lookup) |
 | 🧪 | Clients page (reserve DHCP IP, block device, ping, Wake-on-LAN) |
 | 🧪 | Firewall page (ufw, default policies, rules) |
+| 🧪 | Routing & NAT (IP forwarding, masquerading to the WAN) |
 | 🧪 | VPN page: WireGuard server |
 | 🧪 | VPN page: OpenVPN server with its own certificate authority |
 | 🧪 | VPN page: WireGuard and OpenVPN client profiles |

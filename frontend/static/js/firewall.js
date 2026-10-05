@@ -4,11 +4,16 @@ window.Page.firewall = {
 
     data: null,
 
+    routing: null,
+
     selects: [
         "fwIncomingInput",
         "fwOutgoingInput",
         "fwRoutedInput",
         "fwLoggingInput",
+        "routeForwardingInput",
+        "routeNatInput",
+        "routeWanInput",
         "fwActionInput",
         "fwDirectionInput",
         "fwInterfaceInput",
@@ -387,6 +392,137 @@ window.Page.firewall = {
     },
 
 
+    // ------------------------------------------------------------
+    // Routing & NAT
+    // ------------------------------------------------------------
+
+    async loadRouting() {
+
+        const res = await this.request("/api/routing");
+
+        if (!res) return;
+
+        if (!res.ok) {
+            routeStatus.textContent = "Failed to load routing status.";
+            return;
+        }
+
+        this.routing = res.data;
+
+        this.renderRouting();
+
+    },
+
+
+    renderRouting() {
+
+        const { settings, wan, interfaces } = this.routing;
+
+        routeForwardingInput.value = String(settings.forwarding);
+        routeNatInput.value = String(settings.nat);
+
+        const names = [...interfaces];
+
+        // Keep a chosen interface that is currently down (e.g. the modem).
+        if (settings.wan_interface !== "auto" && !names.includes(settings.wan_interface)) {
+            names.push(settings.wan_interface);
+        }
+
+        routeWanInput.innerHTML = "";
+
+        const auto = document.createElement("option");
+        auto.value = "auto";
+        auto.textContent = `Automatic (${wan})`;
+        routeWanInput.appendChild(auto);
+
+        names.forEach(name => {
+
+            const option = document.createElement("option");
+            option.value = name;
+            option.textContent = name;
+            routeWanInput.appendChild(option);
+
+        });
+
+        routeWanInput.value = settings.wan_interface;
+
+        [routeForwardingInput, routeNatInput, routeWanInput]
+            .forEach(select => ChaosSelect.refresh(select));
+
+        if (!routeStatus.dataset.keep) {
+            routeStatus.textContent = this.describeRouting();
+        }
+
+        delete routeStatus.dataset.keep;
+
+    },
+
+
+    describeRouting() {
+
+        const { installed, forwarding, nat, wan } = this.routing;
+
+        if (!installed) {
+            return "iptables is not installed. Install it with: sudo apt install iptables";
+        }
+
+        if (forwarding && nat) {
+            return `LAN devices reach the internet through ${wan}.`;
+        }
+
+        if (!forwarding) {
+            return "Forwarding is off: LAN devices can reach the router, but not the internet.";
+        }
+
+        return "NAT is off: LAN devices can only reach networks that route back to them.";
+
+    },
+
+
+    async saveRouting() {
+
+        const forwarding = routeForwardingInput.value === "true";
+        const nat = routeNatInput.value === "true";
+
+        if (
+            (!forwarding && this.routing.settings.forwarding) ||
+            (!nat && this.routing.settings.nat)
+        ) {
+
+            const ok = await ChaosModal.confirm({
+                title: "Turn off internet sharing?",
+                subtitle: "LAN devices and VPN clients will lose internet access. The dashboard stays reachable.",
+                confirmText: "Turn Off"
+            });
+
+            if (!ok) return;
+
+        }
+
+        routeStatus.textContent = "Saving...";
+
+        const res = await this.send("/api/routing/settings", {
+            forwarding: forwarding,
+            nat: nat,
+            wan_interface: routeWanInput.value
+        });
+
+        if (!res) return;
+
+        routeStatus.textContent = res.data.success
+            ? "✓ Routing updated"
+            : res.data.message;
+
+        routeStatus.dataset.keep = "1";
+
+        await this.loadRouting();
+
+        // The Routed status card depends on forwarding.
+        await this.load();
+
+    },
+
+
     async addRule() {
 
         fwAddStatus.textContent = "Adding...";
@@ -480,11 +616,15 @@ window.Page.firewall = {
 
         fwSavePolicies.onclick = () => this.savePolicies();
 
+        routeSave.onclick = () => this.saveRouting();
+
         fwAddRule.onclick = () => this.addRule();
 
         fwActionInput.onchange = () => this.updateDirectionState();
 
         this.load();
+
+        this.loadRouting();
 
     },
 

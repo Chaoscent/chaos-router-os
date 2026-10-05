@@ -11,6 +11,7 @@ from typing import Callable, Optional
 from services import (
     network,
     firewall,
+    routing,
     clients,
     dhcp,
     dns,
@@ -43,6 +44,10 @@ class Area:
     # Holds passwords or keys (files get mode 600).
     secret: bool = False
 
+    # Applied at boot from /etc/chaos-router-os even before the first
+    # change, once the installer has written its defaults there.
+    boot_defaults: bool = False
+
 
 AREAS = {area.name: area for area in (
 
@@ -59,6 +64,16 @@ AREAS = {area.name: area for area in (
         verify=firewall.verify_firewall,
         baseline=firewall.get_firewall_settings,
         confirm=True
+    ),
+
+    # Not confirmed: turning NAT off cuts the internet, not the
+    # dashboard. Before the first change it runs on the defaults.
+    Area(
+        "routing", "Routing & NAT",
+        apply=routing.apply_routing,
+        verify=routing.verify_routing,
+        baseline=routing.get_routing_baseline,
+        boot_defaults=True
     ),
 
     # Blocking your own device locks you out: confirm like the firewall.

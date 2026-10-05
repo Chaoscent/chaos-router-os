@@ -20,7 +20,7 @@ os.environ["CHAOS_SKIP_STARTUP"] = "1"
 import app
 import auth
 
-from services import dhcp, wifi, wireguard, openvpn
+from services import dhcp, wifi, wireguard, openvpn, routing
 from services.config import DEFAULTS_DIR, defaults_path, load_json, save_json
 
 
@@ -36,6 +36,7 @@ def get_defaults():
         "dashboard": app.BUILTIN_DASHBOARD,
         "security": auth.BUILTIN_SECURITY,
         "users": load_json(str(auth.BUILTIN_USERS_FILE), {}),
+        "routing": routing.DEFAULT_SETTINGS,
         "dhcp": dhcp.DEFAULT_SETTINGS,
         "wifi": wifi.DEFAULT_SETTINGS,
         "wireguard": {"server": wireguard_server},

@@ -123,6 +123,11 @@ def load_defaults(name, builtin=None):
     return defaults
 
 
+def has_defaults(name):
+
+    return os.path.exists(defaults_path(name))
+
+
 # Marks "no default given": a missing file then reads as {}.
 # Passing default=None makes a missing file read as None.
 _EMPTY = object()

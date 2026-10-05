@@ -65,6 +65,59 @@
         </div>
 
 
+        <!-- Routing & NAT -->
+
+        <div class="card">
+
+            <span>Routing &amp; NAT</span>
+
+            <p class="setting-hint">
+                Forwarding lets the router pass traffic between the LAN and
+                the internet. NAT shares the router's internet address with
+                every LAN device and VPN client. Both are needed for LAN
+                devices to get online.
+            </p>
+
+            <div class="settings-grid">
+
+                <div class="setting-field">
+                    <label for="routeForwardingInput">IP forwarding</label>
+                    <select id="routeForwardingInput" class="setting-input">
+                        <option value="true">Enabled</option>
+                        <option value="false">Disabled</option>
+                    </select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="routeNatInput">NAT (masquerading)</label>
+                    <select id="routeNatInput" class="setting-input">
+                        <option value="true">Enabled</option>
+                        <option value="false">Disabled</option>
+                    </select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="routeWanInput">Internet interface (WAN)</label>
+                    <select id="routeWanInput" class="setting-input">
+                        <option value="auto">Automatic</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="setting-row">
+
+                <button id="routeSave" class="save-btn">
+                    Save
+                </button>
+
+            </div>
+
+            <div id="routeStatus" class="setting-status"></div>
+
+        </div>
+
+
         <!-- Default Policies -->
 
         <div class="card">

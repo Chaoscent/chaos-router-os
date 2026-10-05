@@ -148,6 +148,14 @@ from services.firewall import (
 
 )
 
+from services.routing import (
+
+        get_routing_status,
+
+        save_routing_settings
+
+)
+
 from services.wifi import (
 
         get_wifi_settings,
@@ -1673,6 +1681,34 @@ def firewall_delete_rule_api():
 
         return firewall_response(
                 delete_firewall_rule(str(data.get("id", "")))
+        )
+
+
+
+
+
+@app.route("/api/routing")
+
+@login_required
+
+def routing_api():
+
+        return jsonify(get_routing_status())
+
+
+
+
+
+@app.route("/api/routing/settings", methods=["POST"])
+
+@login_required
+
+def routing_settings_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return safe_apply_response(
+                save_routing_settings(data)
         )
 
 

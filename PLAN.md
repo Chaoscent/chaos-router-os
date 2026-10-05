@@ -9,7 +9,7 @@ Target platform: **Raspberry Pi OS Lite (64-bit)** on a Raspberry Pi 5.
 
 ## Order of work
 
-1. LAN NAT and IP forwarding
+1. ~~LAN NAT and IP forwarding~~ (done, needs hardware test)
 2. systemd service and production server
 3. Installer (with the root helper and sudoers file)
 4. Testing on the Pi 5 (everything marked 🧪 in the README)
@@ -27,7 +27,11 @@ The config schema version (see Updater) should be added right away, before any r
 
 Without these it isn't a router yet.
 
-- [ ] **LAN NAT and IP forwarding.** Enable `net.ipv4.ip_forward` and masquerade from the LAN to the WAN (modem). Today clients get a DHCP address but no internet. The VPN servers do their own NAT; the main LAN path does not.
+- [x] **LAN NAT and IP forwarding.** Done: `services/routing.py`, the "Routing & NAT" card on the Firewall page. Applied at boot from the installed defaults (on by default), even before the first change. Still to do:
+  - [ ] Test on the Pi 5: LAN devices get internet through the modem.
+  - [ ] "Automatic" WAN is detected when routing is applied. If the default route only appears after boot (e.g. an Ethernet uplink), NAT points at the modem until the settings are saved again. Re-apply when the default route changes (NetworkManager dispatcher).
+  - [ ] The firewall's essential rule "Forward LAN to WAN" is hard-coded to `wwan0`; use the routing WAN instead.
+  - [ ] Consider TCP MSS clamping for the modem link (mobile networks often have a smaller MTU).
 - [ ] **Start at boot.** A systemd unit for the app. Without it, Safe Apply's boot recovery (`sync_boot` + `apply_all`) never runs unless the app is started by hand.
 - [ ] **Production server.** Run under gunicorn or waitress (one or two workers), bound to localhost, with Caddy in front. The Flask dev server must not face the LAN.
 - [ ] **Hardware testing.** Everything marked 🧪 has only been tested with fakes in WSL. Most likely to need fixes: Wi-Fi, 6 GHz, the OpenVPN PKI, the firewall.
@@ -46,7 +50,7 @@ Without these it isn't a router yet.
 ## 3. Smaller gaps
 
 - [ ] **Wi-Fi country.** Pi OS keeps Wi-Fi rfkill-blocked until a country is set. The installer sets a first value; the Setup Wizard and WiFi page set the real one.
-- [ ] **IPv6.** Nothing handles it yet (router advertisements, DHCPv6).
+- [ ] **IPv6.** Nothing handles it yet (router advertisements, DHCPv6, forwarding). IPv6 forwarding is deliberately left off: turning it on makes the kernel ignore router advertisements, which can cut off the modem's IPv6.
 - [ ] **DNS local domain.** Changing the local domain only takes effect after the DNS settings are saved again.
 - [ ] **Apps page.** Still a placeholder.
 - [ ] **OpenVPN on slower CPUs.** Consider putting `CHACHA20-POLY1305` first in `CIPHERS`; it's faster than AES on a Pi 4, which lacks AES instructions.
@@ -66,7 +70,6 @@ One command (`curl -fsSL chaos-software.dev/router-os/core | sudo bash`). It mus
 - [ ] Run `backend/install_defaults.py` to write `/etc/chaos-router-os`.
 - [ ] Unmask hostapd and set a Wi-Fi country (ask, or default to the worldwide setting).
 - [ ] Make sure nothing else holds port 53 (DNS) or 67 (DHCP).
-- [ ] Enable IP forwarding.
 - [ ] Install and enable the systemd units (app, later Caddy).
 - [ ] **If installed over the Pi's Wi-Fi:** detect it, warn that the SSH session will drop, and switch wlan0 to AP mode only as the very last step.
 - [ ] Start the setup network and print its name, password and QR code (see Setup Wizard).

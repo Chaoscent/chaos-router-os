@@ -25,6 +25,7 @@ import time
 
 from services.config import (
     load_running,
+    has_defaults,
     save_running,
     delete_running,
     has_persistent,
@@ -351,14 +352,22 @@ def recover_pending():
 def apply_all():
     """
     At boot: applies every configured area from the running config,
-    which was just rebuilt from /var/lib.
+    which was just rebuilt from /var/lib. Areas marked boot_defaults
+    also run on their installed defaults before the first change.
     """
 
     from services.areas import AREAS
 
     for name, area in AREAS.items():
 
-        if not area.apply or load_running(name, None) is None:
+        if not area.apply:
+            continue
+
+        configured = load_running(name, None) is not None
+
+        if not configured and not (
+            area.boot_defaults and has_defaults(name)
+        ):
             continue
 
         ok, message = _apply(area)
