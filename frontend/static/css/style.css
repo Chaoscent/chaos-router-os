@@ -34,28 +34,41 @@ body{
 
 .sidebar{
     width:208px;
+    flex-shrink:0;
+    display:flex;
+    flex-direction:column;
+    overflow-x:hidden;
+    overflow-y:auto;
     background:var(--panel);
     border-right:1px solid var(--border);
-    padding:24px 16px;
+    padding:20px 16px;
+
+    /* Only very short windows need to scroll; keep it subtle. */
+    scrollbar-width:thin;
+    scrollbar-color:var(--border) transparent;
 }
 
+/* Fits "Chaos Router OS" on one line; wraps instead of being cut off
+   if a wider system font does not fit. */
 .logo{
-    font-size:22px;
+    font-size:18px;
     font-weight:700;
-    margin:4px 0 28px;
+    line-height:1.3;
+    text-align:center;
+    margin:2px 0 18px;
 }
 
 .sidebar nav{
     display:flex;
     flex-direction:column;
-    gap:6px;
+    gap:3px;
 }
 
 .sidebar a{
     position:relative;
     color:var(--muted);
     text-decoration:none;
-    padding:12px 16px;
+    padding:10px 16px;
     border-radius:10px;
     transition:var(--transition);
 }
@@ -89,7 +102,7 @@ body{
 .sidebar-divider{
     border:none;
     border-top:1px solid var(--border);
-    margin:12px 0;
+    margin:8px 0;
 }
 
 /* ========================= */
@@ -1003,7 +1016,8 @@ select.setting-input:disabled{
 /* Hidden native select.
    JS still uses it as the actual value. */
 
-.chaos-select .interface-mode-select{
+.chaos-select .interface-mode-select,
+.chaos-select > select{
     position:absolute;
     width:1px;
     height:1px;
@@ -1069,11 +1083,13 @@ select.setting-input:disabled{
     transform:none;
 }
 
-.interface-card .chaos-select-trigger:disabled .chaos-select-value{
+.interface-card .chaos-select-trigger:disabled .chaos-select-value,
+.settings-sections .chaos-select-trigger:disabled .chaos-select-value{
     color:#626b7b;
 }
 
-.interface-card .chaos-select-trigger:disabled .chaos-select-chevron{
+.interface-card .chaos-select-trigger:disabled .chaos-select-chevron,
+.settings-sections .chaos-select-trigger:disabled .chaos-select-chevron{
     color:#4d5666;
 }
 
@@ -1368,13 +1384,15 @@ select.setting-input:disabled{
 /* FINAL NETWORK DROPDOWN ALIGNMENT                          */
 /* ========================================================= */
 
-.interface-card .chaos-select{
+.interface-card .chaos-select,
+.settings-sections .chaos-select{
     position:relative;
     width:100%;
     min-width:0;
 }
 
-.interface-card .chaos-select-trigger{
+.interface-card .chaos-select-trigger,
+.settings-sections .chaos-select-trigger{
     width:100%;
     height:48px;
     min-height:48px;
@@ -1389,7 +1407,8 @@ select.setting-input:disabled{
     line-height:normal;
 }
 
-.interface-card .chaos-select-value{
+.interface-card .chaos-select-value,
+.settings-sections .chaos-select-value{
     display:flex;
     align-items:center;
 
@@ -1404,16 +1423,19 @@ select.setting-input:disabled{
 }
 
 /* Override the generic .card span muted color for the mode value. */
-.interface-card .chaos-select-trigger .chaos-select-value{
+.interface-card .chaos-select-trigger .chaos-select-value,
+.settings-sections .chaos-select-trigger .chaos-select-value{
     color:var(--text);
 }
 
 /* Keep only disabled/read-only interface text muted. */
-.interface-card .chaos-select-trigger:disabled .chaos-select-value{
+.interface-card .chaos-select-trigger:disabled .chaos-select-value,
+.settings-sections .chaos-select-trigger:disabled .chaos-select-value{
     color:#626b7b;
 }
 
-.interface-card .chaos-select-chevron{
+.interface-card .chaos-select-chevron,
+.settings-sections .chaos-select-chevron{
     width:16px;
     height:16px;
     min-width:16px;
@@ -1428,18 +1450,21 @@ select.setting-input:disabled{
     line-height:0;
 }
 
-.interface-card .chaos-select-chevron svg{
+.interface-card .chaos-select-chevron svg,
+.settings-sections .chaos-select-chevron svg{
     display:block;
     width:16px;
     height:16px;
     margin:0;
 }
 
-.interface-card .chaos-select-menu{
+.interface-card .chaos-select-menu,
+.settings-sections .chaos-select-menu{
     box-sizing:border-box;
 }
 
-.interface-card .chaos-select-option{
+.interface-card .chaos-select-option,
+.settings-sections .chaos-select-option{
     width:100%;
     height:42px;
     min-height:42px;
@@ -1454,7 +1479,8 @@ select.setting-input:disabled{
     line-height:normal;
 }
 
-.interface-card .chaos-select-option > span:first-child{
+.interface-card .chaos-select-option > span:first-child,
+.settings-sections .chaos-select-option > span:first-child{
     display:flex;
     align-items:center;
     height:100%;
@@ -1463,7 +1489,8 @@ select.setting-input:disabled{
     line-height:1;
 }
 
-.interface-card .chaos-select-check{
+.interface-card .chaos-select-check,
+.settings-sections .chaos-select-check{
     height:100%;
     display:flex;
     align-items:center;
@@ -1474,8 +1501,11 @@ select.setting-input:disabled{
 
 /* Prevent the field/card from shifting while interacting with it. */
 .interface-card .chaos-select-trigger:hover,
+.settings-sections .chaos-select-trigger:hover,
 .interface-card .chaos-select-trigger:focus,
-.interface-card .chaos-select-trigger:active{
+.settings-sections .chaos-select-trigger:focus,
+.interface-card .chaos-select-trigger:active,
+.settings-sections .chaos-select-trigger:active{
     transform:none;
 }
 
@@ -1547,3 +1577,833 @@ select.setting-input:disabled{
     margin-top:8px;
 }
 
+
+/* ========================================================= */
+/* Settings Pages                                            */
+/* ========================================================= */
+
+.status-cards{
+    margin-bottom:18px;
+}
+
+.settings-sections{
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+}
+
+/* Same as interface cards: stay still and keep open menus on top. */
+.settings-sections .card{
+    position:relative;
+}
+
+.settings-sections .card:hover{
+    transform:none;
+}
+
+.settings-sections .card:has(.chaos-select.open){
+    z-index:10;
+}
+
+.settings-sections .card > .setting-row{
+    margin-top:18px;
+}
+
+.settings-sections .setting-status{
+    margin-top:8px;
+    color:var(--muted);
+    font-size:14px;
+}
+
+.table-scroll{
+    overflow-x:auto;
+}
+
+.data-table tr{
+    cursor:default;
+}
+
+.data-table .empty-row td{
+    color:var(--muted);
+    text-align:center;
+}
+
+.data-table .table-action{
+    text-align:right;
+    white-space:nowrap;
+}
+
+.table-btn{
+    background:var(--panel2);
+    color:var(--text);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:8px 14px;
+    font:inherit;
+    font-size:13px;
+    cursor:pointer;
+    transition:var(--transition);
+}
+
+.table-btn:hover{
+    border-color:var(--accent);
+    background:#24324a;
+}
+
+.table-btn.danger{
+    border-color:#6b2a2a;
+    color:#ffb4b4;
+}
+
+.table-btn.danger:hover{
+    background:#2a1b1b;
+    border-color:#ef4444;
+}
+
+.config-preview{
+    margin-top:18px;
+    padding:16px;
+    background:var(--bg);
+    border:1px solid var(--border);
+    border-radius:12px;
+    color:var(--text);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:13px;
+    line-height:1.6;
+    overflow-x:auto;
+    white-space:pre;
+}
+
+/* Badges inside table cards: undo the generic ".card span" label style. */
+.card .data-table .status{
+    display:inline-flex;
+    margin:0;
+    color:#9fd0ff;
+    font-size:13px;
+}
+
+.card .data-table .status.online{
+    color:#8ce5aa;
+}
+
+.status.blocked,
+.card .data-table .status.blocked{
+    background:rgba(239,68,68,.12);
+    color:#ffb4b4;
+}
+
+.status.blocked::before{
+    background:#ef4444;
+}
+
+/* ========================================================= */
+/* Firewall Page                                             */
+/* ========================================================= */
+
+.save-btn.danger-btn{
+    background:transparent;
+    border-color:#6b2a2a;
+    color:#ffb4b4;
+}
+
+.save-btn.danger-btn:hover:not(:disabled){
+    background:#2a1b1b;
+    border-color:#ef4444;
+    box-shadow:none;
+}
+
+.modal-check{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    cursor:pointer;
+    font-weight:500;
+}
+
+.modal-check input{
+    width:16px;
+    height:16px;
+    accent-color:var(--accent);
+}
+
+.modal-note{
+    margin:8px 0 14px;
+    color:var(--muted);
+    font-size:13px;
+    line-height:1.5;
+}
+
+.modal-list{
+    list-style:none;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    max-height:260px;
+    overflow-y:auto;
+}
+
+.modal-list li{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    padding:10px 12px;
+    background:var(--panel2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    font-size:13px;
+}
+
+.modal-list code,
+.modal-code{
+    color:var(--muted);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:12px;
+    word-break:break-all;
+}
+
+.modal-code{
+    display:block;
+    padding:12px;
+    background:var(--panel2);
+    border:1px solid var(--border);
+    border-radius:10px;
+}
+
+/* ========================================================= */
+/* WiFi Page                                                 */
+/* ========================================================= */
+
+.password-field{
+    position:relative;
+}
+
+.password-field .setting-input{
+    padding-right:72px;
+}
+
+.password-toggle{
+    position:absolute;
+    top:50%;
+    right:8px;
+    transform:translateY(-50%);
+    height:32px;
+    padding:0 12px;
+    background:transparent;
+    border:1px solid var(--border);
+    border-radius:8px;
+    color:var(--muted);
+    font:inherit;
+    font-size:13px;
+    cursor:pointer;
+    transition:var(--transition);
+}
+
+.password-toggle:hover:not(:disabled){
+    color:var(--text);
+    border-color:#3f4b61;
+}
+
+.password-toggle:disabled{
+    opacity:.45;
+    cursor:not-allowed;
+}
+
+/* Unavailable dropdown options, e.g. a band the radio lacks. */
+.chaos-select-option:disabled,
+.chaos-select-option:disabled:hover{
+    background:transparent;
+    color:#626b7b;
+    cursor:not-allowed;
+}
+
+/* ========================================================= */
+/* VPN Page                                                  */
+/* ========================================================= */
+
+.tab-bar{
+    display:flex;
+    gap:6px;
+    margin-bottom:18px;
+    padding:5px;
+    width:max-content;
+    max-width:100%;
+    overflow-x:auto;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:14px;
+}
+
+.tab-btn{
+    padding:10px 16px;
+    background:transparent;
+    border:none;
+    border-radius:10px;
+    color:var(--muted);
+    font:inherit;
+    font-size:14px;
+    font-weight:500;
+    white-space:nowrap;
+    cursor:pointer;
+    transition:var(--transition);
+}
+
+.tab-btn:hover{
+    color:var(--text);
+    background:var(--panel2);
+}
+
+.tab-btn.active{
+    color:#b9dcff;
+    background:rgba(78,161,255,.16);
+}
+
+.setting-hint{
+    margin-top:14px;
+    color:var(--muted);
+    font-size:13px;
+    line-height:1.5;
+}
+
+.key-row{
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    margin-top:14px;
+}
+
+.key-row label{
+    color:var(--muted);
+    font-size:13px;
+    font-weight:500;
+}
+
+.key-row code{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:13px;
+    word-break:break-all;
+}
+
+.config-field{
+    margin-top:18px;
+}
+
+.setting-textarea{
+    width:100%;
+    min-height:160px;
+    padding:14px 16px;
+    background:var(--panel2);
+    border:1px solid var(--border);
+    border-radius:12px;
+    color:var(--text);
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:13px;
+    line-height:1.5;
+    resize:vertical;
+    transition:var(--transition);
+}
+
+.setting-textarea:focus{
+    outline:none;
+    border-color:var(--accent);
+    box-shadow:0 0 0 3px rgba(78,161,255,.12);
+}
+
+.data-table .table-action .table-btn + .table-btn{
+    margin-left:6px;
+}
+
+/* ========================================================= */
+/* Safe Apply Banner                                         */
+/* ========================================================= */
+
+.apply-banner{
+    position:sticky;
+    top:0;
+    z-index:500;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:18px;
+    margin-bottom:24px;
+    padding:16px 20px;
+    background:#2a2414;
+    border:1px solid #8a6d1f;
+    border-radius:var(--radius);
+    box-shadow:0 12px 30px rgba(0,0,0,.35);
+}
+
+.apply-text{
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+    min-width:0;
+}
+
+.apply-text strong{
+    color:#ffe2a3;
+}
+
+.apply-text span{
+    color:#e8d6ad;
+    font-size:14px;
+}
+
+.apply-text .apply-hint{
+    color:#ffcf6b;
+}
+
+.apply-actions{
+    display:flex;
+    gap:10px;
+    flex-shrink:0;
+}
+
+.apply-notice{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:24px;
+    padding:12px 16px;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    color:var(--muted);
+    font-size:14px;
+}
+
+@media (max-width:700px){
+
+    .apply-banner{
+        flex-direction:column;
+        align-items:stretch;
+    }
+
+    .apply-actions{
+        flex-direction:column-reverse;
+    }
+
+}
+
+/* ========================================================= */
+/* Clients Inspector Tools                                   */
+/* ========================================================= */
+
+/* More actions than fit: let the panel scroll. */
+.client-inspector{
+    overflow-y:auto;
+}
+
+.inspector-tools{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+}
+
+.action-btn.compact{
+    height:40px;
+    padding:8px;
+    font-size:13px;
+}
+
+.inspector-result{
+    padding:10px 12px;
+    background:var(--panel2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    color:var(--muted);
+    font-size:13px;
+    line-height:1.4;
+}
+
+.inspector-result.error{
+    border-color:#6b2a2a;
+    color:#ffb4b4;
+}
+
+.inspector-warning,
+.modal-warning{
+    padding:10px 12px;
+    margin-bottom:12px;
+    background:#2a2414;
+    border:1px solid #8a6d1f;
+    border-radius:10px;
+    color:#ffe2a3;
+    font-size:13px;
+    line-height:1.5;
+}
+
+.secondary-btn.danger-text{
+    color:#ffb4b4;
+    margin-right:auto;
+}
+
+#reserveModal .modal-body{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+}
+
+/* ========================================================= */
+/* Logs Page                                                 */
+/* ========================================================= */
+
+.status.warning,
+.card .data-table .status.warning{
+    background:rgba(234,179,8,.12);
+    color:#fde68a;
+}
+
+.status.warning::before{
+    background:#eab308;
+}
+
+.status.muted,
+.card .data-table .status.muted{
+    background:rgba(149,163,184,.10);
+    color:var(--muted);
+}
+
+.status.muted::before{
+    background:var(--muted);
+}
+
+.secondary-btn.active{
+    border-color:var(--accent);
+    color:#b9dcff;
+    background:rgba(78,161,255,.12);
+}
+
+/* Logs are dense: tighter rows than the client table. */
+.log-table td{
+    padding:8px 12px;
+    vertical-align:top;
+    font-size:13px;
+}
+
+.log-table th{
+    padding:12px;
+}
+
+.log-table .status{
+    padding:3px 10px;
+    font-size:12px;
+}
+
+.log-time,
+.log-source{
+    white-space:nowrap;
+    color:var(--muted);
+}
+
+.log-message{
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace;
+    font-size:12px;
+    line-height:1.5;
+    white-space:pre-wrap;
+    word-break:break-word;
+}
+
+.log-error .log-message{
+    color:#ffb4b4;
+}
+
+.log-warning .log-message{
+    color:#fde68a;
+}
+
+/* ========================================================= */
+/* DNS Page                                                  */
+/* ========================================================= */
+
+.check-list{
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+}
+
+.check-item{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:10px 14px;
+    background:var(--panel2);
+    border:1px solid var(--border);
+    border-radius:10px;
+    font-size:14px;
+    cursor:pointer;
+}
+
+.check-item input{
+    width:16px;
+    height:16px;
+    accent-color:var(--accent);
+}
+
+.check-item small{
+    color:var(--muted);
+}
+
+.check-item:has(input:disabled){
+    cursor:default;
+    opacity:.75;
+}
+
+/* ========================================================= */
+/* Dashboard: fills the window without scrolling. The graph  */
+/* takes the height that is left, so no space is wasted on   */
+/* any window size (1080p at 100% or 125% scaling, ...).     */
+/* ========================================================= */
+
+/* Let pages stretch to the window height (main scrolls when a
+   page is taller). */
+main{
+    display:flex;
+    flex-direction:column;
+}
+
+main > *{
+    flex-shrink:0;
+}
+
+#content{
+    flex:1 0 auto;
+    display:flex;
+    flex-direction:column;
+}
+
+.dashboard{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+}
+
+/* Title and subtitle on one line. */
+.dashboard .page-header{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    margin-bottom:0;
+}
+
+.dashboard .page-header h1{
+    font-size:28px;
+    margin-bottom:0;
+}
+
+.dashboard .card-grid{
+    gap:16px;
+}
+
+.dashboard .card{
+    min-height:0;
+    padding:18px 22px;
+}
+
+.dashboard .card span{
+    margin-bottom:6px;
+    font-size:14px;
+}
+
+.dashboard-metrics .card-metric{
+    font-size:clamp(26px,2vw,34px);
+    line-height:1.2;
+}
+
+/* The graph card grows into the remaining height. */
+.dashboard-graph{
+    flex:1 1 0;
+    min-height:200px;
+    display:flex;
+    flex-direction:column;
+}
+
+.dashboard-graph svg{
+    display:block;
+    flex:1 1 0;
+    min-height:0;
+}
+
+/* All six system cards in one row on wide screens. */
+.dashboard-system{
+    grid-template-columns:repeat(6,minmax(0,1fr));
+}
+
+.dashboard-system .card-value{
+    font-size:clamp(17px,1.3vw,23px);
+    line-height:1.3;
+}
+
+@media (max-width:1100px){
+
+    .dashboard-system{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+
+}
+
+@media (max-width:640px){
+
+    .dashboard-system{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+
+    .dashboard .page-header{
+        flex-direction:column;
+        gap:4px;
+    }
+
+}
+
+/* ========================================================= */
+
+.dashboard{
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+}
+
+/* Title and subtitle on one line. */
+.dashboard .page-header{
+    display:flex;
+    align-items:baseline;
+    gap:14px;
+    margin-bottom:0;
+}
+
+.dashboard .page-header h1{
+    font-size:26px;
+    margin-bottom:0;
+}
+
+.dashboard .card-grid{
+    gap:14px;
+}
+
+.dashboard .card{
+    min-height:0;
+    padding:14px 18px;
+}
+
+.dashboard .card span{
+    margin-bottom:4px;
+    font-size:13px;
+}
+
+.dashboard-metrics .card-metric{
+    font-size:clamp(22px,1.6vw,28px);
+    line-height:1.2;
+}
+
+/* The graph takes the spare height on taller windows. */
+.dashboard-graph svg{
+    display:block;
+    height:clamp(110px,24vh,280px);
+}
+
+/* All six system cards in one row on wide screens. */
+.dashboard-system{
+    grid-template-columns:repeat(6,minmax(0,1fr));
+}
+
+.dashboard-system .card-value{
+    font-size:clamp(15px,1.1vw,20px);
+    line-height:1.3;
+}
+
+@media (max-width:1100px){
+
+    .dashboard-system{
+        grid-template-columns:repeat(3,minmax(0,1fr));
+    }
+
+}
+
+@media (max-width:640px){
+
+    .dashboard-system{
+        grid-template-columns:repeat(2,minmax(0,1fr));
+    }
+
+    .dashboard .page-header{
+        flex-direction:column;
+        gap:4px;
+    }
+
+}
+
+/* ========================================================= */
+/* Sidebar Credits                                           */
+/* ========================================================= */
+
+/* Pinned to the bottom of the sidebar, below the navigation. */
+.sidebar-credits{
+    margin-top:auto;
+    padding-top:8px;
+    text-align:center;
+    color:var(--muted);
+    font-size:12px;
+    line-height:1.6;
+    opacity:.75;
+}
+
+/* Undo the navigation link style for these small text links. */
+.sidebar .sidebar-credits a{
+    display:inline;
+    padding:0;
+    border-radius:0;
+    color:var(--text);
+    background:none;
+}
+
+.sidebar .sidebar-credits a::before{
+    content:none;
+}
+
+.sidebar .sidebar-credits a:hover{
+    background:none;
+    color:var(--accent);
+    text-decoration:underline;
+}
+
+/* ========================================================= */
+/* Backup & Restore                                          */
+/* ========================================================= */
+
+.backup-summary{
+    margin-top:18px;
+    padding-top:18px;
+    border-top:1px solid var(--border);
+}
+
+.backup-info{
+    margin-bottom:12px;
+    font-size:14px;
+}
+
+.backup-area.invalid{
+    opacity:.6;
+    cursor:default;
+}
+
+.backup-area.invalid small{
+    color:#ffb4b4;
+}
+
+.backup-results{
+    list-style:none;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    margin-top:12px;
+    font-size:13px;
+}
+
+.backup-results .ok{
+    color:#8ce5aa;
+}
+
+.backup-results .failed{
+    color:#ffb4b4;
+}

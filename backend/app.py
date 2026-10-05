@@ -1,633 +1,2639 @@
 import json
+
 import os
-from pathlib import Path
+
+
 
 from flask import (
-    Flask,
-    render_template,
-    abort,
-    jsonify,
-    request,
-    session,
-    redirect,
-    url_for
+
+        Flask,
+
+        render_template,
+
+        abort,
+
+        jsonify,
+
+        request,
+
+        session,
+
+        redirect,
+
+        url_for,
+
+        Response
+
 )
+
+
 
 from auth import (
-    verify_login,
-    login_user,
-    is_logged_in,
-    login_required,
-    get_idle_timeout,
-    get_absolute_timeout,
-    set_session_timeouts,
-    change_password
+
+        verify_login,
+
+        login_user,
+
+        is_logged_in,
+
+        login_required,
+
+        get_idle_timeout,
+
+        get_absolute_timeout,
+
+        set_session_timeouts,
+
+        change_password
+
 )
+
+
 
 from services.system import (
-    get_hostname,
-    set_hostname,
-    get_ip,
-    get_uptime,
-    get_cpu_temp,
-    get_ram,
-    get_time,
-    get_ping
+
+        get_hostname,
+
+        set_hostname,
+
+        get_ip,
+
+        get_uptime,
+
+        get_cpu_temp,
+
+        get_ram,
+
+        get_time,
+
+        get_ping
+
 )
 
+
+
 from services.network import (
-    get_default_interface,
-    get_gateway,
-    get_dns,
-    get_connection_type,
-    get_ip as get_network_ip,
-    get_connected_clients,
-    get_clients,
-    get_lan_config,
-    get_interfaces,
-    validate_lan_config,
-    apply_lan_config,
-    apply_interface_config,
-    set_device_alias
+
+        get_default_interface,
+
+        get_gateway,
+
+        get_dns,
+
+        get_connection_type,
+
+        get_ip as get_network_ip,
+
+        get_connected_clients,
+
+        get_clients,
+
+        get_lan_config,
+
+        get_interfaces,
+
+        validate_lan_config,
+
+        apply_lan_config,
+
+        apply_interface_config,
+
+        change_interface,
+
+        set_device_alias
+
+)
+
+
+
+from services.dhcp import (
+
+        get_dhcp_settings,
+
+        get_dhcp_status,
+
+        get_dhcp_leases,
+
+        get_lan_interfaces,
+
+        render_dnsmasq_config,
+
+        validate_dhcp_settings,
+
+        save_dhcp_settings,
+
+        apply_dhcp_settings,
+
+        add_reservation,
+
+        remove_reservation
+
+)
+
+from services.firewall import (
+
+        get_firewall_status,
+
+        get_essential_rules,
+
+        set_firewall_enabled,
+
+        set_policies as set_firewall_policies,
+
+        set_logging as set_firewall_logging,
+
+        add_rule as add_firewall_rule,
+
+        delete_rule as delete_firewall_rule
+
+)
+
+from services.wifi import (
+
+        get_wifi_settings,
+
+        get_wifi_status,
+
+        get_wifi_options,
+
+        get_wireless_interfaces,
+
+        get_wifi_clients,
+
+        validate_wifi_settings,
+
+        render_hostapd_config,
+
+        save_wifi_settings,
+
+        apply_wifi_settings
+
+)
+
+from services.wireguard import (
+
+        get_wireguard_status,
+
+        save_server as save_wireguard_server,
+
+        add_peer as add_wireguard_peer,
+
+        remove_peer as remove_wireguard_peer,
+
+        get_peer_config as get_wireguard_peer_config
+
+)
+
+from services.openvpn import (
+
+        get_openvpn_status,
+
+        save_server as save_openvpn_server,
+
+        add_client as add_openvpn_client,
+
+        revoke_client as revoke_openvpn_client,
+
+        get_client_config as get_openvpn_client_config
+
+)
+
+from services.vpn_profiles import (
+
+        get_profiles_status,
+
+        import_profile as import_vpn_profile,
+
+        delete_profile as delete_vpn_profile,
+
+        connect_profile as connect_vpn_profile,
+
+        disconnect_profile as disconnect_vpn_profile,
+
+        set_autostart as set_vpn_autostart
+
+)
+
+from services.clients import (
+
+        get_client_list,
+
+        block_device,
+
+        unblock_device,
+
+        ping_device,
+
+        wake_device
+
+)
+
+from services.dns import (
+
+        get_dns_settings,
+
+        get_dns_status,
+
+        get_dns_options,
+
+        validate_dns_settings,
+
+        render_dns_config,
+
+        save_dns_settings,
+
+        add_record as add_dns_record,
+
+        remove_record as remove_dns_record,
+
+        set_blocked_domains,
+
+        lookup as dns_lookup
+
+)
+
+from services.backup import (
+
+        create_backup,
+
+        parse_backup,
+
+        inspect_backup,
+
+        restore_backup
+
 )
 
 from services.modem import get_modem_data
+
+from services import transaction
+
+from services.logs import (
+
+        log_event,
+
+        get_logs,
+
+        get_sources as get_log_sources,
+
+        clear_events
+
+)
+
+from services.config import sync_boot
+
 from services.traffic import get_traffic, get_history
 
+
+
 from services.config import (
-    load_json,
-    save_json,
-    RUNTIME_DIR
+
+        load_defaults,
+
+        load_running,
+
+        save_running
+
 )
+
+
+
 
 
 app = Flask(
-    __name__,
-    template_folder="../frontend/templates",
-    static_folder="../frontend/static"
+
+        __name__,
+
+        template_folder="../frontend/templates",
+
+        static_folder="../frontend/static"
+
 )
+
+
 
 app.secret_key = os.getenv("SECRET_KEY", "chaos-router-dev")
 
+# Largest request accepted (config backups are the biggest uploads).
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 
-# Runtime state (/tmp)
-NETWORK_PENDING_FILE = f"{RUNTIME_DIR}/network_pending.json"
 
-DASHBOARD_CONFIG_DIR = Path("/var/lib/chaos-router-os/config")
-DASHBOARD_CONFIG_FILE = DASHBOARD_CONFIG_DIR / "dashboard.json"
 
-DEFAULT_PING_ENABLED = False
-DEFAULT_PING_INTERVAL = 5
+
+
+# Interface edits staged on the Network page before applying
+# (/tmp/chaos-router-os, gone after a reboot).
+NETWORK_STAGED = "network_staged"
+
+
+
+# dashboard.json: defaults in /etc/chaos-router-os,
+# the user's settings in /var/lib/chaos-router-os.
+DASHBOARD = "dashboard"
+
+BUILTIN_DASHBOARD = {
+
+        "ping_enabled": False,
+
+        "ping_interval": 5,
+
+        "ping_destination": "1.1.1.1"
+
+}
+
 VALID_PING_INTERVALS = {5, 10, 30, 60}
 
 
+
+
+
 def load_dashboard_config():
-    if not DASHBOARD_CONFIG_FILE.exists():
-        return {}
 
-    try:
-        with open(DASHBOARD_CONFIG_FILE) as f:
-            data = json.load(f)
+        data = load_running(DASHBOARD, {})
 
-        if not isinstance(data, dict):
-            return {}
+        return data if isinstance(data, dict) else {}
 
-        return data
 
-    except (OSError, json.JSONDecodeError):
-        return {}
+
 
 
 def save_dashboard_config(config):
-    DASHBOARD_CONFIG_DIR.mkdir(parents=True, exist_ok=True)
 
-    temp_file = DASHBOARD_CONFIG_FILE.with_suffix(".tmp")
+        return transaction.change(DASHBOARD, config)["success"]
 
-    with open(temp_file, "w") as f:
-        json.dump(config, f, indent=4)
 
-    temp_file.replace(DASHBOARD_CONFIG_FILE)
+
 
 
 def get_ping_config():
-    config = load_dashboard_config()
 
-    enabled = config.get("ping_enabled", DEFAULT_PING_ENABLED)
-    if not isinstance(enabled, bool):
-        enabled = DEFAULT_PING_ENABLED
+        config = load_dashboard_config()
 
-    interval = config.get("ping_interval", DEFAULT_PING_INTERVAL)
-
-    try:
-        interval = int(interval)
-    except (TypeError, ValueError):
-        interval = DEFAULT_PING_INTERVAL
-
-    if interval not in VALID_PING_INTERVALS:
-        interval = DEFAULT_PING_INTERVAL
-
-    return {
-        "enabled": enabled,
-        "interval": interval
-    }
+        defaults = load_defaults(DASHBOARD, BUILTIN_DASHBOARD)
 
 
-def set_ping_config(enabled, interval):
-    config = load_dashboard_config()
-    config["ping_enabled"] = bool(enabled)
-    config["ping_interval"] = int(interval)
-    save_dashboard_config(config)
+
+        enabled = config.get("ping_enabled", defaults["ping_enabled"])
+
+        if not isinstance(enabled, bool):
+
+                enabled = defaults["ping_enabled"]
+
+
+
+        interval = config.get("ping_interval", defaults["ping_interval"])
+
+
+
+        try:
+
+                interval = int(interval)
+
+        except (TypeError, ValueError):
+
+                interval = defaults["ping_interval"]
+
+
+
+        if interval not in VALID_PING_INTERVALS:
+
+                interval = defaults["ping_interval"]
+
+
+
+        destination = config.get("ping_destination", defaults["ping_destination"])
+
+        if not isinstance(destination, str):
+                destination = defaults["ping_destination"]
+
+        destination = destination.strip()
+
+        if not destination:
+                destination = defaults["ping_destination"]
+
+        return {
+
+                "enabled": enabled,
+
+                "interval": interval,
+
+                "destination": destination
+
+        }
+
+
+
+
+
+def set_ping_config(enabled, interval, destination):
+
+        config = load_dashboard_config()
+
+        config["ping_enabled"] = bool(enabled)
+
+        config["ping_interval"] = int(interval)
+
+        config["ping_destination"] = destination.strip()
+
+        save_dashboard_config(config)
+
+
+
 
 
 # ------------------------------------------------------------
+
 # Authentication
+
 # ------------------------------------------------------------
+
+
 
 @app.route("/")
+
 def home():
 
-    if not is_logged_in():
-        return redirect(url_for("login_page"))
 
-    return render_template("base.html")
+
+        if not is_logged_in():
+
+                return redirect(url_for("login_page"))
+
+
+
+        return render_template("base.html")
+
+
+
 
 
 @app.route("/login")
+
 def login_page():
-    return render_template("login.html")
+
+        return render_template("login.html")
+
+
+
 
 
 @app.route("/api/login", methods=["POST"])
+
 def api_login():
 
-    data = request.get_json()
+        data = request.get_json()
 
-    username = data.get("username", "")
-    password = data.get("password", "")
+        username = data.get("username", "")
 
-    if verify_login(username, password):
+        password = data.get("password", "")
 
-        login_user(username)
+
+
+        if verify_login(username, password):
+
+                login_user(username)
+
+                log_event("auth", f"{username} logged in from {get_viewer_ip()}.")
+
+                return jsonify({
+
+                        "success": True
+
+                })
+
+
+
+        log_event(
+
+                "auth",
+
+                f"Failed login for '{username[:64]}' from {get_viewer_ip()}.",
+
+                "warning"
+
+        )
 
         return jsonify({
-            "success": True
-        })
 
-    return jsonify({
-        "success": False
-    }), 401
+                "success": False
+
+        }), 401
+
+
 
 
 @app.route("/logout")
+
 def logout():
 
-    session.clear()
+        if session.get("user"):
+                log_event("auth", f"{session['user']} logged out.")
 
-    return redirect(url_for("login_page"))
+        session.clear()
+
+        return redirect(url_for("login_page"))
+
+
 
 
 # ------------------------------------------------------------
+
 # SPA Fragments
+
 # ------------------------------------------------------------
+
+
 
 VALID_PAGES = {
-    "dashboard",
-    "network",
-    "clients",
-    "vpn",
-    "modem",
-    "logs",
-    "system",
-    "apps"
+
+        "dashboard",
+
+        "network",
+
+        "wifi",
+
+        "dhcp",
+
+        "dns",
+
+        "clients",
+
+        "firewall",
+
+        "vpn",
+
+        "modem",
+
+        "logs",
+
+        "system",
+
+        "apps"
+
 }
 
 
+
+
+
 @app.route("/fragment/<page>")
+
 @login_required
+
 def fragment(page):
 
-    if page not in VALID_PAGES:
-        abort(404)
 
-    return render_template(f"{page}.html")
+
+        if page not in VALID_PAGES:
+
+                abort(404)
+
+
+
+        return render_template(f"{page}.html")
+
+
+
 
 
 # ------------------------------------------------------------
+
 # Dashboard
+
 # ------------------------------------------------------------
+
+
 
 @app.route("/api/dashboard")
+
 @login_required
+
 def dashboard_api():
 
-    traffic = get_traffic()
 
-    return jsonify({
-        "hostname": get_hostname(),
-        "ip": get_ip(),
-        "uptime": get_uptime(),
-        "cpu_temp": get_cpu_temp(),
-        "ram": get_ram(),
-        "time": get_time(),
-        "clients": get_connected_clients(),
-        "active": max(
-            1 if traffic["rx"] > 0 or traffic["tx"] > 0 else 0,
-            0
-        ),
-        "download": traffic["rx"],
-        "upload": traffic["tx"],
-        "history": get_history()
-    })
+
+        traffic = get_traffic()
+
+
+
+        return jsonify({
+
+                "hostname": get_hostname(),
+
+                "ip": get_ip(),
+
+                "uptime": get_uptime(),
+
+                "cpu_temp": get_cpu_temp(),
+
+                "ram": get_ram(),
+
+                "time": get_time(),
+
+                "clients": get_connected_clients(),
+
+                "active": max(
+
+                        1 if traffic["rx"] > 0 or traffic["tx"] > 0 else 0,
+
+                        0
+
+                ),
+
+                "download": traffic["rx"],
+
+                "upload": traffic["tx"],
+
+                "history": get_history()
+
+        })
+
+
+
 
 
 # ------------------------------------------------------------
+
 # Network
+
 # ------------------------------------------------------------
+
+
 
 @app.route("/api/network")
+
 @login_required
+
 def network_api():
 
-    interface = get_default_interface()
 
-    return jsonify({
-        "interface": interface,
-        "gateway": get_gateway(interface),
-        "ip": get_network_ip(interface),
-        "dns": get_dns(),
-        "connection": get_connection_type(interface),
-        "wan": "Connected" if interface != "Unknown" else "Disconnected"
-    })
+
+        interface = get_default_interface()
+
+
+
+        return jsonify({
+
+                "interface": interface,
+
+                "gateway": get_gateway(interface),
+
+                "ip": get_network_ip(interface),
+
+                "dns": get_dns(),
+
+                "connection": get_connection_type(interface),
+
+                "wan": "Connected" if interface != "Unknown" else "Disconnected"
+
+        })
+
+
+
 
 
 @app.route("/api/network/interfaces")
+
 @login_required
+
 def network_interfaces_api():
 
-    return jsonify(get_interfaces())
+
+
+        return jsonify(get_interfaces())
+
+
+
 
 
 @app.route("/api/network/config")
+
 @login_required
+
 def network_config_api():
 
-    return jsonify(get_lan_config())
+
+
+        return jsonify(get_lan_config())
+
+
+
 
 
 @app.route("/api/network/pending")
+
 @login_required
+
 def network_pending_api():
 
-    return jsonify(load_json(NETWORK_PENDING_FILE, {}))
+
+
+        return jsonify(load_running(NETWORK_STAGED, {}))
+
+
+
 
 
 @app.route("/api/network/stage", methods=["POST"])
+
 @login_required
+
 def network_stage_api():
 
-    data = request.get_json()
 
-    ok, message = validate_lan_config(data)
 
-    if not ok:
+        data = request.get_json()
+
+
+
+        ok, message = validate_lan_config(data)
+
+
+
+        if not ok:
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": message
+
+                }), 400
+
+
+
+        save_running(NETWORK_STAGED, data)
+
+
+
         return jsonify({
-            "success": False,
-            "message": message
-        }), 400
 
-    save_json(NETWORK_PENDING_FILE, data)
+                "success": True,
 
-    return jsonify({
-        "success": True,
-        "pending": data
-    })
+                "pending": data
+
+        })
+
+
+
 
 
 @app.route("/api/network/discard", methods=["POST"])
+
 @login_required
+
 def network_discard_api():
 
-    save_json(NETWORK_PENDING_FILE, {})
 
-    return jsonify({
-        "success": True
-    })
+
+        save_running(NETWORK_STAGED, {})
+
+
+
+        return jsonify({
+
+                "success": True
+
+        })
+
+
+
 
 
 @app.route("/api/network/apply", methods=["POST"])
+
 @login_required
+
 def network_apply_api():
 
-    pending = load_json(NETWORK_PENDING_FILE, {})
+        staged = load_running(NETWORK_STAGED, {})
 
-    if not pending:
+        if not staged:
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": "No pending changes."
+
+                }), 400
+
+
+
+        outcome = change_interface(staged)
+
+        if outcome["success"]:
+
+                save_running(NETWORK_STAGED, {})
+
+
+
+        return safe_apply_response(outcome)
+
+
+
+
+# ------------------------------------------------------------
+
+# WiFi (hostapd)
+
+# ------------------------------------------------------------
+
+
+
+@app.route("/api/wifi")
+
+@login_required
+
+def wifi_api():
+
         return jsonify({
-            "success": False,
-            "message": "No pending changes."
-        }), 400
 
-    success, result = apply_interface_config(
-        pending,
-        dry_run=False
-    )
+                "settings": get_wifi_settings(),
 
-    if success:
+                "status": get_wifi_status(),
 
-        save_json(NETWORK_PENDING_FILE, {})
+                "options": get_wifi_options(),
 
-        return jsonify({
-            "success": True,
-            "message": "Network configuration applied.",
-            "result": result
+                "interfaces": get_wireless_interfaces()
+
         })
 
-    return jsonify({
-        "success": False,
-        "message": result
-    }), 500
+
+
+
+
+@app.route("/api/wifi/settings", methods=["POST"])
+
+@login_required
+
+def wifi_settings_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return safe_apply_response(
+                save_wifi_settings(data)
+        )
+
+
+
+
+@app.route("/api/wifi/preview", methods=["POST"])
+
+@login_required
+
+def wifi_preview_api():
+
+        data = request.get_json(silent=True) or {}
+
+        ok, result = validate_wifi_settings(data)
+
+        if not ok:
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": result
+
+                }), 400
+
+
+
+        return jsonify({
+
+                "success": True,
+
+                "config": render_hostapd_config(result)
+
+        })
+
+
+
+
+
+@app.route("/api/wifi/apply", methods=["POST"])
+
+@login_required
+
+def wifi_apply_api():
+
+        applied, message = apply_wifi_settings()
+
+        return jsonify({
+
+                "success": applied,
+
+                "message": message
+
+        }), 200 if applied else 500
+
+
+
+
+
+@app.route("/api/wifi/clients")
+
+@login_required
+
+def wifi_clients_api():
+
+        return jsonify(get_wifi_clients())
+
+
+
 
 
 # ------------------------------------------------------------
+
+# DNS (dnsmasq)
+
+# ------------------------------------------------------------
+
+
+
+@app.route("/api/dns")
+
+@login_required
+
+def dns_api():
+
+        return jsonify({
+
+                "settings": get_dns_settings(),
+
+                "status": get_dns_status(),
+
+                "options": get_dns_options()
+
+        })
+
+
+
+
+
+@app.route("/api/dns/settings", methods=["POST"])
+
+@login_required
+
+def dns_settings_api():
+
+        data = request.get_json(silent=True) or {}
+
+        # Records and the blocklist have their own endpoints.
+        data.pop("records", None)
+        data.pop("blocked_domains", None)
+
+        return safe_apply_response(
+                save_dns_settings(data)
+        )
+
+
+
+
+
+@app.route("/api/dns/preview", methods=["POST"])
+
+@login_required
+
+def dns_preview_api():
+
+        data = request.get_json(silent=True) or {}
+
+        ok, result = validate_dns_settings(data)
+
+        if not ok:
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": result
+
+                }), 400
+
+
+
+        return jsonify({
+
+                "success": True,
+
+                "config": render_dns_config(result)
+
+        })
+
+
+
+
+
+@app.route("/api/dns/records", methods=["POST"])
+
+@login_required
+
+def dns_add_record_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return safe_apply_response(
+                add_dns_record(str(data.get("name", "")), str(data.get("ip", "")))
+        )
+
+
+
+
+
+@app.route("/api/dns/records", methods=["DELETE"])
+
+@login_required
+
+def dns_remove_record_api():
+
+        data = request.get_json(silent=True) or {}
+
+        outcome = remove_dns_record(str(data.get("name", "")), str(data.get("ip", "")))
+
+        if outcome["message"] == "Record not found.":
+                return jsonify(outcome), 404
+
+        return safe_apply_response(outcome)
+
+
+
+
+
+@app.route("/api/dns/blocklist", methods=["POST"])
+
+@login_required
+
+def dns_blocklist_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return safe_apply_response(
+                set_blocked_domains(data.get("domains", []))
+        )
+
+
+
+
+
+@app.route("/api/dns/lookup", methods=["POST"])
+
+@login_required
+
+def dns_lookup_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return jsonify(dns_lookup(data.get("name"), data.get("type", "A")))
+
+
+
+
+
+# ------------------------------------------------------------
+
+# DHCP (dnsmasq)
+
+# ------------------------------------------------------------
+
+
+
+def safe_apply_response(outcome):
+
+        # 400 when nothing changed (invalid input or a failed apply that
+        # was rolled back), 200 when applied (possibly awaiting confirm).
+        return jsonify(outcome), 200 if outcome["success"] else 400
+
+
+
+
+@app.route("/api/dhcp")
+
+@login_required
+
+def dhcp_api():
+
+        return jsonify({
+
+                "settings": get_dhcp_settings(),
+
+                "status": get_dhcp_status(),
+
+                "interfaces": get_lan_interfaces()
+
+        })
+
+
+
+
+
+@app.route("/api/dhcp/settings", methods=["POST"])
+
+@login_required
+
+def dhcp_settings_api():
+
+        data = request.get_json(silent=True) or {}
+
+        # Reservations have their own endpoints.
+        data.pop("reservations", None)
+
+        return safe_apply_response(
+                save_dhcp_settings(data)
+        )
+
+
+
+
+
+@app.route("/api/dhcp/preview", methods=["POST"])
+
+@login_required
+
+def dhcp_preview_api():
+
+        data = request.get_json(silent=True) or {}
+
+        ok, result = validate_dhcp_settings(data)
+
+        if not ok:
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": result
+
+                }), 400
+
+
+
+        return jsonify({
+
+                "success": True,
+
+                "config": render_dnsmasq_config(result)
+
+        })
+
+
+
+
+
+@app.route("/api/dhcp/apply", methods=["POST"])
+
+@login_required
+
+def dhcp_apply_api():
+
+        applied, message = apply_dhcp_settings()
+
+        return jsonify({
+
+                "success": applied,
+
+                "message": message
+
+        }), 200 if applied else 500
+
+
+
+
+@app.route("/api/dhcp/leases")
+
+@login_required
+
+def dhcp_leases_api():
+
+        return jsonify(get_dhcp_leases())
+
+
+
+
+
+@app.route("/api/dhcp/reservations", methods=["POST"])
+
+@login_required
+
+def dhcp_add_reservation_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return safe_apply_response(
+                add_reservation(data)
+        )
+
+
+
+
+@app.route("/api/dhcp/reservations/<mac>", methods=["DELETE"])
+
+@login_required
+
+def dhcp_remove_reservation_api(mac):
+
+        outcome = remove_reservation(mac)
+
+        if outcome["message"] == "Reservation not found.":
+                return jsonify(outcome), 404
+
+        return safe_apply_response(outcome)
+
+
+
+
+# ------------------------------------------------------------
+
+# VPN (WireGuard + OpenVPN)
+
+# ------------------------------------------------------------
+
+
+
+def vpn_response(ok, message, status=400, **extra):
+
+        return jsonify({
+
+                "success": ok,
+
+                "message": message,
+
+                **extra
+
+        }), 200 if ok else status
+
+
+
+
+
+def vpn_save_response(outcome):
+
+        return safe_apply_response(outcome)
+
+
+
+
+def vpn_download(ok, name, content):
+
+        if not ok:
+
+                return vpn_response(False, name, 404)
+
+
+
+        return Response(
+
+                content,
+
+                mimetype="text/plain",
+
+                headers={
+
+                        "Content-Disposition":
+                                f'attachment; filename="{name}"',
+
+                        # Private keys inside: never cache.
+                        "Cache-Control": "no-store"
+
+                }
+
+        )
+
+
+
+
+
+@app.route("/api/vpn")
+
+@login_required
+
+def vpn_api():
+
+        return jsonify({
+
+                "wireguard": get_wireguard_status(),
+
+                "openvpn": get_openvpn_status(),
+
+                "profiles": get_profiles_status()
+
+        })
+
+
+
+
+
+@app.route("/api/vpn/wireguard/server", methods=["POST"])
+
+@login_required
+
+def vpn_wireguard_server_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return vpn_save_response(
+                save_wireguard_server(data)
+        )
+
+
+
+
+
+@app.route("/api/vpn/wireguard/peers", methods=["POST"])
+
+@login_required
+
+def vpn_wireguard_add_peer_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return safe_apply_response(add_wireguard_peer(
+
+                data.get("name"),
+
+                data.get("public_key")
+
+        ))
+
+
+
+
+@app.route("/api/vpn/wireguard/peers/<int:peer_id>", methods=["DELETE"])
+
+@login_required
+
+def vpn_wireguard_remove_peer_api(peer_id):
+
+        outcome = remove_wireguard_peer(peer_id)
+
+        if outcome["message"] == "Peer not found.":
+                return jsonify(outcome), 404
+
+        return safe_apply_response(outcome)
+
+
+
+
+@app.route("/api/vpn/wireguard/peers/<int:peer_id>/config")
+
+@login_required
+
+def vpn_wireguard_peer_config_api(peer_id):
+
+        return vpn_download(
+                *get_wireguard_peer_config(peer_id)
+        )
+
+
+
+
+
+@app.route("/api/vpn/openvpn/server", methods=["POST"])
+
+@login_required
+
+def vpn_openvpn_server_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return vpn_save_response(
+                save_openvpn_server(data)
+        )
+
+
+
+
+
+@app.route("/api/vpn/openvpn/clients", methods=["POST"])
+
+@login_required
+
+def vpn_openvpn_add_client_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return vpn_response(
+                *add_openvpn_client(data.get("name"))
+        )
+
+
+
+
+
+@app.route("/api/vpn/openvpn/clients/<name>", methods=["DELETE"])
+
+@login_required
+
+def vpn_openvpn_revoke_client_api(name):
+
+        return vpn_response(
+                *revoke_openvpn_client(name)
+        )
+
+
+
+
+
+@app.route("/api/vpn/openvpn/clients/<name>/config")
+
+@login_required
+
+def vpn_openvpn_client_config_api(name):
+
+        return vpn_download(
+                *get_openvpn_client_config(name)
+        )
+
+
+
+
+
+@app.route("/api/vpn/profiles", methods=["POST"])
+
+@login_required
+
+def vpn_import_profile_api():
+
+        data = request.get_json(silent=True) or {}
+
+        ok, message, profile = import_vpn_profile(data)
+
+        return vpn_response(ok, message, profile=profile)
+
+
+
+
+
+@app.route("/api/vpn/profiles/<int:profile_id>", methods=["DELETE"])
+
+@login_required
+
+def vpn_delete_profile_api(profile_id):
+
+        return vpn_response(
+                *delete_vpn_profile(profile_id)
+        )
+
+
+
+
+
+@app.route("/api/vpn/profiles/<int:profile_id>/connect", methods=["POST"])
+
+@login_required
+
+def vpn_connect_profile_api(profile_id):
+
+        ok, message = connect_vpn_profile(profile_id)
+
+        log_event("vpn", message, "info" if ok else "error")
+
+        return vpn_response(ok, message, status=500)
+
+
+
+
+@app.route("/api/vpn/profiles/<int:profile_id>/disconnect", methods=["POST"])
+
+@login_required
+
+def vpn_disconnect_profile_api(profile_id):
+
+        ok, message = disconnect_vpn_profile(profile_id)
+
+        log_event("vpn", message, "info" if ok else "error")
+
+        return vpn_response(ok, message, status=500)
+
+
+
+
+@app.route("/api/vpn/profiles/<int:profile_id>/autostart", methods=["POST"])
+
+@login_required
+
+def vpn_autostart_profile_api(profile_id):
+
+        data = request.get_json(silent=True) or {}
+
+        return vpn_response(
+                *set_vpn_autostart(profile_id, data.get("enabled") is True)
+        )
+
+
+
+
+
+# ------------------------------------------------------------
+
+# Firewall (UFW)
+
+# ------------------------------------------------------------
+
+
+
+def firewall_response(outcome):
+
+        return safe_apply_response(outcome)
+
+
+
+
+def get_ui_port():
+
+        # Port the browser used to reach this UI, so enabling the
+        # firewall never locks the user out of the page they are on.
+        host = request.host
+
+        if ":" in host and not host.endswith("]"):
+
+                return host.rsplit(":", 1)[1]
+
+
+
+        return "443" if request.scheme == "https" else "80"
+
+
+
+
+
+@app.route("/api/firewall")
+
+@login_required
+
+def firewall_api():
+
+        return jsonify(get_firewall_status())
+
+
+
+
+@app.route("/api/firewall/essentials")
+
+@login_required
+
+def firewall_essentials_api():
+
+        return jsonify([
+
+                {
+
+                        "description": rule["description"],
+
+                        "command": rule["command"]
+
+                }
+
+                for rule in get_essential_rules(get_ui_port())
+
+        ])
+
+
+
+
+
+@app.route("/api/firewall/enable", methods=["POST"])
+
+@login_required
+
+def firewall_enable_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return firewall_response(set_firewall_enabled(
+
+                data.get("enabled") is True,
+
+                essentials=data.get("essentials") is True,
+
+                ui_port=get_ui_port()
+
+        ))
+
+
+
+
+
+@app.route("/api/firewall/policies", methods=["POST"])
+
+@login_required
+
+def firewall_policies_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return firewall_response(
+                set_firewall_policies(data)
+        )
+
+
+
+
+
+@app.route("/api/firewall/logging", methods=["POST"])
+
+@login_required
+
+def firewall_logging_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return firewall_response(
+                set_firewall_logging(data.get("level"))
+        )
+
+
+
+
+
+@app.route("/api/firewall/rules", methods=["POST"])
+
+@login_required
+
+def firewall_add_rule_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return firewall_response(
+                add_firewall_rule(data)
+        )
+
+
+
+
+
+@app.route("/api/firewall/rules", methods=["DELETE"])
+
+@login_required
+
+def firewall_delete_rule_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return firewall_response(
+                delete_firewall_rule(str(data.get("id", "")))
+        )
+
+
+
+
+
+# ------------------------------------------------------------
+
+# Safe apply (pending confirmation)
+
+# ------------------------------------------------------------
+
+
+
+@app.route("/api/config/pending")
+
+@login_required
+
+def config_pending_api():
+
+        return jsonify({
+
+                "pending": transaction.get_pending(),
+
+                "last_revert": load_running("last_revert", None)
+
+        })
+
+
+
+
+
+@app.route("/api/config/confirm", methods=["POST"])
+
+@login_required
+
+def config_confirm_api():
+
+        return safe_apply_response(
+                transaction.confirm_pending()
+        )
+
+
+
+
+
+@app.route("/api/config/revert", methods=["POST"])
+
+@login_required
+
+def config_revert_api():
+
+        return safe_apply_response(
+                transaction.revert_pending("Reverted from the dashboard.")
+        )
+
+
+
+
+
+# ------------------------------------------------------------
+
+# Backup & restore
+
+# ------------------------------------------------------------
+
+
+
+@app.route("/api/backup/export")
+
+@login_required
+
+def backup_export_api():
+
+        filename, backup = create_backup()
+
+        return Response(
+
+                json.dumps(backup, indent=2),
+
+                mimetype="application/json",
+
+                headers={
+
+                        "Content-Disposition":
+                                f'attachment; filename="{filename}"',
+
+                        # Passwords and keys inside: never cache.
+                        "Cache-Control": "no-store"
+
+                }
+
+        )
+
+
+
+
+
+@app.route("/api/backup/inspect", methods=["POST"])
+
+@login_required
+
+def backup_inspect_api():
+
+        data = request.get_json(silent=True) or {}
+
+        ok, backup = parse_backup(data.get("backup", ""))
+
+        if not ok:
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": backup
+
+                }), 400
+
+
+
+        summary, _ = inspect_backup(backup)
+
+        return jsonify({
+
+                "success": True,
+
+                **summary
+
+        })
+
+
+
+
+
+@app.route("/api/backup/restore", methods=["POST"])
+
+@login_required
+
+def backup_restore_api():
+
+        data = request.get_json(silent=True) or {}
+
+        areas = data.get("areas")
+
+        return safe_apply_response(restore_backup(
+
+                data.get("backup", ""),
+
+                areas if isinstance(areas, list) else None
+
+        ))
+
+
+
+
+
+# ------------------------------------------------------------
+
+# Logs
+
+# ------------------------------------------------------------
+
+
+
+@app.route("/api/logs/sources")
+
+@login_required
+
+def logs_sources_api():
+
+        return jsonify(get_log_sources())
+
+
+
+
+
+@app.route("/api/logs")
+
+@login_required
+
+def logs_api():
+
+        return jsonify(get_logs(
+
+                source=request.args.get("source", "app"),
+
+                limit=request.args.get("limit", 200),
+
+                level=request.args.get("level"),
+
+                search=request.args.get("search", "")[:200]
+
+        ))
+
+
+
+
+
+@app.route("/api/logs/clear", methods=["POST"])
+
+@login_required
+
+def logs_clear_api():
+
+        clear_events()
+
+        return jsonify({
+
+                "success": True,
+
+                "message": "Router event log cleared."
+
+        })
+
+
+
+
+
+# ------------------------------------------------------------
+
 # Modem + Header
+
 # ------------------------------------------------------------
+
+
 
 @app.route("/api/modem")
+
 @login_required
+
 def modem_api():
 
-    return jsonify(get_modem_data())
+
+
+        return jsonify(get_modem_data())
+
+
+
 
 
 @app.route("/api/header")
+
 @login_required
+
 def header_api():
 
-    traffic = get_traffic()
-    modem = get_modem_data()
 
-    return jsonify({
-        "network": modem["network"],
-        "model": modem["model"],
-        "carrier": modem["carrier"],
-        "ping": None,
-        "time": get_time(),
-        "user": session["user"],
-        "rx": traffic["rx"],
-        "tx": traffic["tx"]
-    })
+
+        traffic = get_traffic()
+
+        modem = get_modem_data()
+
+
+
+        return jsonify({
+
+                "network": modem["network"],
+
+                "model": modem["model"],
+
+                "carrier": modem["carrier"],
+
+                "ping": None,
+
+                "time": get_time(),
+
+                "user": session["user"],
+
+                "rx": traffic["rx"],
+
+                "tx": traffic["tx"]
+
+        })
+
+
+
 
 
 # ------------------------------------------------------------
+
 # Clients
+
 # ------------------------------------------------------------
+
+
+
+def get_viewer_ip():
+
+        # Behind Caddy the request comes from localhost; the browser's
+        # address is in X-Forwarded-For.
+        if request.remote_addr in ("127.0.0.1", "::1"):
+
+                forwarded = request.headers.get("X-Forwarded-For", "")
+
+                if forwarded:
+                        return forwarded.split(",")[0].strip()
+
+
+
+        return request.remote_addr
+
+
+
+
 
 @app.route("/api/clients")
+
 @login_required
+
 def clients_api():
 
-    return jsonify(get_clients())
+        return jsonify(get_client_list(get_viewer_ip()))
+
+
 
 
 @app.route("/api/clients/alias", methods=["POST"])
+
 @login_required
+
 def client_alias():
 
-    data = request.get_json()
 
-    mac = data.get("mac", "").strip()
-    alias = data.get("alias", "").strip()
 
-    if not mac:
+        data = request.get_json()
+
+
+
+        mac = data.get("mac", "").strip()
+
+        alias = data.get("alias", "").strip()
+
+
+
+        if not mac:
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": "MAC address is required."
+
+                }), 400
+
+
+
+        set_device_alias(mac, alias)
+
+
+
         return jsonify({
-            "success": False,
-            "message": "MAC address is required."
-        }), 400
 
-    set_device_alias(mac, alias)
+                "success": True,
 
-    return jsonify({
-        "success": True,
-        "mac": mac.upper(),
-        "alias": alias
-    })
+                "mac": mac.upper(),
+
+                "alias": alias
+
+        })
+
+
+
+
+
+@app.route("/api/clients/block", methods=["POST"])
+
+@login_required
+
+def client_block_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return safe_apply_response(
+                block_device(data.get("mac"), data.get("name"))
+        )
+
+
+
+
+
+@app.route("/api/clients/unblock", methods=["POST"])
+
+@login_required
+
+def client_unblock_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return safe_apply_response(
+                unblock_device(data.get("mac"))
+        )
+
+
+
+
+
+@app.route("/api/clients/ping", methods=["POST"])
+
+@login_required
+
+def client_ping_api():
+
+        data = request.get_json(silent=True) or {}
+
+        ok, message = ping_device(str(data.get("ip", "")))
+
+        return jsonify({"success": ok, "message": message})
+
+
+
+
+
+@app.route("/api/clients/wake", methods=["POST"])
+
+@login_required
+
+def client_wake_api():
+
+        data = request.get_json(silent=True) or {}
+
+        ok, message = wake_device(data.get("mac"), str(data.get("interface", "")))
+
+        return jsonify({"success": ok, "message": message}), 200 if ok else 400
+
+
+
 
 
 @app.route("/api/clients/rename", methods=["POST"])
+
 @login_required
+
 def rename_client():
 
-    return client_alias()
+
+
+        return client_alias()
+
+
+
 
 
 # ------------------------------------------------------------
+
 # System
+
 # ------------------------------------------------------------
+
+
 
 @app.route("/api/system/hostname", methods=["POST"])
+
 @login_required
+
 def update_hostname():
 
-    data = request.get_json()
 
-    success, message = set_hostname(
-        data["hostname"]
-    )
 
-    if success:
+        data = request.get_json()
+
+
+
+        success, message = set_hostname(
+
+                data["hostname"]
+
+        )
+
+
+
+        if success:
+
+
+
+                return jsonify({
+
+                        "success": True,
+
+                        "hostname": message
+
+                })
+
+
 
         return jsonify({
-            "success": True,
-            "hostname": message
-        })
 
-    return jsonify({
-        "success": False,
-        "message": message
-    }), 400
+                "success": False,
+
+                "message": message
+
+        }), 400
+
+
+
 
 
 @app.route("/api/system/security")
+
 @login_required
+
 def system_security():
 
-    return jsonify({
-        "idle_timeout": get_idle_timeout(),
-        "absolute_timeout": get_absolute_timeout()
-    })
+
+
+        return jsonify({
+
+                "idle_timeout": get_idle_timeout(),
+
+                "absolute_timeout": get_absolute_timeout()
+
+        })
+
+
+
 
 
 @app.route("/api/system/security", methods=["POST"])
+
 @login_required
+
 def update_security():
 
-    data = request.get_json()
 
-    idle_timeout = data.get("idle_timeout")
-    absolute_timeout = data.get("absolute_timeout")
 
-    try:
-        idle_timeout = int(idle_timeout)
-        absolute_timeout = int(absolute_timeout)
-    except (TypeError, ValueError):
+        data = request.get_json()
+
+
+
+        idle_timeout = data.get("idle_timeout")
+
+        absolute_timeout = data.get("absolute_timeout")
+
+
+
+        try:
+
+                idle_timeout = int(idle_timeout)
+
+                absolute_timeout = int(absolute_timeout)
+
+        except (TypeError, ValueError):
+
+
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": "Timeout values must be numbers."
+
+                }), 400
+
+
+
+        if idle_timeout < 60:
+
+
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": "Idle timeout must be at least 1 minute."
+
+                }), 400
+
+
+
+        if absolute_timeout < 60:
+
+
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": "Absolute timeout must be at least 1 minute."
+
+                }), 400
+
+
+
+        if absolute_timeout < idle_timeout:
+
+
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": "Absolute timeout must be greater than idle timeout."
+
+                }), 400
+
+
+
+        set_session_timeouts(
+
+                idle_timeout=idle_timeout,
+
+                absolute_timeout=absolute_timeout
+
+        )
+
+
 
         return jsonify({
-            "success": False,
-            "message": "Timeout values must be numbers."
-        }), 400
 
-    if idle_timeout < 60:
+                "success": True,
 
-        return jsonify({
-            "success": False,
-            "message": "Idle timeout must be at least 1 minute."
-        }), 400
+                "idle_timeout": idle_timeout,
 
-    if absolute_timeout < 60:
+                "absolute_timeout": absolute_timeout
 
-        return jsonify({
-            "success": False,
-            "message": "Absolute timeout must be at least 1 minute."
-        }), 400
+        })
 
-    if absolute_timeout < idle_timeout:
 
-        return jsonify({
-            "success": False,
-            "message": "Absolute timeout must be greater than idle timeout."
-        }), 400
 
-    set_session_timeouts(
-        idle_timeout=idle_timeout,
-        absolute_timeout=absolute_timeout
-    )
-
-    return jsonify({
-        "success": True,
-        "idle_timeout": idle_timeout,
-        "absolute_timeout": absolute_timeout
-    })
 
 
 @app.route("/api/system/ping")
-@login_required
-def system_ping():
-    config = get_ping_config()
 
-    return jsonify({
-        "enabled": config["enabled"],
-        "interval": config["interval"]
-    })
+@login_required
+
+def system_ping():
+
+        config = get_ping_config()
+
+
+
+        return jsonify({
+
+                "enabled": config["enabled"],
+
+                "interval": config["interval"],
+
+                "destination": config["destination"]
+
+        })
+
+
+
 
 
 @app.route("/api/system/ping", methods=["POST"])
+
 @login_required
+
 def update_ping():
-    data = request.get_json() or {}
 
-    enabled = data.get("enabled")
-    interval = data.get("interval")
+        data = request.get_json() or {}
 
-    if not isinstance(enabled, bool):
+
+
+        enabled = data.get("enabled")
+
+        interval = data.get("interval")
+
+        destination = data.get("destination", "")
+
+        if not isinstance(destination, str):
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": "Ping destination must be text."
+
+                }), 400
+
+        destination = destination.strip()
+
+
+
+        if not isinstance(enabled, bool):
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": "Ping enabled value must be true or false."
+
+                }), 400
+
+
+
+        try:
+
+                interval = int(interval)
+
+        except (TypeError, ValueError):
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": "Ping interval must be a number."
+
+                }), 400
+
+
+
+        if interval not in VALID_PING_INTERVALS:
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": "Ping interval must be 5, 10, 30, or 60 seconds."
+
+                }), 400
+
+
+
+        if not destination:
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": "Ping destination cannot be empty."
+
+                }), 400
+
+
+
+        if len(destination) > 253:
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": "Ping destination is too long."
+
+                }), 400
+
+
+
+        set_ping_config(enabled, interval, destination)
+
+
+
         return jsonify({
-            "success": False,
-            "message": "Ping enabled value must be true or false."
-        }), 400
 
-    try:
-        interval = int(interval)
-    except (TypeError, ValueError):
-        return jsonify({
-            "success": False,
-            "message": "Ping interval must be a number."
-        }), 400
+                "success": True,
 
-    if interval not in VALID_PING_INTERVALS:
-        return jsonify({
-            "success": False,
-            "message": "Ping interval must be 5, 10, 30, or 60 seconds."
-        }), 400
+                "enabled": enabled,
 
-    set_ping_config(enabled, interval)
+                "interval": interval,
 
-    return jsonify({
-        "success": True,
-        "enabled": enabled,
-        "interval": interval
-    })
+                "destination": destination
+
+        })
+
+
+
 
 
 @app.route("/api/system/ping/value")
-@login_required
-def system_ping_value():
-    config = get_ping_config()
 
-    if not config["enabled"]:
+@login_required
+
+def system_ping_value():
+
+        config = get_ping_config()
+
+
+
+        if not config["enabled"]:
+
+                return jsonify({
+
+                        "enabled": False,
+
+                        "ping": None
+
+                })
+
+
+
         return jsonify({
-            "enabled": False,
-            "ping": None
+
+                "enabled": True,
+
+                "ping": get_ping(config["destination"])
+
         })
 
-    return jsonify({
-        "enabled": True,
-        "ping": get_ping()
-    })
+
+
 
 
 @app.route("/api/system/password", methods=["POST"])
+
 @login_required
+
 def update_password():
 
-    data = request.get_json()
 
-    current_password = data.get(
-        "current_password",
-        ""
-    )
 
-    new_password = data.get(
-        "new_password",
-        ""
-    )
+        data = request.get_json()
 
-    if not current_password or not new_password:
+
+
+        current_password = data.get(
+
+                "current_password",
+
+                ""
+
+        )
+
+
+
+        new_password = data.get(
+
+                "new_password",
+
+                ""
+
+        )
+
+
+
+        if not current_password or not new_password:
+
+
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": "All password fields are required."
+
+                }), 400
+
+
+
+        if len(new_password) < 8:
+
+
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": "Password must be at least 8 characters."
+
+                }), 400
+
+
+
+        user = session.get("user")
+
+        success, message = change_password(
+
+                current_password,
+
+                new_password
+
+        )
+
+        log_event(
+                "auth",
+                f"Password changed for {user}." if success
+                else f"Password change for {user} failed: {message}",
+                "info" if success else "warning"
+        )
+
+
+
+        if not success:
+
+
+
+                return jsonify({
+
+                        "success": False,
+
+                        "message": message
+
+                }), 400
+
+
 
         return jsonify({
-            "success": False,
-            "message": "All password fields are required."
-        }), 400
 
-    if len(new_password) < 8:
+                "success": True,
 
-        return jsonify({
-            "success": False,
-            "message": "Password must be at least 8 characters."
-        }), 400
+                "message": message
 
-    success, message = change_password(
-        current_password,
-        new_password
-    )
+        })
 
-    if not success:
 
-        return jsonify({
-            "success": False,
-            "message": message
-        }), 400
 
-    return jsonify({
-        "success": True,
-        "message": message
-    })
 
 
 # ------------------------------------------------------------
+
+# Startup
+
+# ------------------------------------------------------------
+
+
+
+def startup():
+
+        # After a boot, the running config is rebuilt from the
+        # persistent (verified) config and applied to the system.
+        if sync_boot():
+
+                log_event(
+                        "system",
+                        "Boot: running config rebuilt from the saved settings."
+                )
+
+                transaction.apply_all()
+
+                return
+
+
+
+        # The app restarted while changes awaited confirmation.
+        transaction.recover_pending()
+
+
+
+
+
+# The debug reloader imports this file twice; only the process that
+# serves requests runs the startup. CHAOS_SKIP_STARTUP is for tools
+# and tests that only need the app object.
+if (
+        os.getenv("CHAOS_SKIP_STARTUP") != "1"
+        and not (
+                __name__ == "__main__"
+                and os.getenv("WERKZEUG_RUN_MAIN") != "true"
+        )
+):
+        startup()
+
+
+
+
+
+# ------------------------------------------------------------
+
 # Development
+
 # ------------------------------------------------------------
+
+
 
 if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",
-        port=5000,
-        debug=True
-    )
+
+        app.run(
+
+                host="0.0.0.0",
+
+                port=5000,
+
+                debug=True
+
+        )

@@ -17,10 +17,23 @@
 
         <nav>
             <a href="#/dashboard" data-route="dashboard">Dashboard</a>
-            <a href="#/network" data-route="network">Network</a>
-            <a href="#/clients" data-route="clients">Clients</a>
-            <a href="#/vpn" data-route="vpn">VPN</a>
+
+            <hr class="sidebar-divider">
+
             <a href="#/modem" data-route="modem">Modem</a>
+            <a href="#/network" data-route="network">Network</a>
+            <a href="#/wifi" data-route="wifi">WiFi</a>
+            <a href="#/dhcp" data-route="dhcp">DHCP</a>
+            <a href="#/dns" data-route="dns">DNS</a>
+            <a href="#/clients" data-route="clients">Clients</a>
+
+            <hr class="sidebar-divider">
+
+            <a href="#/firewall" data-route="firewall">Firewall</a>
+            <a href="#/vpn" data-route="vpn">VPN</a>
+
+            <hr class="sidebar-divider">
+
             <a href="#/logs" data-route="logs">Logs</a>
             <a href="#/system" data-route="system">System</a>
 
@@ -28,6 +41,12 @@
 
             <a href="#/apps" data-route="apps">Apps</a>
         </nav>
+
+        <footer class="sidebar-credits">
+            Made by
+            <a href="https://chaos-software.dev" target="_blank" rel="noopener">Chaoscent</a> -
+            <a href="https://github.com/chaoscent/chaos-router-os" target="_blank" rel="noopener">GitHub</a>
+        </footer>
 
     </aside>
 
@@ -98,6 +117,28 @@
 
         </header>
 
+        <!-- Safe apply: unconfirmed changes (see apply.js) -->
+
+        <div id="applyBanner" class="apply-banner hidden" role="alert">
+
+            <div class="apply-text">
+                <strong id="applyBannerTitle"></strong>
+                <span id="applyBannerCountdown"></span>
+                <span id="applyBannerHint" class="apply-hint hidden"></span>
+            </div>
+
+            <div class="apply-actions">
+                <button id="applyRevert" class="secondary-btn">Revert</button>
+                <button id="applyKeep" class="save-btn">Keep changes</button>
+            </div>
+
+        </div>
+
+        <div id="applyNotice" class="apply-notice hidden" role="status">
+            <span id="applyNoticeText"></span>
+            <button id="applyNoticeClose" class="icon-btn" aria-label="Dismiss">×</button>
+        </div>
+
         <div id="content"></div>
 
     </main>
@@ -136,6 +177,9 @@
 </div>
 
 <script src="{{ url_for('static', filename='js/header.js') }}"></script>
+<script src="{{ url_for('static', filename='js/select.js') }}"></script>
+<script src="{{ url_for('static', filename='js/modal.js') }}"></script>
+<script src="{{ url_for('static', filename='js/apply.js') }}"></script>
 <script src="{{ url_for('static', filename='js/router.js') }}"></script>
 
 </body>

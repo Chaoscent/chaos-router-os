@@ -102,16 +102,29 @@ def get_time():
     return datetime.now().strftime("%H:%M:%S")
 
 
-def get_ping():
+def get_ping(destination="1.1.1.1"):
 
     try:
 
+        destination = str(destination).strip()
+
+        if not destination:
+            return "-- ms"
+
         out = subprocess.check_output(
-            ["ping", "-c", "1", "-W", "1", "1.1.1.1"],
+            [
+                "ping",
+                "-4",
+                "-c",
+                "1",
+                "-W",
+                "1",
+                destination
+            ],
             text=True
         )
 
         return out.split("time=")[1].split()[0] + " ms"
 
-    except:
+    except Exception:
         return "-- ms"

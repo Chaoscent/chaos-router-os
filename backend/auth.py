@@ -1,4 +1,3 @@
-import json
 import time
 from pathlib import Path
 from functools import wraps
@@ -6,90 +5,79 @@ from functools import wraps
 from flask import session, redirect, url_for, request, jsonify
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from services.config import (
+    load_json,
+    load_defaults,
+    load_running
+)
 
-USERS_FILE = Path(__file__).parent / "data" / "users.json"
+from services import transaction
 
-CONFIG_DIR = Path("/etc/chaos-router-os/config")
-SECURITY_FILE = CONFIG_DIR / "security.json"
 
-DEFAULT_IDLE_TIMEOUT = 300          # 5 minutes
-DEFAULT_ABSOLUTE_TIMEOUT = 3600     # 1 hour
+# users.json: default login in /etc/chaos-router-os, changed
+# passwords in /var/lib/chaos-router-os.
+USERS = "users"
+
+# Fallback default login shipped with the code.
+BUILTIN_USERS_FILE = Path(__file__).parent / "data" / "users.json"
+
+# security.json: default timeouts in /etc/chaos-router-os,
+# the user's custom timeouts in /var/lib/chaos-router-os.
+SECURITY = "security"
+
+BUILTIN_SECURITY = {
+    "idle_timeout": 300,        # 5 minutes
+    "absolute_timeout": 3600    # 1 hour
+}
 
 
 def load_users():
-    with open(USERS_FILE) as f:
-        return json.load(f)
+    users = load_running(USERS, None)
+
+    if users:
+        return users
+
+    return (
+        load_defaults(USERS)
+        or load_json(str(BUILTIN_USERS_FILE), {})
+    )
 
 
 def save_users(users):
-    with open(USERS_FILE, "w") as f:
-        json.dump(users, f, indent=4)
+    return transaction.change(USERS, users)["success"]
 
 
 def load_security_config():
-    if not SECURITY_FILE.exists():
-        return {}
+    """
+    Only the user's custom timeouts; empty when none are set.
+    """
 
-    try:
-        with open(SECURITY_FILE) as f:
-            data = json.load(f)
+    data = load_running(SECURITY, {})
 
-        if not isinstance(data, dict):
-            return {}
-
-        return data
-
-    except (OSError, json.JSONDecodeError):
-        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def save_security_config(config):
-    CONFIG_DIR.mkdir(parents=True, exist_ok=True)
+    return transaction.change(SECURITY, config)["success"]
 
-    temp_file = SECURITY_FILE.with_suffix(".tmp")
 
-    with open(temp_file, "w") as f:
-        json.dump(config, f, indent=4)
+def _timeout(key):
+    default = int(load_defaults(SECURITY, BUILTIN_SECURITY)[key])
 
-    temp_file.replace(SECURITY_FILE)
+    try:
+        value = int(load_security_config().get(key))
+    except (TypeError, ValueError):
+        return default
+
+    return value if value > 0 else default
 
 
 def get_idle_timeout():
-    config = load_security_config()
-
-    value = config.get("idle_timeout")
-
-    if value is None:
-        return DEFAULT_IDLE_TIMEOUT
-
-    try:
-        value = int(value)
-    except (TypeError, ValueError):
-        return DEFAULT_IDLE_TIMEOUT
-
-    if value <= 0:
-        return DEFAULT_IDLE_TIMEOUT
-
-    return value
+    return _timeout("idle_timeout")
 
 
 def get_absolute_timeout():
-    config = load_security_config()
-
-    value = config.get("absolute_timeout")
-
-    if value is None:
-        return DEFAULT_ABSOLUTE_TIMEOUT
-
-    try:
-        value = int(value)
-    except (TypeError, ValueError):
-        return DEFAULT_ABSOLUTE_TIMEOUT
-
-    if value <= 0:
-        return DEFAULT_ABSOLUTE_TIMEOUT
-
-    return value
+    return _timeout("absolute_timeout")
 
 
 def set_session_timeouts(idle_timeout=None, absolute_timeout=None):
@@ -207,7 +195,8 @@ def change_password(current_password, new_password):
         new_password
     )
 
-    save_users(users)
+    if not save_users(users):
+        return False, "Password could not be saved"
 
     session.clear()
 

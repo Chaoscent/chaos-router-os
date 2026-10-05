@@ -1,3 +1,115 @@
 <section class="page">
-    <h1>Logs</h1>
+
+    <div class="page-header">
+
+        <h1>Logs</h1>
+
+        <p>
+            Router events and service logs.
+        </p>
+
+    </div>
+
+
+    <div class="settings-sections">
+
+
+        <!-- Filters -->
+
+        <div class="card">
+
+            <div class="settings-grid logs-filters">
+
+                <div class="setting-field">
+                    <label for="logSourceInput">Source</label>
+                    <select id="logSourceInput" class="setting-input">
+                        <option value="app">Router events</option>
+                    </select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="logLevelInput">Level</label>
+                    <select id="logLevelInput" class="setting-input">
+                        <option value="all">All</option>
+                        <option value="warning">Warnings and errors</option>
+                        <option value="error">Errors only</option>
+                    </select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="logLimitInput">Show</label>
+                    <select id="logLimitInput" class="setting-input">
+                        <option value="100">Last 100</option>
+                        <option value="200">Last 200</option>
+                        <option value="500">Last 500</option>
+                        <option value="1000">Last 1000</option>
+                    </select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="logSearchInput">Search</label>
+                    <input
+                        id="logSearchInput"
+                        class="setting-input"
+                        type="search"
+                        placeholder="Filter messages"
+                        autocomplete="off"
+                        spellcheck="false">
+                </div>
+
+            </div>
+
+            <div class="setting-row">
+
+                <button id="logRefresh" class="secondary-btn">
+                    Refresh
+                </button>
+
+                <button id="logLive" class="secondary-btn" aria-pressed="false">
+                    Live: Off
+                </button>
+
+                <button id="logDownload" class="secondary-btn">
+                    Download
+                </button>
+
+                <button id="logClear" class="secondary-btn danger-text">
+                    Clear Router Events
+                </button>
+
+            </div>
+
+            <div id="logStatus" class="setting-status"></div>
+
+        </div>
+
+
+        <!-- Entries -->
+
+        <div class="card">
+
+            <div class="table-scroll">
+
+                <table class="client-table data-table log-table">
+
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Level</th>
+                            <th>Source</th>
+                            <th>Message</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="logTable"></tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+
+    </div>
+
 </section>

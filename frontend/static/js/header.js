@@ -15,39 +15,52 @@ window.Header = {
                 await fetch("/api/header");
 
             if (res.status === 401) {
-                location.href = "/login";
+
+                location.href =
+                    "/login";
+
                 return;
             }
 
             const data =
                 await res.json();
 
+
             headerNetwork.textContent =
                 data.network;
+
 
             headerModule.textContent =
                 data.model;
 
+
             headerCarrier.textContent =
                 data.carrier;
 
+
             /*
              * Ping is updated separately.
-             * The normal header refresh must never
-             * perform an ICMP request.
+             *
+             * The normal header refresh must
+             * never perform an ICMP request.
              */
+
 
             headerTime.textContent =
                 data.time;
 
+
             headerUser.textContent =
                 data.user;
+
 
             pulseDown.textContent =
                 `↓ ${data.rx.toFixed(1)} Mbps`;
 
+
             pulseUp.textContent =
                 `↑ ${data.tx.toFixed(1)} Mbps`;
+
 
             const total =
                 Math.min(
@@ -55,8 +68,12 @@ window.Header = {
                     200
                 );
 
+
             pulseFill.style.width =
-                `${Math.max(8, total / 2)}%`;
+                `${Math.max(
+                    8,
+                    total / 2
+                )}%`;
 
         } catch {}
 
@@ -68,25 +85,39 @@ window.Header = {
         try {
 
             const res =
-                await fetch("/api/system/ping");
+                await fetch(
+                    "/api/system/ping"
+                );
+
 
             if (res.status === 401) {
-                location.href = "/login";
+
+                location.href =
+                    "/login";
+
                 return;
             }
 
+
             if (!res.ok) {
+
                 return;
             }
+
 
             const data =
                 await res.json();
 
+
             this.pingEnabled =
-                data.ping_enabled === true;
+                data.enabled === true;
+
 
             this.pingInterval =
-                Number(data.ping_interval) || 5;
+                Number(
+                    data.interval
+                ) || 5;
+
 
             this.startPing();
 
@@ -99,21 +130,38 @@ window.Header = {
 
         if (!this.pingEnabled) {
 
-            headerPing.textContent =
-                "-- ms";
+            headerPing.parentElement.style.display =
+                "none";
 
             return;
         }
 
+
+        /*
+         * Ping is enabled, so make the
+         * complete Ping header item visible.
+         */
+
+        headerPing.parentElement.style.display =
+            "";
+
+
         try {
 
             const res =
-                await fetch("/api/system/ping/value");
+                await fetch(
+                    "/api/system/ping/value"
+                );
+
 
             if (res.status === 401) {
-                location.href = "/login";
+
+                location.href =
+                    "/login";
+
                 return;
             }
+
 
             if (!res.ok) {
 
@@ -123,11 +171,14 @@ window.Header = {
                 return;
             }
 
+
             const data =
                 await res.json();
 
+
             headerPing.textContent =
-                data.ping || "-- ms";
+                data.ping ||
+                "-- ms";
 
         } catch {
 
@@ -141,28 +192,47 @@ window.Header = {
 
     startPing() {
 
-        if (this.pingTimer !== null) {
+        if (
+            this.pingTimer !== null
+        ) {
 
             clearInterval(
                 this.pingTimer
             );
 
-            this.pingTimer = null;
+            this.pingTimer =
+                null;
         }
+
 
         if (!this.pingEnabled) {
 
-            headerPing.textContent =
-                "-- ms";
+            /*
+             * Hide the complete Ping
+             * header item when disabled.
+             */
+
+            headerPing.parentElement.style.display =
+                "none";
 
             return;
         }
+
+
+        /*
+         * Ping is enabled.
+         */
+
+        headerPing.parentElement.style.display =
+            "";
+
 
         /*
          * Perform the first ping immediately.
          */
 
         this.updatePing();
+
 
         this.pingTimer =
             setInterval(
@@ -175,13 +245,24 @@ window.Header = {
 
     init() {
 
+        /*
+         * Keep Ping hidden until its
+         * configuration has loaded.
+         */
+
+        headerPing.parentElement.style.display =
+            "none";
+
+
         this.update();
+
 
         this.timer =
             setInterval(
                 () => this.update(),
                 1000
             );
+
 
         this.loadPingConfig();
 

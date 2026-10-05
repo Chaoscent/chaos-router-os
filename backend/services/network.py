@@ -1,18 +1,21 @@
+import os
 import subprocess
 import socket
 import re
+import time
 
 from services.config import (
-    load_json,
-    save_json,
-    CONFIG_DIR
+    load_running,
+    load_settings
 )
+
+from services import transaction
 
 # -------------------------------------------------------------------
 # Configuration
 # -------------------------------------------------------------------
 
-DEVICE_ALIASES_FILE = f"{CONFIG_DIR}/device_aliases.json"
+DEVICE_ALIASES = "device_aliases"
 
 
 # -------------------------------------------------------------------
@@ -50,11 +53,11 @@ OUI_DB = {
 # -------------------------------------------------------------------
 
 def load_device_aliases():
-    return load_json(DEVICE_ALIASES_FILE, {})
+    return load_running(DEVICE_ALIASES, {})
 
 
 def save_device_aliases(data):
-    save_json(DEVICE_ALIASES_FILE, data)
+    return transaction.change(DEVICE_ALIASES, data)
 
 
 def lookup_alias(mac):
@@ -72,9 +75,7 @@ def set_device_alias(mac, name):
     else:
         aliases.pop(mac, None)
 
-    save_device_aliases(aliases)
-
-    return True
+    return save_device_aliases(aliases)["success"]
 
 
 # -------------------------------------------------------------------
@@ -97,6 +98,14 @@ def run(cmd):
 
     except Exception:
         return None
+
+
+def privileged(cmd):
+
+    if os.geteuid() == 0:
+        return cmd
+
+    return ["sudo", "-n"] + cmd
 
 
 def run_command(cmd):
@@ -135,6 +144,24 @@ def run_command(cmd):
 # -------------------------------------------------------------------
 # NetworkManager
 # -------------------------------------------------------------------
+
+# Seconds a service must stay up after a restart to count as working.
+SETTLE_SECONDS = float(os.getenv("CHAOS_SETTLE_SECONDS", "2"))
+
+
+def unit_stays_active(unit):
+    """
+    Verifies a restarted service did not crash right after starting
+    (systemctl restart succeeds before e.g. hostapd gives up).
+    """
+
+    time.sleep(SETTLE_SECONDS)
+
+    if run(["systemctl", "is-active", unit]) == "active":
+        return True, "OK"
+
+    return False, f"{unit} stopped right after starting."
+
 
 def has_networkmanager():
 
@@ -750,6 +777,91 @@ def apply_interface_config(
     return True, (
         "Network configuration applied."
     )
+
+
+# -------------------------------------------------------------------
+# Network settings (network.json)
+# -------------------------------------------------------------------
+
+NETWORK = "network"
+
+INTERFACE_FIELDS = ("interface", "mode", "ip", "subnet", "gateway", "dns")
+
+
+def get_network_settings():
+    """
+    {"interfaces": {"eth0": {...}}} from the running config.
+    """
+
+    settings = load_settings(NETWORK, {"interfaces": {}})
+
+    return {"interfaces": dict(settings.get("interfaces") or {})}
+
+
+def get_network_baseline():
+    """
+    The interface config NetworkManager runs now, before the first
+    change made from the dashboard.
+    """
+
+    interfaces = {}
+
+    for iface in get_interfaces():
+
+        if iface["name"] == "wwan0":
+            continue
+
+        config = {
+            "interface": iface["name"],
+            "mode": "Static" if iface["mode"] == "Static" else "DHCP Client"
+        }
+
+        if config["mode"] == "Static":
+            config.update({
+                "ip": iface["ip"],
+                "subnet": iface["subnet"],
+                "gateway": iface["gateway"],
+                "dns": iface["dns"]
+            })
+
+        interfaces[iface["name"]] = config
+
+    return {"interfaces": interfaces}
+
+
+def apply_network_settings():
+
+    for name, config in get_network_settings()["interfaces"].items():
+
+        ok, result = apply_interface_config(config, dry_run=False)
+
+        if not ok:
+            return False, f"{name}: {result}"
+
+    return True, "Network configuration applied."
+
+
+def change_interface(config):
+    """
+    Applies one interface's settings through safe apply.
+    """
+
+    ok, message = validate_lan_config(config)
+
+    if not ok:
+        return transaction.result(False, message)
+
+    config = {k: config[k] for k in INTERFACE_FIELDS if k in config}
+
+    settings = get_network_settings()
+    settings["interfaces"][config["interface"]] = config
+
+    hint = None
+
+    if config.get("mode") == "Static":
+        hint = f"If this page stops responding, open http://{config['ip']}/ to confirm."
+
+    return transaction.change(NETWORK, settings, hint=hint)
 
 
 # -------------------------------------------------------------------

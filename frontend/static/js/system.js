@@ -87,6 +87,9 @@ window.Page.system = {
         pingIntervalInput.value =
             String(data.interval);
 
+        pingDestinationInput.value =
+            data.destination || "1.1.1.1";
+
         this.updatePingIntervalState();
 
     },
@@ -239,10 +242,21 @@ window.Page.system = {
                 10
             );
 
+        const destination =
+            pingDestinationInput.value.trim();
+
         if (![5, 10, 30, 60].includes(interval)) {
 
             pingStatus.textContent =
                 "Invalid ping interval.";
+
+            return;
+        }
+
+        if (!destination) {
+
+            pingStatus.textContent =
+                "Ping destination cannot be empty.";
 
             return;
         }
@@ -257,7 +271,8 @@ window.Page.system = {
 
             body: JSON.stringify({
                 enabled: enabled,
-                interval: interval
+                interval: interval,
+                destination: destination
             })
 
         });
@@ -384,9 +399,260 @@ window.Page.system = {
     },
 
 
+    // ------------------------------------------------------------
+    // Backup & Restore
+    // ------------------------------------------------------------
+
+    backupText: null,
+    backupSummary: null,
+
+
+    escape(value) {
+
+        return ChaosSelect.escape(value);
+
+    },
+
+
+    async downloadBackup() {
+
+        backupStatus.textContent = "Preparing backup...";
+
+        const res = await fetch("/api/backup/export");
+
+        if (res.status === 401) {
+            location.href = "/login";
+            return;
+        }
+
+        if (!res.ok) {
+            backupStatus.textContent = "The backup could not be created.";
+            return;
+        }
+
+        const disposition = res.headers.get("Content-Disposition") || "";
+        const name = disposition.match(/filename="([^"]+)"/)?.[1]
+            || "chaos-router-backup.json";
+
+        const link = document.createElement("a");
+
+        link.href = URL.createObjectURL(await res.blob());
+        link.download = name;
+        link.click();
+
+        URL.revokeObjectURL(link.href);
+
+        backupStatus.textContent = `✓ Downloaded ${name}`;
+
+    },
+
+
+    async postBackup(url, body) {
+
+        const res = await fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body)
+        });
+
+        if (res.status === 401) {
+            location.href = "/login";
+            return null;
+        }
+
+        if (res.status === 413) {
+            return { success: false, message: "The file is too large to be a backup." };
+        }
+
+        try {
+            return await res.json();
+        } catch {
+            return { success: false, message: "Unexpected server response." };
+        }
+
+    },
+
+
+    readBackupFile(file) {
+
+        if (!file) return;
+
+        backupFileInput.value = "";
+        backupResults.classList.add("hidden");
+        backupSummary.classList.add("hidden");
+        backupStatus.textContent = `Reading ${file.name}...`;
+
+        const reader = new FileReader();
+
+        reader.onload = () => this.inspectBackup(reader.result, file.name);
+        reader.onerror = () => {
+            backupStatus.textContent = "The file could not be read.";
+        };
+
+        reader.readAsText(file);
+
+    },
+
+
+    async inspectBackup(text, fileName) {
+
+        const data = await this.postBackup("/api/backup/inspect", { backup: text });
+
+        if (!data) return;
+
+        if (!data.success) {
+            backupStatus.textContent = data.message;
+            return;
+        }
+
+        this.backupText = text;
+        this.backupSummary = data;
+
+        const created = data.created
+            ? new Date(data.created * 1000).toLocaleString()
+            : "an unknown date";
+
+        backupInfo.textContent =
+            `${fileName}: backup of ${data.hostname || "a router"} from ${created}.`;
+
+        backupAreas.innerHTML = "";
+
+        data.areas.forEach(area => {
+
+            const label = document.createElement("label");
+            label.className = `check-item backup-area ${area.status}`;
+
+            const note = {
+                ok: "",
+                unchanged: "same as now",
+                invalid: area.message
+            }[area.status];
+
+            label.innerHTML = `
+                <input type="checkbox" value="${this.escape(area.name)}"
+                    ${area.status === "ok" ? "checked" : ""}
+                    ${area.status === "invalid" ? "disabled" : ""}>
+                <span>${this.escape(area.label)}</span>
+                ${note ? `<small>${this.escape(note)}</small>` : ""}
+            `;
+
+            backupAreas.appendChild(label);
+
+        });
+
+        backupCerts.textContent =
+            data.certificates === "ok"
+                ? "Includes the OpenVPN certificate authority; restoring OpenVPN replaces this router's certificates."
+                : data.certificates
+                    ? `OpenVPN certificates cannot be used: ${data.certificates}`
+                    : "";
+
+        backupSummary.classList.remove("hidden");
+        backupStatus.textContent = "Choose what to restore.";
+
+    },
+
+
+    async restoreBackup() {
+
+        const areas = [...backupAreas.querySelectorAll("input:checked")]
+            .map(input => input.value);
+
+        if (!areas.length) {
+            backupStatus.textContent = "Select at least one area to restore.";
+            return;
+        }
+
+        const labels = this.backupSummary.areas
+            .filter(a => areas.includes(a.name))
+            .map(a => a.label);
+
+        const body = document.createElement("div");
+
+        const warnings = [];
+
+        if (areas.includes("users")) {
+            warnings.push("The login password changes to the one in the backup.");
+        }
+
+        if (areas.includes("openvpn") && this.backupSummary.certificates === "ok") {
+            warnings.push("OpenVPN devices set up on this router stop working; use the profiles from the backup.");
+        }
+
+        warnings.push("Network, firewall, WiFi and similar settings wait for you to keep them, or revert automatically.");
+
+        body.innerHTML = `
+            <p class="modal-note">${labels.map(l => this.escape(l)).join(", ")}</p>
+            <ul class="modal-list">
+                ${warnings.map(w => `<li>${this.escape(w)}</li>`).join("")}
+            </ul>
+        `;
+
+        const confirmed = await ChaosModal.confirm({
+            title: "Restore Backup",
+            subtitle: "These settings are replaced with the ones from the backup:",
+            body: body,
+            confirmText: "Restore"
+        });
+
+        if (!confirmed) return;
+
+        backupRestore.disabled = true;
+        backupStatus.textContent = "Restoring...";
+
+        const data = await this.postBackup("/api/backup/restore", {
+            backup: this.backupText,
+            areas: areas
+        });
+
+        backupRestore.disabled = false;
+
+        if (!data) return;
+
+        backupStatus.textContent = data.message;
+
+        backupResults.innerHTML = "";
+
+        (data.areas || []).forEach(area => {
+
+            const item = document.createElement("li");
+            item.className = area.success ? "ok" : "failed";
+            item.textContent = `${area.success ? "✓" : "✕"} ${area.label}: ${area.message}`;
+            backupResults.appendChild(item);
+
+        });
+
+        backupResults.classList.toggle("hidden", !(data.areas || []).length);
+        backupSummary.classList.add("hidden");
+
+        this.backupText = null;
+
+        // Restored hostname, timeouts and ping settings show up here.
+        this.load();
+
+    },
+
+
+    cancelRestore() {
+
+        this.backupText = null;
+        this.backupSummary = null;
+
+        backupSummary.classList.add("hidden");
+        backupStatus.textContent = "";
+
+    },
+
+
     init() {
 
         this.load();
+
+        backupDownload.onclick = () => this.downloadBackup();
+        backupChoose.onclick = () => backupFileInput.click();
+        backupFileInput.onchange = () => this.readBackupFile(backupFileInput.files[0]);
+        backupRestore.onclick = () => this.restoreBackup();
+        backupCancel.onclick = () => this.cancelRestore();
 
 
         saveHostname.onclick = () => {

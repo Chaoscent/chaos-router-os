@@ -1,0 +1,275 @@
+<section class="page">
+
+    <div class="page-header">
+
+        <h1>DHCP</h1>
+
+        <p>
+            Hand out addresses to devices on your local network.
+        </p>
+
+    </div>
+
+
+    <!-- Status -->
+
+    <div class="card-grid status-cards">
+
+        <div class="card">
+            <span>DHCP Server</span>
+            <h2 id="dhcpServerState">--</h2>
+        </div>
+
+        <div class="card">
+            <span>dnsmasq</span>
+            <h2 id="dhcpServiceState">--</h2>
+        </div>
+
+        <div class="card">
+            <span>Active Leases</span>
+            <h2 id="dhcpLeaseCount">--</h2>
+        </div>
+
+        <div class="card">
+            <span>Router Address</span>
+            <h2 id="dhcpRouterIP">--</h2>
+        </div>
+
+    </div>
+
+
+    <div class="settings-sections">
+
+
+        <!-- Server Settings -->
+
+        <div class="card">
+
+            <span>Server Settings</span>
+
+            <div class="settings-grid">
+
+                <div class="setting-field">
+                    <label for="dhcpEnabledInput">DHCP server</label>
+                    <select id="dhcpEnabledInput" class="setting-input">
+                        <option value="false">Disabled</option>
+                        <option value="true">Enabled</option>
+                    </select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="dhcpInterfaceInput">Interface</label>
+                    <select id="dhcpInterfaceInput" class="setting-input"></select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="dhcpLeaseTimeInput">Lease time</label>
+                    <select id="dhcpLeaseTimeInput" class="setting-input">
+                        <option value="1h">1 hour</option>
+                        <option value="12h">12 hours</option>
+                        <option value="24h">24 hours</option>
+                        <option value="7d">7 days</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="settings-grid">
+
+                <div class="setting-field">
+                    <label for="dhcpRangeStartInput">Range start</label>
+                    <input
+                        id="dhcpRangeStartInput"
+                        class="setting-input"
+                        type="text"
+                        placeholder="192.168.1.100"
+                        autocomplete="off"
+                        spellcheck="false">
+                </div>
+
+                <div class="setting-field">
+                    <label for="dhcpRangeEndInput">Range end</label>
+                    <input
+                        id="dhcpRangeEndInput"
+                        class="setting-input"
+                        type="text"
+                        placeholder="192.168.1.200"
+                        autocomplete="off"
+                        spellcheck="false">
+                </div>
+
+                <div class="setting-field">
+                    <label for="dhcpGatewayInput">Gateway</label>
+                    <input
+                        id="dhcpGatewayInput"
+                        class="setting-input"
+                        type="text"
+                        placeholder="Default: router address"
+                        autocomplete="off"
+                        spellcheck="false">
+                </div>
+
+            </div>
+
+            <div class="settings-grid">
+
+                <div class="setting-field">
+                    <label for="dhcpDns1Input">Primary DNS</label>
+                    <input
+                        id="dhcpDns1Input"
+                        class="setting-input"
+                        type="text"
+                        placeholder="Default: router"
+                        autocomplete="off"
+                        spellcheck="false">
+                </div>
+
+                <div class="setting-field">
+                    <label for="dhcpDns2Input">Secondary DNS</label>
+                    <input
+                        id="dhcpDns2Input"
+                        class="setting-input"
+                        type="text"
+                        placeholder="Optional"
+                        autocomplete="off"
+                        spellcheck="false">
+                </div>
+
+                <div class="setting-field">
+                    <label for="dhcpDomainInput">Local domain</label>
+                    <input
+                        id="dhcpDomainInput"
+                        class="setting-input"
+                        type="text"
+                        placeholder="Optional, e.g. lan"
+                        autocomplete="off"
+                        spellcheck="false">
+                </div>
+
+            </div>
+
+            <div class="setting-row">
+
+                <button id="dhcpPreview" class="secondary-btn">
+                    Preview Config
+                </button>
+
+                <button id="dhcpSave" class="save-btn">
+                    Save &amp; Apply
+                </button>
+
+            </div>
+
+            <div id="dhcpStatus" class="setting-status"></div>
+
+            <pre id="dhcpConfigPreview" class="config-preview hidden"></pre>
+
+        </div>
+
+
+        <!-- Static Leases -->
+
+        <div class="card">
+
+            <span>Static Leases</span>
+
+            <div class="table-scroll">
+
+                <table class="client-table data-table">
+
+                    <thead>
+                        <tr>
+                            <th>MAC</th>
+                            <th>IP</th>
+                            <th>Hostname</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="dhcpReservationTable"></tbody>
+
+                </table>
+
+            </div>
+
+            <div class="settings-grid">
+
+                <div class="setting-field">
+                    <label for="reserveMacInput">MAC address</label>
+                    <input
+                        id="reserveMacInput"
+                        class="setting-input"
+                        type="text"
+                        placeholder="AA:BB:CC:DD:EE:FF"
+                        autocomplete="off"
+                        spellcheck="false">
+                </div>
+
+                <div class="setting-field">
+                    <label for="reserveIpInput">IP address</label>
+                    <input
+                        id="reserveIpInput"
+                        class="setting-input"
+                        type="text"
+                        placeholder="192.168.1.50"
+                        autocomplete="off"
+                        spellcheck="false">
+                </div>
+
+                <div class="setting-field">
+                    <label for="reserveHostnameInput">Hostname</label>
+                    <input
+                        id="reserveHostnameInput"
+                        class="setting-input"
+                        type="text"
+                        placeholder="Optional"
+                        autocomplete="off"
+                        spellcheck="false">
+                </div>
+
+            </div>
+
+            <div class="setting-row">
+
+                <button id="dhcpAddReservation" class="save-btn">
+                    Add Static Lease
+                </button>
+
+            </div>
+
+            <div id="reservationStatus" class="setting-status"></div>
+
+        </div>
+
+
+        <!-- Active Leases -->
+
+        <div class="card">
+
+            <span>Active Leases</span>
+
+            <div class="table-scroll">
+
+                <table class="client-table data-table">
+
+                    <thead>
+                        <tr>
+                            <th>Device</th>
+                            <th>IP</th>
+                            <th>Expires</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="dhcpLeaseTable"></tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+
+    </div>
+
+</section>

@@ -62,23 +62,54 @@
                 </div>
 
                 <div class="info-row">
-                    <span>Traffic</span>
-                    <strong id="inspectorTraffic">Coming Soon</strong>
+                    <span>IP assignment</span>
+                    <strong id="inspectorAssignment">—</strong>
+                </div>
+
+                <div class="info-row">
+                    <span>Access</span>
+                    <strong id="inspectorAccess">—</strong>
                 </div>
 
             </div>
 
+            <div id="inspectorYou" class="inspector-warning hidden">
+                This is the device you are using right now.
+            </div>
+
             <div class="inspector-actions">
+
+                <div class="inspector-tools">
+
+                    <button id="pingDevice" class="action-btn compact">
+                        Ping
+                    </button>
+
+                    <button id="wakeDevice" class="action-btn compact">
+                        Wake (WoL)
+                    </button>
+
+                    <button id="openDevice" class="action-btn compact">
+                        Open Web Page
+                    </button>
+
+                    <button id="copyMac" class="action-btn compact">
+                        Copy MAC
+                    </button>
+
+                </div>
+
+                <div id="inspectorResult" class="inspector-result hidden"></div>
 
                 <button id="renameDevice" class="action-btn">
                     Rename Device
                 </button>
 
-                <button class="action-btn" disabled>
+                <button id="reserveDevice" class="action-btn">
                     Reserve DHCP IP
                 </button>
 
-                <button class="action-btn danger" disabled>
+                <button id="blockDevice" class="action-btn danger">
                     Block Device
                 </button>
 
@@ -128,6 +159,72 @@
 
             <button id="saveRenameBtn" class="save-btn">
                 Save
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+<!-- Reserve DHCP IP Modal -->
+
+<div id="reserveModal" class="modal-overlay hidden">
+
+    <div class="modal">
+
+        <div class="modal-header">
+
+            <h2 id="reserveTitle">Reserve DHCP IP</h2>
+
+            <button id="closeReserveModal" class="icon-btn">×</button>
+
+        </div>
+
+        <p id="reserveSubtitle" class="modal-subtitle">
+            This device always gets the same address.
+        </p>
+
+        <div class="modal-body">
+
+            <div class="setting-field">
+                <label for="reserveIpField">IP address</label>
+                <input
+                    id="reserveIpField"
+                    class="setting-input"
+                    type="text"
+                    autocomplete="off"
+                    spellcheck="false">
+            </div>
+
+            <div class="setting-field">
+                <label for="reserveNameField">Hostname</label>
+                <input
+                    id="reserveNameField"
+                    class="setting-input"
+                    type="text"
+                    placeholder="Optional"
+                    maxlength="63"
+                    autocomplete="off"
+                    spellcheck="false">
+            </div>
+
+            <p id="reserveStatus" class="setting-status"></p>
+
+        </div>
+
+        <div class="modal-actions">
+
+            <button id="removeReserveBtn" class="secondary-btn danger-text hidden">
+                Remove
+            </button>
+
+            <button id="cancelReserveBtn" class="secondary-btn">
+                Cancel
+            </button>
+
+            <button id="saveReserveBtn" class="save-btn">
+                Reserve
             </button>
 
         </div>

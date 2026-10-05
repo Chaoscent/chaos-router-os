@@ -1,0 +1,218 @@
+<section class="page">
+
+    <div class="page-header">
+
+        <h1>WiFi</h1>
+
+        <p>
+            Run a wireless access point for your local network.
+        </p>
+
+    </div>
+
+
+    <!-- Status -->
+
+    <div class="card-grid status-cards">
+
+        <div class="card">
+            <span>Access Point</span>
+            <h2 id="wifiState">--</h2>
+        </div>
+
+        <div class="card">
+            <span>hostapd</span>
+            <h2 id="wifiServiceState">--</h2>
+        </div>
+
+        <div class="card">
+            <span>Band / Channel</span>
+            <h2 id="wifiChannelState">--</h2>
+        </div>
+
+        <div class="card">
+            <span>Clients</span>
+            <h2 id="wifiClientCount">--</h2>
+        </div>
+
+    </div>
+
+
+    <div class="settings-sections">
+
+
+        <!-- Network -->
+
+        <div class="card">
+
+            <span>Wireless Network</span>
+
+            <div class="settings-grid">
+
+                <div class="setting-field">
+                    <label for="wifiEnabledInput">Access point</label>
+                    <select id="wifiEnabledInput" class="setting-input">
+                        <option value="false">Off</option>
+                        <option value="true">On</option>
+                    </select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="wifiInterfaceInput">Interface</label>
+                    <select id="wifiInterfaceInput" class="setting-input"></select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="wifiHiddenInput">Visibility</label>
+                    <select id="wifiHiddenInput" class="setting-input">
+                        <option value="false">Visible</option>
+                        <option value="true">Hidden</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="settings-grid">
+
+                <div class="setting-field">
+                    <label for="wifiSsidInput">Network name (SSID)</label>
+                    <input
+                        id="wifiSsidInput"
+                        class="setting-input"
+                        type="text"
+                        placeholder="Chaos Router"
+                        maxlength="32"
+                        autocomplete="off"
+                        spellcheck="false">
+                </div>
+
+                <div class="setting-field">
+                    <label for="wifiSecurityInput">Security</label>
+                    <select id="wifiSecurityInput" class="setting-input">
+                        <option value="wpa2">WPA2 Personal</option>
+                        <option value="wpa2-wpa3">WPA2/WPA3 Personal</option>
+                        <option value="wpa3">WPA3 Personal</option>
+                        <option value="open">Open (no password)</option>
+                    </select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="wifiPasswordInput">Password</label>
+                    <div class="password-field">
+                        <input
+                            id="wifiPasswordInput"
+                            class="setting-input"
+                            type="password"
+                            placeholder="8-63 characters"
+                            maxlength="63"
+                            autocomplete="new-password"
+                            spellcheck="false">
+                        <button
+                            id="wifiPasswordToggle"
+                            type="button"
+                            class="password-toggle">
+                            Show
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- Radio -->
+
+        <div class="card">
+
+            <span>Radio</span>
+
+            <div class="settings-grid">
+
+                <div class="setting-field">
+                    <label for="wifiBandInput">Band</label>
+                    <select id="wifiBandInput" class="setting-input">
+                        <option value="2.4">2.4 GHz</option>
+                        <option value="5">5 GHz</option>
+                        <option value="6">6 GHz</option>
+                    </select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="wifiChannelInput">Channel</label>
+                    <select id="wifiChannelInput" class="setting-input"></select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="wifiCountryInput">Country code</label>
+                    <input
+                        id="wifiCountryInput"
+                        class="setting-input"
+                        type="text"
+                        placeholder="DE"
+                        maxlength="2"
+                        autocomplete="off"
+                        spellcheck="false">
+                </div>
+
+                <div class="setting-field">
+                    <label for="wifiIsolateInput">Client isolation</label>
+                    <select id="wifiIsolateInput" class="setting-input">
+                        <option value="false">Off</option>
+                        <option value="true">On</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="setting-row">
+
+                <button id="wifiPreview" class="secondary-btn">
+                    Preview Config
+                </button>
+
+                <button id="wifiSave" class="save-btn">
+                    Save &amp; Apply
+                </button>
+
+            </div>
+
+            <div id="wifiStatus" class="setting-status"></div>
+
+            <pre id="wifiConfigPreview" class="config-preview hidden"></pre>
+
+        </div>
+
+
+        <!-- Clients -->
+
+        <div class="card">
+
+            <span>Connected Clients</span>
+
+            <div class="table-scroll">
+
+                <table class="client-table data-table">
+
+                    <thead>
+                        <tr>
+                            <th>Device</th>
+                            <th>IP</th>
+                            <th>Signal</th>
+                            <th>Connected</th>
+                            <th>Traffic</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="wifiClientTable"></tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+
+    </div>
+
+</section>

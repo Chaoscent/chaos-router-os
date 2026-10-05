@@ -1,0 +1,269 @@
+<section class="page">
+
+    <div class="page-header">
+
+        <h1>Firewall</h1>
+
+        <p>
+            Control which traffic reaches and passes through the router.
+        </p>
+
+    </div>
+
+
+    <!-- Status -->
+
+    <div class="card-grid status-cards">
+
+        <div class="card">
+            <span>Firewall</span>
+            <h2 id="fwState">--</h2>
+        </div>
+
+        <div class="card">
+            <span>Incoming</span>
+            <h2 id="fwIncomingState">--</h2>
+        </div>
+
+        <div class="card">
+            <span>Outgoing</span>
+            <h2 id="fwOutgoingState">--</h2>
+        </div>
+
+        <div class="card">
+            <span>Routed</span>
+            <h2 id="fwRoutedState">--</h2>
+        </div>
+
+        <div class="card">
+            <span>Rules</span>
+            <h2 id="fwRuleCount">--</h2>
+        </div>
+
+    </div>
+
+
+    <div class="settings-sections">
+
+
+        <!-- Firewall -->
+
+        <div class="card">
+
+            <span>Firewall</span>
+
+            <div class="setting-row">
+
+                <button id="fwToggle" class="save-btn" disabled>
+                    Enable Firewall
+                </button>
+
+            </div>
+
+            <div id="fwToggleStatus" class="setting-status"></div>
+
+        </div>
+
+
+        <!-- Default Policies -->
+
+        <div class="card">
+
+            <span>Default Policies</span>
+
+            <div class="settings-grid">
+
+                <div class="setting-field">
+                    <label for="fwIncomingInput">Incoming</label>
+                    <select id="fwIncomingInput" class="setting-input">
+                        <option value="deny">Deny</option>
+                        <option value="reject">Reject</option>
+                        <option value="allow">Allow</option>
+                    </select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="fwOutgoingInput">Outgoing</label>
+                    <select id="fwOutgoingInput" class="setting-input">
+                        <option value="allow">Allow</option>
+                        <option value="deny">Deny</option>
+                        <option value="reject">Reject</option>
+                    </select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="fwRoutedInput">Routed</label>
+                    <select id="fwRoutedInput" class="setting-input">
+                        <option value="deny">Deny</option>
+                        <option value="reject">Reject</option>
+                        <option value="allow">Allow</option>
+                    </select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="fwLoggingInput">Logging</label>
+                    <select id="fwLoggingInput" class="setting-input">
+                        <option value="off">Off</option>
+                        <option value="low">Low</option>
+                        <option value="medium">Medium</option>
+                        <option value="high">High</option>
+                        <option value="full">Full</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="setting-row">
+
+                <button id="fwSavePolicies" class="save-btn">
+                    Save
+                </button>
+
+            </div>
+
+            <div id="fwPolicyStatus" class="setting-status"></div>
+
+        </div>
+
+
+        <!-- Rules -->
+
+        <div class="card">
+
+            <span>Rules</span>
+
+            <div class="table-scroll">
+
+                <table class="client-table data-table">
+
+                    <thead>
+                        <tr>
+                            <th>Action</th>
+                            <th>Traffic</th>
+                            <th>Port</th>
+                            <th>From</th>
+                            <th>To</th>
+                            <th>Comment</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="fwRuleTable"></tbody>
+
+                </table>
+
+            </div>
+
+            <div id="fwRuleStatus" class="setting-status"></div>
+
+        </div>
+
+
+        <!-- Add Rule -->
+
+        <div class="card">
+
+            <span>Add Rule</span>
+
+            <div class="settings-grid">
+
+                <div class="setting-field">
+                    <label for="fwActionInput">Action</label>
+                    <select id="fwActionInput" class="setting-input">
+                        <option value="allow">Allow</option>
+                        <option value="deny">Deny</option>
+                        <option value="reject">Reject</option>
+                        <option value="limit">Limit (rate limit)</option>
+                    </select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="fwDirectionInput">Direction</label>
+                    <select id="fwDirectionInput" class="setting-input">
+                        <option value="in">Incoming</option>
+                        <option value="out">Outgoing</option>
+                    </select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="fwInterfaceInput">Interface</label>
+                    <select id="fwInterfaceInput" class="setting-input">
+                        <option value="">Any</option>
+                    </select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="fwProtoInput">Protocol</label>
+                    <select id="fwProtoInput" class="setting-input">
+                        <option value="any">Any</option>
+                        <option value="tcp">TCP</option>
+                        <option value="udp">UDP</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="settings-grid">
+
+                <div class="setting-field">
+                    <label for="fwPortInput">Port</label>
+                    <input
+                        id="fwPortInput"
+                        class="setting-input"
+                        type="text"
+                        placeholder="Any, e.g. 22 or 6000:6010"
+                        autocomplete="off"
+                        spellcheck="false">
+                </div>
+
+                <div class="setting-field">
+                    <label for="fwFromInput">Source</label>
+                    <input
+                        id="fwFromInput"
+                        class="setting-input"
+                        type="text"
+                        placeholder="Any, e.g. 192.168.1.0/24"
+                        autocomplete="off"
+                        spellcheck="false">
+                </div>
+
+                <div class="setting-field">
+                    <label for="fwToInput">Destination</label>
+                    <input
+                        id="fwToInput"
+                        class="setting-input"
+                        type="text"
+                        placeholder="Any"
+                        autocomplete="off"
+                        spellcheck="false">
+                </div>
+
+                <div class="setting-field">
+                    <label for="fwCommentInput">Comment</label>
+                    <input
+                        id="fwCommentInput"
+                        class="setting-input"
+                        type="text"
+                        placeholder="Optional"
+                        maxlength="64"
+                        autocomplete="off">
+                </div>
+
+            </div>
+
+            <div class="setting-row">
+
+                <button id="fwAddRule" class="save-btn">
+                    Add Rule
+                </button>
+
+            </div>
+
+            <div id="fwAddStatus" class="setting-status"></div>
+
+        </div>
+
+
+    </div>
+
+</section>

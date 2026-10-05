@@ -45,12 +45,53 @@ body{
 .login-card button{
     width:100%;
     padding:14px;
-    border:none;
+    border:1px solid transparent;
     border-radius:12px;
     background:var(--accent);
     color:white;
     font-weight:600;
     cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:10px;
+    transition:background .18s ease,border-color .18s ease,box-shadow .18s ease,transform .12s ease,opacity .18s ease;
+}
+
+.login-card button:hover:not(:disabled){
+    background:#60aaff;
+    border-color:#70b3ff;
+    box-shadow:0 5px 18px rgba(78,161,255,.20);
+}
+
+.login-card button:active:not(:disabled){
+    transform:scale(.98);
+}
+
+.login-card button:focus-visible{
+    outline:2px solid #70b3ff;
+    outline-offset:2px;
+}
+
+.login-card button:disabled{
+    opacity:.7;
+    cursor:wait;
+}
+
+.login-card button.busy::before{
+    content:"";
+    width:16px;
+    height:16px;
+    border:2px solid rgba(255,255,255,.35);
+    border-top-color:white;
+    border-radius:50%;
+    animation:loginSpin .7s linear infinite;
+}
+
+@keyframes loginSpin{
+    to{
+        transform:rotate(360deg);
+    }
 }
 
 #error{
@@ -71,7 +112,7 @@ body{
 <input id="username" value="admin" placeholder="Username">
 <input id="password" type="password" placeholder="Password">
 
-<button onclick="login()">Sign In</button>
+<button id="loginButton" onclick="login()">Sign In</button>
 
 <div id="error">Invalid username or password.</div>
 
@@ -80,22 +121,44 @@ body{
 <script>
 async function login(){
 
-    const res = await fetch("/api/login",{
-        method:"POST",
-        headers:{
-            "Content-Type":"application/json"
-        },
-        body:JSON.stringify({
-            username:username.value,
-            password:password.value
-        })
-    });
+    if(loginButton.disabled) return;
 
-    if(res.ok){
-        location.href="/";
-    }else{
-        error.style.display="block";
+    loginButton.disabled = true;
+    loginButton.classList.add("busy");
+    loginButton.textContent = "Signing in…";
+    error.style.display = "none";
+
+    let res = null;
+
+    try{
+        res = await fetch("/api/login",{
+            method:"POST",
+            headers:{
+                "Content-Type":"application/json"
+            },
+            body:JSON.stringify({
+                username:username.value,
+                password:password.value
+            })
+        });
+    }catch(e){
+        res = null;
     }
+
+    if(res && res.ok){
+        location.href="/";
+        return;
+    }
+
+    error.textContent = res
+        ? "Invalid username or password."
+        : "Could not reach the router.";
+
+    error.style.display = "block";
+
+    loginButton.disabled = false;
+    loginButton.classList.remove("busy");
+    loginButton.textContent = "Sign In";
 }
 
 password.addEventListener("keydown",e=>{

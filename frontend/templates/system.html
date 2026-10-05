@@ -1,8 +1,13 @@
 <section class="page">
 
     <div class="page-header">
+
         <h1>System</h1>
-        <p>System configuration and device settings.</p>
+
+        <p>
+            System configuration and device settings.
+        </p>
+
     </div>
 
 
@@ -31,7 +36,9 @@
 
             </div>
 
-            <div id="hostnameStatus" class="setting-status">
+            <div
+                id="hostnameStatus"
+                class="setting-status">
                 Changes apply immediately.
             </div>
 
@@ -61,7 +68,9 @@
                         step="1"
                         placeholder="Default: 5 minutes">
 
-                    <span>minutes</span>
+                    <span>
+                        minutes
+                    </span>
 
                 </div>
 
@@ -84,7 +93,9 @@
                         step="1"
                         placeholder="Default: 60 minutes">
 
-                    <span>minutes</span>
+                    <span>
+                        minutes
+                    </span>
 
                 </div>
 
@@ -114,6 +125,27 @@
         <div class="card">
 
             <span>Ping</span>
+
+
+            <div class="setting-group">
+
+                <label for="pingDestinationInput">
+                    Ping destination
+                </label>
+
+                <div class="setting-row">
+
+                    <input
+                        id="pingDestinationInput"
+                        class="setting-input"
+                        type="text"
+                        placeholder="Default: 1.1.1.1"
+                        autocomplete="off"
+                        spellcheck="false">
+
+                </div>
+
+            </div>
 
 
             <div class="setting-group">
@@ -200,7 +232,9 @@
 
         <div class="card">
 
-            <span>Change Password</span>
+            <span>
+                Change Password
+            </span>
 
 
             <div class="setting-group">
@@ -262,8 +296,68 @@
             <div
                 id="passwordStatus"
                 class="setting-status">
+            </div>
+
+        </div>
+
+
+        <!-- Backup & Restore -->
+
+        <div class="card">
+
+            <span>Backup &amp; Restore</span>
+
+            <p class="setting-hint">
+                Download every setting as one file, and upload it here or on
+                another Chaos Router to restore it. Nothing needs to be edited
+                or unpacked. The file contains passwords and VPN keys, so keep
+                it somewhere safe. Changes that are still waiting for
+                confirmation are not included.
+            </p>
+
+            <div class="setting-row">
+
+                <button id="backupDownload" class="save-btn">
+                    Download Backup
+                </button>
+
+                <button id="backupChoose" class="secondary-btn">
+                    Restore from File…
+                </button>
+
+                <input
+                    id="backupFileInput"
+                    type="file"
+                    accept=".json,application/json"
+                    class="hidden">
 
             </div>
+
+            <div id="backupSummary" class="backup-summary hidden">
+
+                <p id="backupInfo" class="backup-info"></p>
+
+                <div id="backupAreas" class="check-list backup-areas"></div>
+
+                <p id="backupCerts" class="setting-hint"></p>
+
+                <div class="setting-row">
+
+                    <button id="backupRestore" class="save-btn">
+                        Restore Selected
+                    </button>
+
+                    <button id="backupCancel" class="secondary-btn">
+                        Cancel
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div id="backupStatus" class="setting-status"></div>
+
+            <ul id="backupResults" class="backup-results hidden"></ul>
 
         </div>
 

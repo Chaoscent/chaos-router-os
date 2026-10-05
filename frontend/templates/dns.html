@@ -1,0 +1,265 @@
+<section class="page">
+
+    <div class="page-header">
+
+        <h1>DNS</h1>
+
+        <p>
+            Name resolution for your network, local names and blocked domains.
+        </p>
+
+    </div>
+
+
+    <!-- Status -->
+
+    <div class="card-grid status-cards">
+
+        <div class="card">
+            <span>DNS Server</span>
+            <h2 id="dnsState">--</h2>
+        </div>
+
+        <div class="card">
+            <span>Upstream</span>
+            <h2 id="dnsUpstreamState">--</h2>
+        </div>
+
+        <div class="card">
+            <span>Cache Hit Rate</span>
+            <h2 id="dnsCacheState">--</h2>
+        </div>
+
+        <div class="card">
+            <span>Local Records</span>
+            <h2 id="dnsRecordCount">--</h2>
+        </div>
+
+    </div>
+
+
+    <div class="settings-sections">
+
+
+        <!-- Server -->
+
+        <div class="card">
+
+            <span>DNS Server</span>
+
+            <div class="settings-grid">
+
+                <div class="setting-field">
+                    <label for="dnsEnabledInput">DNS server</label>
+                    <select id="dnsEnabledInput" class="setting-input">
+                        <option value="true">On</option>
+                        <option value="false">Off</option>
+                    </select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="dnsUpstreamInput">Upstream DNS</label>
+                    <select id="dnsUpstreamInput" class="setting-input"></select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="dnsCacheInput">Cache</label>
+                    <select id="dnsCacheInput" class="setting-input">
+                        <option value="0">Off</option>
+                        <option value="150">Small (150)</option>
+                        <option value="1000">Normal (1000)</option>
+                        <option value="5000">Large (5000)</option>
+                        <option value="10000">Maximum (10000)</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div id="dnsCustomServers" class="settings-grid hidden">
+
+                <div class="setting-field">
+                    <label for="dnsServer1Input">Primary server</label>
+                    <input id="dnsServer1Input" class="setting-input" type="text"
+                        placeholder="e.g. 1.1.1.1 or 10.0.0.1#5353"
+                        autocomplete="off" spellcheck="false">
+                </div>
+
+                <div class="setting-field">
+                    <label for="dnsServer2Input">Secondary server</label>
+                    <input id="dnsServer2Input" class="setting-input" type="text"
+                        placeholder="Optional" autocomplete="off" spellcheck="false">
+                </div>
+
+            </div>
+
+            <div class="settings-grid">
+
+                <div class="setting-field">
+                    <label for="dnsKeepLocalInput">Local names</label>
+                    <select id="dnsKeepLocalInput" class="setting-input">
+                        <option value="true">Keep on the network</option>
+                        <option value="false">Also ask upstream</option>
+                    </select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="dnsDnssecInput">DNSSEC</label>
+                    <select id="dnsDnssecInput" class="setting-input">
+                        <option value="false">Off</option>
+                        <option value="true">Validate answers</option>
+                    </select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="dnsLogInput">Query logging</label>
+                    <select id="dnsLogInput" class="setting-input">
+                        <option value="false">Off</option>
+                        <option value="true">On (see Logs → DHCP &amp; DNS)</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="setting-field config-field">
+                <label>Answer DNS on</label>
+                <div id="dnsInterfaces" class="check-list"></div>
+            </div>
+
+            <p class="setting-hint">
+                DNS is never answered on the internet side. Devices get the
+                router as their DNS server through DHCP.
+                <span id="dnsDomainHint"></span>
+            </p>
+
+            <div class="setting-row">
+
+                <button id="dnsPreview" class="secondary-btn">
+                    Preview Config
+                </button>
+
+                <button id="dnsSave" class="save-btn">
+                    Save &amp; Apply
+                </button>
+
+            </div>
+
+            <div id="dnsStatus" class="setting-status"></div>
+
+            <pre id="dnsConfigPreview" class="config-preview hidden"></pre>
+
+        </div>
+
+
+        <!-- Local records -->
+
+        <div class="card">
+
+            <span>Local Records</span>
+
+            <div class="table-scroll">
+
+                <table class="client-table data-table">
+
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Address</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="dnsRecordTable"></tbody>
+
+                </table>
+
+            </div>
+
+            <div class="settings-grid">
+
+                <div class="setting-field">
+                    <label for="dnsRecordNameInput">Name</label>
+                    <input id="dnsRecordNameInput" class="setting-input" type="text"
+                        placeholder="e.g. nas.lan" autocomplete="off" spellcheck="false">
+                </div>
+
+                <div class="setting-field">
+                    <label for="dnsRecordIpInput">Address</label>
+                    <input id="dnsRecordIpInput" class="setting-input" type="text"
+                        placeholder="IPv4 or IPv6" autocomplete="off" spellcheck="false">
+                </div>
+
+            </div>
+
+            <div class="setting-row">
+                <button id="dnsAddRecord" class="save-btn">Add Record</button>
+            </div>
+
+            <div id="dnsRecordStatus" class="setting-status"></div>
+
+        </div>
+
+
+        <!-- Blocked domains -->
+
+        <div class="card">
+
+            <span>Blocked Domains</span>
+
+            <div class="setting-field config-field">
+                <label for="dnsBlockedInput">
+                    One domain per line. Subdomains are blocked too.
+                    Hosts-file lines ("0.0.0.0 ads.example.com") work as well.
+                </label>
+                <textarea id="dnsBlockedInput" class="setting-textarea" rows="8"
+                    spellcheck="false" placeholder="ads.example.com"></textarea>
+            </div>
+
+            <div class="setting-row">
+                <button id="dnsSaveBlocked" class="save-btn">Save Blocklist</button>
+            </div>
+
+            <div id="dnsBlockedStatus" class="setting-status"></div>
+
+        </div>
+
+
+        <!-- Lookup -->
+
+        <div class="card">
+
+            <span>Test Lookup</span>
+
+            <div class="settings-grid">
+
+                <div class="setting-field">
+                    <label for="dnsLookupNameInput">Domain</label>
+                    <input id="dnsLookupNameInput" class="setting-input" type="text"
+                        placeholder="e.g. example.com" autocomplete="off" spellcheck="false">
+                </div>
+
+                <div class="setting-field">
+                    <label for="dnsLookupTypeInput">Type</label>
+                    <select id="dnsLookupTypeInput" class="setting-input">
+                        <option value="A">A (IPv4)</option>
+                        <option value="AAAA">AAAA (IPv6)</option>
+                        <option value="CNAME">CNAME</option>
+                        <option value="MX">MX</option>
+                        <option value="TXT">TXT</option>
+                        <option value="NS">NS</option>
+                    </select>
+                </div>
+
+            </div>
+
+            <div class="setting-row">
+                <button id="dnsLookup" class="save-btn">Look Up</button>
+            </div>
+
+            <pre id="dnsLookupResult" class="config-preview hidden"></pre>
+
+        </div>
+
+
+    </div>
+
+</section>
