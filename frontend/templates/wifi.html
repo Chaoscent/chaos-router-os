@@ -118,6 +118,44 @@
 
             </div>
 
+            <!-- The router's address on the access point interface. -->
+
+            <div class="settings-grid wifi-address-grid">
+
+                <div class="setting-field">
+                    <label for="wifiAddressInput">
+                        Router address (<span id="wifiAddressInterface">wlan0</span>)
+                    </label>
+                    <input
+                        id="wifiAddressInput"
+                        class="setting-input"
+                        type="text"
+                        placeholder="e.g. 10.42.0.1"
+                        autocomplete="off"
+                        spellcheck="false">
+                </div>
+
+                <div class="setting-field">
+                    <label for="wifiPrefixInput">Prefix (CIDR)</label>
+                    <input
+                        id="wifiPrefixInput"
+                        class="setting-input"
+                        type="number"
+                        min="8"
+                        max="30"
+                        step="1"
+                        placeholder="24">
+                </div>
+
+                <div class="setting-field">
+                    <label>Wi-Fi client network</label>
+                    <div id="wifiNetworkInfo" class="setting-input setting-readonly">--</div>
+                </div>
+
+            </div>
+
+            <p id="wifiAddressHint" class="setting-hint wifi-address-hint"></p>
+
         </div>
 
 

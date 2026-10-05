@@ -198,6 +198,8 @@ python backend/app.py
 
 The dashboard runs on port `5000`. There is no default login: on first start every page leads to `/setup`, where you create the admin account.
 
+While the router is not set up, the app also starts a setup Wi-Fi (WPA2, 10.42.0.1/24) with a captive portal. Show its name, password and QR code with `python backend/setup_wifi.py`. Set `CHAOS_SETUP_WIFI=0` to keep it off during development.
+
 Write the default settings to `/etc/chaos-router-os` (the installer will do this later):
 
 ```bash
@@ -211,11 +213,11 @@ For development and tests, the three config folders can be moved with `CHAOS_DEF
 The installer will set all of these up. For development, install them by hand:
 
 ```bash
-sudo apt install dnsmasq hostapd ufw iptables wireguard-tools openvpn easy-rsa openresolv iw rfkill
+sudo apt install dnsmasq hostapd ufw iptables wireguard-tools openvpn easy-rsa openresolv iw rfkill qrencode
 ```
 
 The app runs as a normal user and uses `sudo -n` for system changes, so that user needs passwordless sudo for:
-`systemctl`, `journalctl`, `nmcli`, `hostnamectl`, `sysctl`, `ufw`, `iptables`, `ip6tables`, `iw`, `rfkill`, `wg`, `openvpn`, `easyrsa`, `install`, `mkdir`, `cp`, `rm`, `cat`, `test`, `find`.
+`systemctl`, `journalctl`, `nmcli`, `hostnamectl`, `sysctl`, `ip`, `ufw`, `iptables`, `ip6tables`, `iw`, `rfkill`, `wg`, `openvpn`, `easyrsa`, `install`, `mkdir`, `cp`, `rm`, `cat`, `test`, `find`.
 
 A ready-made sudoers file will ship with the installer.
 

@@ -677,8 +677,74 @@ window.Page.system = {
 
     },
 
+    // ------------------------------------------------------------
+    // Factory reset
+    // ------------------------------------------------------------
+
+    async factoryReset() {
+
+        const body = document.createElement("div");
+
+        body.innerHTML = `
+            <p class="modal-note">
+                All settings, the admin account, VPN keys and certificates are
+                erased. Wi-Fi, DHCP, DNS and VPNs turn off, then the router
+                reboots and opens the setup Wi-Fi. This cannot be undone.
+            </p>
+            <label class="modal-field">
+                <span>Your password</span>
+                <input id="factoryResetPassword" class="setting-input" type="password" autocomplete="current-password">
+            </label>
+        `;
+
+        const confirmed = await ChaosModal.confirm({
+            title: "Erase everything?",
+            subtitle: "Download a backup first if you may want your settings back.",
+            body,
+            confirmText: "Erase and Reboot"
+        });
+
+        if (!confirmed) return;
+
+        const password = body.querySelector("#factoryResetPassword").value;
+
+        factoryResetButton.disabled = true;
+        rebootButton.disabled = true;
+        factoryResetStatus.textContent = "Erasing settings...";
+
+        let data = {};
+
+        try {
+
+            const res = await fetch("/api/system/factory-reset", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password })
+            });
+
+            data = await res.json();
+
+            if (!res.ok || !data.success) {
+                factoryResetButton.disabled = false;
+                rebootButton.disabled = false;
+                factoryResetStatus.textContent = data.message || "The factory reset could not start.";
+                return;
+            }
+
+        } catch {
+            // The router may already be going down.
+        }
+
+        factoryResetStatus.textContent = data.message || "Erasing settings and rebooting...";
+
+        // Afterwards every page leads to /setup.
+        this.waitForRouter(factoryResetStatus);
+
+    },
+
+
     /** Waits until the router is gone and back, then reloads. */
-    async waitForRouter() {
+    async waitForRouter(status = rebootStatus) {
 
         const started = Date.now();
         let wentDown = false;
@@ -704,19 +770,19 @@ window.Page.system = {
 
             // Back after going down (or still up after 40 s: reloaded fast).
             if (up && (wentDown || seconds > 40)) {
-                rebootStatus.textContent = "The router is back. Reloading...";
+                status.textContent = "The router is back. Reloading...";
                 await sleep(1000);
                 location.href = "/";
                 return;
             }
 
-            rebootStatus.textContent = wentDown
+            status.textContent = wentDown
                 ? `Rebooting... waiting for the router (${seconds} s)`
                 : `Rebooting... (${seconds} s)`;
 
         }
 
-        rebootStatus.textContent =
+        status.textContent =
             "The router has not come back after 5 minutes. Check its power and network, then reload this page.";
 
     },
@@ -784,6 +850,8 @@ window.Page.system = {
         };
 
         rebootButton.onclick = () => this.reboot();
+
+        factoryResetButton.onclick = () => this.factoryReset();
 
     },
 

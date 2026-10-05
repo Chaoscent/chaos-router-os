@@ -51,9 +51,12 @@ Without these it isn't a router yet.
 ## 1b. Website before v1
 
 - [x] **Mobile layout.** Below 900 px the sidebar is a slide-in menu (☰ button in the header; closes on a page pick, a tap outside or Escape). 16 px side gutter on phones; tables scroll inside their card; dashboard numbers two per row. All pages fit a 390 px wide phone without sideways scrolling.
-- [x] **Reboot** on the System page ("Power" card): confirmation (warns about unconfirmed changes, which a reboot reverts), `systemctl reboot` via sudo two seconds after answering, then the page waits for the router to go down and come back and reloads. Refused with a clear message when sudo does not allow it. Logged in the event log.
+- [x] **Reboot** on the System page: confirmation (warns about unconfirmed changes, which a reboot reverts), `systemctl reboot` via sudo two seconds after answering, then the page waits for the router to go down and come back and reloads. Refused with a clear message when sudo does not allow it. Logged in the event log.
   - [ ] Test on the Pi 5.
-- [ ] **Factory reset** (placeholder button on the System page): delete `/var/lib/chaos-router-os` (after offering a backup download) and reboot; the router comes back on the `/etc` defaults and opens `/setup`. Behind a confirmation that asks for the password.
+- [x] **Factory reset** (`backend/factory_reset.py`, System page, asks for the password): every area is applied with its defaults (Wi-Fi, DHCP, DNS, VPNs off, own firewall rules removed, LAN bridge removed; eth0's connection is kept so the router stays reachable), OpenVPN PKI / WireGuard / hostapd configs and VPN client profiles are deleted, `/var/lib/chaos-router-os` and `/tmp/chaos-router-os` are emptied, then it reboots. At boot the `/etc` defaults (firewall, NAT) apply and the setup Wi-Fi with captive portal starts.
+  - [ ] **Not tested yet** (on purpose): test on the Pi 5.
+  - [ ] Until the systemd service exists, the app has to be started by hand after the reset's reboot, otherwise no setup Wi-Fi appears.
+  - [ ] eth0 keeps settings made in WAN mode (DHCP client, route metric 50) after a reset.
 - [ ] **Version and updates** on the System page: show the installed version, check for a newer release, and start the updater (see Updater). Needs a version source (e.g. a `VERSION` file written by the installer).
 
 ---
@@ -81,7 +84,9 @@ Without these it isn't a router yet.
 - [ ] **DNS local domain.** Changing the local domain only takes effect after the DNS settings are saved again.
 - [x] **LAN bridge (`br0`)** for one LAN across Ethernet and Wi-Fi: "LAN" card on the Network page (off by default, Safe Apply with confirmation). NetworkManager runs `br0` (connection `chaos-lan`) with the router's LAN address; eth0 in LAN mode is a port (`chaos-lan-eth0`) and leaves it in WAN mode; the access point joins via hostapd `bridge=br0`. DHCP/DNS settings that name a port are served on `br0`; bridge ports drop out of the LAN interface list.
   - [ ] Test on the Pi 5: bridge with eth0 + wlan1 (6 GHz), DHCP on br0, Wi-Fi clients get addresses, revert and reboot.
-  - [ ] Without the bridge, an access point still has no address (DHCP refuses it). Turn the bridge on in the Setup Wizard / installer defaults, or warn on the WiFi page when the bridge is off.
+  - [x] Without the bridge, the access point gets its own address, set on the WiFi page (default 10.42.0.1/24 on the AP interface, e.g. wlan1). Applied with hostapd, verified, removed when the AP turns off or moves; subnets that overlap another interface are refused.
+  - [ ] Test on the Pi 5: 10.42.0.1/24 on wlan1, DHCP on wlan1 (10.42.0.x range), Wi-Fi clients get internet through NAT.
+  - [ ] The bridge pulls eth0 in while eth0 is in LAN mode, which cuts off access when eth0 is plugged into another router (seen on the test Pi; Safe Apply reverted it). Consider a bridge of Wi-Fi only, or refuse while eth0 has a DHCP-client address.
   - [ ] Only one access point at a time (one hostapd config). Running wlan0 (2.4/5 GHz) and wlan1 (6 GHz) together needs one hostapd instance per radio.
 - [x] LAN interfaces are detected instead of a fixed list (eth0, wlan0, br0): every Ethernet (`eth*`, `en*`), Wi-Fi (`wlan*`, `wl*`) and bridge (`br*`) interface except the WAN. DHCP, DNS and the firewall's essential rules now include extra adapters like wlan1.
 - [ ] **Apps page.** Still a placeholder. Hide it or label it "coming in v2" before v1.
@@ -105,7 +110,7 @@ One command (`curl -fsSL chaos-software.dev/router-os/core | sudo bash`). It mus
 - [ ] Make sure nothing else holds port 53 (DNS) or 67 (DHCP).
 - [ ] Install and enable the systemd units (app, later Caddy).
 - [ ] **If installed over the Pi's Wi-Fi:** detect it, warn that the SSH session will drop, and switch wlan0 to AP mode only as the very last step.
-- [ ] Start the setup network and print its name, password and QR code (see Setup Wizard).
+- [ ] Start the app, then run `python backend/setup_wifi.py` to print the setup Wi-Fi's name, password and QR code (see Setup Wizard).
 
 ---
 
@@ -125,16 +130,17 @@ If the Pi is connected by Ethernet, the portal must work there too.
 
 Hardware Edition: show the same QR code on the OLED.
 
+- [x] **Setup Wi-Fi** (`backend/services/setup_network.py`), started by the app whenever it is not set up: `ChaosRouter-Setup-XXXX`, random 12-character password (stored in `system/setup_wifi.json`, mode 600, kept across reboots during setup), WPA2 on 2.4 GHz on the built-in radio, router at **10.42.0.1/24**, DHCP 10.42.0.100-200.
+- [x] `python backend/setup_wifi.py` prints name, password and QR code (`qrencode`). The app's log only says how to show them, so the password does not end up in the journal.
+- [ ] Test on the Pi 5 with real phones (iOS, Android, Windows).
+
 ### Captive portal
 
-- [ ] dnsmasq answers every DNS name with the Pi's IP during setup.
-- [ ] Port 80 redirects to `/setup`.
-- [ ] Redirect the OS check URLs so the portal opens by itself:
-  - Apple: `/hotspot-detect.html`
-  - Android: `/generate_204`
-  - Windows: `/connecttest.txt`, `/ncsi.txt`
-- [ ] HTTPS can't be intercepted, which is fine: the OS checks use HTTP.
-- [ ] Keep `/setup` one simple page without relying on cookies; Apple's portal window doesn't keep them reliably.
+- [x] dnsmasq answers every DNS name with 10.42.0.1 on the setup Wi-Fi (separate drop-in, removed after setup) and announces the portal URL (DHCP option 114).
+- [x] Port 80 on the setup Wi-Fi is redirected to the app's port (iptables `CHAOS-SETUP`, removed after setup).
+- [x] OS check URLs (`/hotspot-detect.html`, `/generate_204`, `/connecttest.txt`, ...) and every other address on the setup Wi-Fi redirect to `http://10.42.0.1/setup`.
+- [x] HTTPS can't be intercepted, which is fine: the OS checks use HTTP.
+- [ ] Apple's portal window and cookies: the setup page needs the session cookie for its CSRF token within one visit; check on an iPhone.
 
 ### Steps
 
@@ -146,7 +152,9 @@ Hardware Edition: show the same QR code on the OLED.
 
 ### Finishing
 
-- [x] Wi-Fi is applied first through Safe Apply without confirmation (the browser may lose the connection). If it fails to start, it is rolled back, no account is created and the user can try again.
+- [x] Wi-Fi is applied first through Safe Apply without confirmation (the browser may lose the connection). If it fails to start, it is rolled back, the setup Wi-Fi comes back, no account is created and the user can try again.
+- [x] A Wi-Fi set up in the wizard keeps the setup subnet: 10.42.0.1/24 on the radio and DHCP 10.42.0.100-200 there. Without Wi-Fi, the setup Wi-Fi turns off a few seconds after the answer (the page warns when this device is on it).
+- [ ] After setup the dashboard is on port 5000 (the port-80 redirect only exists during setup) until Caddy serves port 80.
 - [x] The page tells the user to join the new Wi-Fi and gives the dashboard address.
 - [x] `/setup` and `/api/setup/*` return 404 once an admin account exists; a factory reset (empty `/var/lib`) brings setup back.
 - [ ] Test on the Pi 5 together with the installer's setup network.

@@ -134,6 +134,10 @@ window.Page.wifi = {
         wifiBandInput.value = settings.band;
         wifiCountryInput.value = settings.country;
         wifiIsolateInput.value = String(settings.isolate_clients);
+        wifiAddressInput.value = settings.address || "";
+        wifiPrefixInput.value = settings.prefix ?? "";
+
+        this.updateAddressState();
 
         this.renderBands();
         this.renderChannels(settings.channel);
@@ -350,6 +354,51 @@ window.Page.wifi = {
     // Save
     // ------------------------------------------------------------
 
+    /** "10.42.0.1" + 24 -> "10.42.0.0/24", or null when invalid. */
+    clientNetwork(address, prefix) {
+
+        const parts = String(address).split(".").map(Number);
+
+        if (parts.length !== 4 || parts.some(p => !Number.isInteger(p) || p < 0 || p > 255))
+            return null;
+
+        if (!Number.isInteger(prefix) || prefix < 8 || prefix > 30)
+            return null;
+
+        const ip = parts.reduce((a, p) => a * 256 + p, 0);
+        const size = 2 ** (32 - prefix);
+        const base = Math.floor(ip / size) * size;
+
+        const network = [24, 16, 8, 0].map(s => Math.floor(base / 2 ** s) % 256).join(".");
+
+        return `${network}/${prefix}`;
+
+    },
+
+    /** Interface name in the label, live network, bridged state. */
+    updateAddressState() {
+
+        const bridged = this.data?.bridged === true;
+        const iface = wifiInterfaceInput.value || "the access point";
+
+        wifiAddressInterface.textContent = iface;
+
+        wifiAddressInput.disabled = bridged;
+        wifiPrefixInput.disabled = bridged;
+
+        const network = this.clientNetwork(wifiAddressInput.value.trim(), Number(wifiPrefixInput.value));
+
+        wifiNetworkInfo.textContent = bridged ? "LAN bridge (br0)" : (network || "--");
+
+        wifiAddressHint.textContent = bridged
+            ? "The LAN bridge is on: the access point joins br0 and uses the LAN address from the Network page."
+            : network
+                ? `Wi-Fi clients reach the router at ${wifiAddressInput.value.trim()}. Serve DHCP on ${iface} with a range inside ${network} on the DHCP page.`
+                : "Enter the router's address and prefix, e.g. 10.42.0.1 and 24.";
+
+    },
+
+
     collectSettings() {
 
         return {
@@ -372,7 +421,11 @@ window.Page.wifi = {
 
             country: wifiCountryInput.value.trim().toUpperCase(),
 
-            isolate_clients: wifiIsolateInput.value === "true"
+            isolate_clients: wifiIsolateInput.value === "true",
+
+            address: wifiAddressInput.value.trim(),
+
+            prefix: Number(wifiPrefixInput.value)
 
         };
 
@@ -464,7 +517,11 @@ window.Page.wifi = {
         wifiInterfaceInput.onchange = () => {
             this.renderBands();
             this.renderChannels(wifiChannelInput.value);
+            this.updateAddressState();
         };
+
+        wifiAddressInput.oninput = () => this.updateAddressState();
+        wifiPrefixInput.oninput = () => this.updateAddressState();
 
         wifiSecurityInput.onchange = () => this.updatePasswordState();
 

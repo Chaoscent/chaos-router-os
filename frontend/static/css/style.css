@@ -1723,14 +1723,89 @@ select.setting-input:disabled{
 
 /* Masonry columns: cards stack under each other without row gaps,
    up to three columns side by side, one column on narrow screens. */
-.system-sections{
-    columns:3 440px;
-    column-gap:18px;
+/* System page: three columns (device, account, maintenance), each a
+   stack of cards. Narrower windows wrap to two, then one column. */
+.system-columns{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr));
+    align-items:start;
+    gap:18px;
 }
 
-.system-sections > .card{
-    break-inside:avoid;
-    margin-bottom:18px;
+.system-column{
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+    min-width:0;
+}
+
+.system-column-title{
+    margin:0 2px -4px;
+    color:var(--muted);
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:.06em;
+    text-transform:uppercase;
+}
+
+.system-column .card{
+    min-height:0;
+}
+
+.system-column .card > .setting-hint{
+    margin:0 0 16px;
+    line-height:1.5;
+}
+
+/* Two related fields side by side. */
+.system-pair{
+    display:grid;
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:14px;
+    margin-top:16px;
+}
+
+.system-pair .setting-group + .setting-group{
+    margin-top:0;
+}
+
+.system-column .card > .setting-group + .system-pair{
+    margin-top:16px;
+}
+
+/* Number input with its unit inside the same row. */
+.input-unit{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+
+.input-unit .setting-input{
+    flex:1;
+    min-width:0;
+}
+
+.input-unit span{
+    margin:0;
+    color:var(--muted);
+    font-size:13px;
+}
+
+/* Factory reset: destructive, set apart. */
+.danger-card{
+    border-color:rgba(239,68,68,.35);
+}
+
+.danger-card > span{
+    color:#ffb4b4;
+}
+
+@media (max-width:640px){
+
+    .system-pair{
+        grid-template-columns:1fr;
+    }
+
 }
 
 .setting-group{
@@ -2933,4 +3008,26 @@ a.setup-open{
     border:none;
     border-top:1px solid var(--border);
     margin:20px 0 16px;
+}
+
+.wifi-address-hint{
+    margin:14px 0 0;
+}
+
+/* Interface name inside the label; .card span would make it a block. */
+#wifiAddressInterface{
+    display:inline;
+    margin:0;
+    color:inherit;
+    font-size:inherit;
+}
+
+/* Labelled input inside a confirmation dialog. */
+.modal-field{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    margin-top:12px;
+    font-size:14px;
+    font-weight:600;
 }

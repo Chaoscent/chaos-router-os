@@ -106,6 +106,8 @@ from services.network import (
 
         set_lan_bridge,
 
+        get_network_settings,
+
         get_lan_bridge_status,
 
         get_eth0_role,
@@ -290,6 +292,10 @@ from services.modem import get_modem_data
 
 from services import transaction
 
+from services import setup_network
+
+from factory_reset import factory_reset
+
 from setup import (
         is_setup_complete,
         get_setup_info,
@@ -393,6 +399,14 @@ def setup_gate():
 
         # Everything else, including captive portal checks from phones
         # (/generate_204, /hotspot-detect.html, ...), opens the setup page.
+        # On the setup Wi-Fi every name points at the router, so send
+        # phones to its address rather than the name they asked for.
+        if (
+                setup_network.is_on_setup_network(request.remote_addr)
+                and request.host.split(":")[0] != setup_network.ADDRESS
+        ):
+                return redirect(f"http://{setup_network.ADDRESS}/setup")
+
         return redirect("/setup")
 
 
@@ -568,7 +582,7 @@ def setup_page():
 
 def setup_info_api():
 
-        return jsonify(get_setup_info())
+        return jsonify(get_setup_info(get_viewer_ip()))
 
 
 
@@ -1069,6 +1083,9 @@ def wifi_api():
                 "settings": get_wifi_settings(),
 
                 "status": get_wifi_status(),
+
+                # While the LAN bridge is on, the AP has no own address.
+                "bridged": get_network_settings()["lan"]["bridge"],
 
                 "options": get_wifi_options(),
 
@@ -2585,6 +2602,27 @@ def system_reboot_api():
 
 
 
+@app.route("/api/system/factory-reset", methods=["POST"])
+
+@login_required
+
+def system_factory_reset_api():
+
+        data = request.get_json(silent=True) or {}
+
+        user = session.get("user")
+
+        ok, message = factory_reset(user, data.get("password"))
+
+        if ok:
+                print(f"[factory-reset] Requested by {user} from {get_viewer_ip()}.", flush=True)
+
+        return jsonify({"success": ok, "message": message}), 200 if ok else 400
+
+
+
+
+
 @app.route("/api/system/ping", methods=["POST"])
 
 @login_required
@@ -2867,6 +2905,23 @@ def startup():
         transaction.recover_pending()
 
 
+def start_setup_wifi():
+
+        # Not set up yet: open the setup Wi-Fi with its captive portal.
+        if is_setup_complete():
+                return
+
+        ok, result = setup_network.start()
+
+        if ok:
+                print(
+                        f"[setup] Setup Wi-Fi '{result}' is on. Show its password "
+                        f"and QR code with: python backend/setup_wifi.py"
+                )
+        else:
+                print(f"[setup] No setup Wi-Fi: {result}")
+
+
 
 
 
@@ -2881,6 +2936,8 @@ if (
         )
 ):
         startup()
+
+        start_setup_wifi()
 
 
 

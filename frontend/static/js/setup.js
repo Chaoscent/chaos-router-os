@@ -156,11 +156,18 @@ const Setup = {
 
         const reconnect = this.$("setupReconnect");
 
-        reconnect.textContent = this.wifiEnabled()
-            ? `If this device is on the router's setup Wi-Fi, it will be disconnected when "${this.$("setupSsid").value}" starts. Join that network, then open ${location.origin}.`
-            : "";
+        const viaSetupWifi = this.info.via_setup_wifi;
 
-        reconnect.classList.toggle("hidden", !this.wifiEnabled());
+        reconnect.textContent =
+            this.wifiEnabled()
+                ? viaSetupWifi
+                    ? `This device will lose the setup Wi-Fi when "${this.$("setupSsid").value}" starts. Join that network, then open ${this.dashboardUrl()}.`
+                    : `Devices on the setup Wi-Fi need to join "${this.$("setupSsid").value}" afterwards.`
+                : viaSetupWifi
+                    ? "This device is on the setup Wi-Fi, which turns off after setup. Connect it with an Ethernet cable to reach the dashboard, or go back and set up Wi-Fi now."
+                    : "";
+
+        reconnect.classList.toggle("hidden", !reconnect.textContent);
 
     },
 
@@ -224,15 +231,27 @@ const Setup = {
 
     },
 
+    /** Where the dashboard is after setup, as seen from this device. */
+    dashboardUrl() {
+
+        return this.info.via_setup_wifi ? this.info.dashboard_url : `${location.origin}/`;
+
+    },
+
     showDone(lostConnection) {
 
         const ssid = this.$("setupSsid").value;
+        const url = this.dashboardUrl();
 
-        this.$("setupDoneText").textContent = lostConnection
-            ? `The new Wi-Fi "${ssid}" is starting. Connect to it, then open ${location.origin} and sign in.`
+        this.$("setupDoneText").textContent = lostConnection || (this.info.via_setup_wifi && this.wifiEnabled())
+            ? `The new Wi-Fi "${ssid}" is starting. Connect to it, then open ${url} and sign in.`
             : this.wifiEnabled()
                 ? `Wi-Fi "${ssid}" is on. Devices on the setup Wi-Fi need to join it.`
-                : "You are signed in.";
+                : this.info.via_setup_wifi
+                    ? `The setup Wi-Fi turns off now. Connect by Ethernet and open the router's address on port ${new URL(url).port}.`
+                    : "You are signed in.";
+
+        document.querySelector(".setup-open").href = url;
 
         this.show("done");
 

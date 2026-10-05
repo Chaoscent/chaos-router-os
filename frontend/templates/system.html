@@ -11,129 +11,66 @@
     </div>
 
 
-    <div class="system-sections">
+    <!-- Three columns: device, account, maintenance. -->
+
+    <div class="system-sections system-columns">
 
 
-        <!-- Hostname -->
+        <!-- ===================================================== -->
+        <!-- Device                                                -->
+        <!-- ===================================================== -->
 
-        <div class="card">
+        <div class="system-column">
 
-            <span>Hostname</span>
-
-            <div class="setting-row">
-
-                <input
-                    id="hostnameInput"
-                    class="setting-input"
-                    type="text"
-                    placeholder="Hostname">
-
-                <button
-                    id="saveHostname"
-                    class="save-btn">
-                    Save
-                </button>
-
-            </div>
-
-            <div
-                id="hostnameStatus"
-                class="setting-status">
-                Changes apply immediately.
-            </div>
-
-        </div>
+            <h2 class="system-column-title">Device</h2>
 
 
-        <!-- Security -->
+            <!-- Hostname -->
 
-        <div class="card">
+            <div class="card">
 
-            <span>Security</span>
-
-
-            <div class="setting-group">
-
-                <label for="idleTimeoutInput">
-                    Idle session timeout
-                </label>
+                <span>Hostname</span>
 
                 <div class="setting-row">
 
                     <input
-                        id="idleTimeoutInput"
+                        id="hostnameInput"
                         class="setting-input"
-                        type="number"
-                        min="1"
-                        step="1"
-                        placeholder="Default: 5 minutes">
+                        type="text"
+                        placeholder="Hostname">
 
-                    <span>
-                        minutes
-                    </span>
+                    <button
+                        id="saveHostname"
+                        class="save-btn">
+                        Save
+                    </button>
 
+                </div>
+
+                <div
+                    id="hostnameStatus"
+                    class="setting-status">
+                    Changes apply immediately.
                 </div>
 
             </div>
 
 
-            <div class="setting-group">
+            <!-- Ping -->
 
-                <label for="absoluteTimeoutInput">
-                    Absolute session lifetime
-                </label>
+            <div class="card">
 
-                <div class="setting-row">
+                <span>Ping</span>
 
-                    <input
-                        id="absoluteTimeoutInput"
-                        class="setting-input"
-                        type="number"
-                        min="1"
-                        step="1"
-                        placeholder="Default: 60 minutes">
+                <p class="setting-hint">
+                    Shows the latency to this address in the header.
+                </p>
 
-                    <span>
-                        minutes
-                    </span>
+                <div class="setting-group">
 
-                </div>
-
-            </div>
-
-
-            <div class="setting-row">
-
-                <button
-                    id="saveSecurity"
-                    class="save-btn">
-                    Save
-                </button>
-
-            </div>
-
-            <div
-                id="securityStatus"
-                class="setting-status">
-            </div>
-
-        </div>
-
-
-        <!-- Ping -->
-
-        <div class="card">
-
-            <span>Ping</span>
-
-
-            <div class="setting-group">
-
-                <label for="pingDestinationInput">
-                    Ping destination
-                </label>
-
-                <div class="setting-row">
+                    <label for="pingDestinationInput">
+                        Ping destination
+                    </label>
 
                     <input
                         id="pingDestinationInput"
@@ -145,255 +82,353 @@
 
                 </div>
 
-            </div>
+                <div class="system-pair">
 
+                    <div class="setting-group">
 
-            <div class="setting-group">
+                        <label for="pingEnabledInput">
+                            Ping display
+                        </label>
 
-                <label for="pingEnabledInput">
-                    Ping display
-                </label>
+                        <select
+                            id="pingEnabledInput"
+                            class="setting-input">
 
-                <div class="setting-row">
+                            <option value="false">
+                                Disabled
+                            </option>
 
-                    <select
-                        id="pingEnabledInput"
-                        class="setting-input">
+                            <option value="true">
+                                Enabled
+                            </option>
 
-                        <option value="false">
-                            Disabled
-                        </option>
+                        </select>
 
-                        <option value="true">
-                            Enabled
-                        </option>
+                    </div>
 
-                    </select>
+                    <div class="setting-group">
 
-                </div>
+                        <label for="pingIntervalInput">
+                            Ping interval
+                        </label>
 
-            </div>
+                        <select
+                            id="pingIntervalInput"
+                            class="setting-input">
 
+                            <option value="5">
+                                5 seconds
+                            </option>
 
-            <div class="setting-group">
+                            <option value="10">
+                                10 seconds
+                            </option>
 
-                <label for="pingIntervalInput">
-                    Ping interval
-                </label>
+                            <option value="30">
+                                30 seconds
+                            </option>
 
-                <div class="setting-row">
+                            <option value="60">
+                                60 seconds
+                            </option>
 
-                    <select
-                        id="pingIntervalInput"
-                        class="setting-input">
+                        </select>
 
-                        <option value="5">
-                            5 seconds
-                        </option>
-
-                        <option value="10">
-                            10 seconds
-                        </option>
-
-                        <option value="30">
-                            30 seconds
-                        </option>
-
-                        <option value="60">
-                            60 seconds
-                        </option>
-
-                    </select>
+                    </div>
 
                 </div>
 
-            </div>
-
-
-            <div class="setting-row">
-
-                <button
-                    id="savePing"
-                    class="save-btn">
-                    Save
-                </button>
-
-            </div>
-
-            <div
-                id="pingStatus"
-                class="setting-status">
-            </div>
-
-        </div>
-
-
-        <!-- Change Password -->
-
-        <div class="card">
-
-            <span>
-                Change Password
-            </span>
-
-
-            <div class="setting-group">
-
-                <label for="currentPasswordInput">
-                    Current password
-                </label>
-
-                <input
-                    id="currentPasswordInput"
-                    class="setting-input"
-                    type="password"
-                    autocomplete="current-password">
-
-            </div>
-
-
-            <div class="setting-group">
-
-                <label for="newPasswordInput">
-                    New password
-                </label>
-
-                <input
-                    id="newPasswordInput"
-                    class="setting-input"
-                    type="password"
-                    autocomplete="new-password">
-
-            </div>
-
-
-            <div class="setting-group">
-
-                <label for="confirmPasswordInput">
-                    Confirm new password
-                </label>
-
-                <input
-                    id="confirmPasswordInput"
-                    class="setting-input"
-                    type="password"
-                    autocomplete="new-password">
-
-            </div>
-
-
-            <div class="setting-row">
-
-                <button
-                    id="changePassword"
-                    class="save-btn">
-                    Change Password
-                </button>
-
-            </div>
-
-
-            <div
-                id="passwordStatus"
-                class="setting-status">
-            </div>
-
-        </div>
-
-
-        <!-- Power -->
-
-        <div class="card">
-
-            <span>Power</span>
-
-            <p class="setting-hint">
-                Restart the router. Devices lose their connection for about
-                a minute. Changes that are still waiting for confirmation
-                are reverted by the restart.
-            </p>
-
-            <div class="setting-row">
-                <button id="rebootButton" class="save-btn">Reboot</button>
-            </div>
-
-            <div id="rebootStatus" class="setting-status"></div>
-
-            <hr class="card-divider">
-
-            <p class="setting-hint">
-                Factory reset erases all settings, accounts and VPN keys and
-                starts the setup again. Coming soon.
-            </p>
-
-            <div class="setting-row">
-                <button id="factoryResetButton" class="save-btn danger-btn" disabled
-                        title="Coming soon">Factory Reset</button>
-            </div>
-
-        </div>
-
-
-        <!-- Backup & Restore -->
-
-        <div class="card">
-
-            <span>Backup &amp; Restore</span>
-
-            <p class="setting-hint">
-                Download every setting as one file, and upload it here or on
-                another Chaos Router to restore it. Nothing needs to be edited
-                or unpacked. The file contains passwords and VPN keys, so keep
-                it somewhere safe. Changes that are still waiting for
-                confirmation are not included.
-            </p>
-
-            <div class="setting-row">
-
-                <button id="backupDownload" class="save-btn">
-                    Download Backup
-                </button>
-
-                <button id="backupChoose" class="secondary-btn">
-                    Restore from File…
-                </button>
-
-                <input
-                    id="backupFileInput"
-                    type="file"
-                    accept=".json,application/json"
-                    class="hidden">
-
-            </div>
-
-            <div id="backupSummary" class="backup-summary hidden">
-
-                <p id="backupInfo" class="backup-info"></p>
-
-                <div id="backupAreas" class="check-list backup-areas"></div>
-
-                <p id="backupCerts" class="setting-hint"></p>
-
                 <div class="setting-row">
 
-                    <button id="backupRestore" class="save-btn">
-                        Restore Selected
-                    </button>
-
-                    <button id="backupCancel" class="secondary-btn">
-                        Cancel
+                    <button
+                        id="savePing"
+                        class="save-btn">
+                        Save
                     </button>
 
                 </div>
 
+                <div
+                    id="pingStatus"
+                    class="setting-status">
+                </div>
+
             </div>
-
-            <div id="backupStatus" class="setting-status"></div>
-
-            <ul id="backupResults" class="backup-results hidden"></ul>
 
         </div>
 
+
+        <!-- ===================================================== -->
+        <!-- Account                                               -->
+        <!-- ===================================================== -->
+
+        <div class="system-column">
+
+            <h2 class="system-column-title">Account</h2>
+
+
+            <!-- Change Password -->
+
+            <div class="card">
+
+                <span>Change Password</span>
+
+                <div class="setting-group">
+
+                    <label for="currentPasswordInput">
+                        Current password
+                    </label>
+
+                    <input
+                        id="currentPasswordInput"
+                        class="setting-input"
+                        type="password"
+                        autocomplete="current-password">
+
+                </div>
+
+                <div class="system-pair">
+
+                    <div class="setting-group">
+
+                        <label for="newPasswordInput">
+                            New password
+                        </label>
+
+                        <input
+                            id="newPasswordInput"
+                            class="setting-input"
+                            type="password"
+                            autocomplete="new-password">
+
+                    </div>
+
+                    <div class="setting-group">
+
+                        <label for="confirmPasswordInput">
+                            Confirm new password
+                        </label>
+
+                        <input
+                            id="confirmPasswordInput"
+                            class="setting-input"
+                            type="password"
+                            autocomplete="new-password">
+
+                    </div>
+
+                </div>
+
+                <div class="setting-row">
+
+                    <button
+                        id="changePassword"
+                        class="save-btn">
+                        Change Password
+                    </button>
+
+                </div>
+
+                <div
+                    id="passwordStatus"
+                    class="setting-status">
+                </div>
+
+            </div>
+
+
+            <!-- Security -->
+
+            <div class="card">
+
+                <span>Sessions</span>
+
+                <p class="setting-hint">
+                    You are signed out after this much inactivity, and
+                    after the lifetime in any case.
+                </p>
+
+                <div class="system-pair">
+
+                    <div class="setting-group">
+
+                        <label for="idleTimeoutInput">
+                            Idle timeout
+                        </label>
+
+                        <div class="input-unit">
+
+                            <input
+                                id="idleTimeoutInput"
+                                class="setting-input"
+                                type="number"
+                                min="1"
+                                step="1"
+                                placeholder="5">
+
+                            <span>min</span>
+
+                        </div>
+
+                    </div>
+
+                    <div class="setting-group">
+
+                        <label for="absoluteTimeoutInput">
+                            Session lifetime
+                        </label>
+
+                        <div class="input-unit">
+
+                            <input
+                                id="absoluteTimeoutInput"
+                                class="setting-input"
+                                type="number"
+                                min="1"
+                                step="1"
+                                placeholder="60">
+
+                            <span>min</span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+                <div class="setting-row">
+
+                    <button
+                        id="saveSecurity"
+                        class="save-btn">
+                        Save
+                    </button>
+
+                </div>
+
+                <div
+                    id="securityStatus"
+                    class="setting-status">
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- ===================================================== -->
+        <!-- Maintenance                                           -->
+        <!-- ===================================================== -->
+
+        <div class="system-column">
+
+            <h2 class="system-column-title">Maintenance</h2>
+
+
+            <!-- Backup & Restore -->
+
+            <div class="card">
+
+                <span>Backup &amp; Restore</span>
+
+                <p class="setting-hint">
+                    Download every setting as one file, and upload it here or
+                    on another Chaos Router to restore it. The file contains
+                    passwords and VPN keys, so keep it somewhere safe.
+                    Unconfirmed changes are not included.
+                </p>
+
+                <div class="setting-row">
+
+                    <button id="backupDownload" class="save-btn">
+                        Download Backup
+                    </button>
+
+                    <button id="backupChoose" class="secondary-btn">
+                        Restore from File…
+                    </button>
+
+                    <input
+                        id="backupFileInput"
+                        type="file"
+                        accept=".json,application/json"
+                        class="hidden">
+
+                </div>
+
+                <div id="backupSummary" class="backup-summary hidden">
+
+                    <p id="backupInfo" class="backup-info"></p>
+
+                    <div id="backupAreas" class="check-list backup-areas"></div>
+
+                    <p id="backupCerts" class="setting-hint"></p>
+
+                    <div class="setting-row">
+
+                        <button id="backupRestore" class="save-btn">
+                            Restore Selected
+                        </button>
+
+                        <button id="backupCancel" class="secondary-btn">
+                            Cancel
+                        </button>
+
+                    </div>
+
+                </div>
+
+                <div id="backupStatus" class="setting-status"></div>
+
+                <ul id="backupResults" class="backup-results hidden"></ul>
+
+            </div>
+
+
+            <!-- Power -->
+
+            <div class="card">
+
+                <span>Reboot</span>
+
+                <p class="setting-hint">
+                    Devices lose their connection for about a minute.
+                    Unconfirmed changes are reverted by the restart.
+                </p>
+
+                <div class="setting-row">
+                    <button id="rebootButton" class="save-btn">Reboot</button>
+                </div>
+
+                <div id="rebootStatus" class="setting-status"></div>
+
+            </div>
+
+
+            <!-- Factory reset -->
+
+            <div class="card danger-card">
+
+                <span>Factory Reset</span>
+
+                <p class="setting-hint">
+                    Erases all settings, accounts, VPN keys and certificates,
+                    turns the router's services back to their defaults and
+                    reboots into the setup Wi-Fi. Download a backup first if
+                    you may want your settings back.
+                </p>
+
+                <div class="setting-row">
+                    <button id="factoryResetButton" class="save-btn danger-btn">
+                        Factory Reset…
+                    </button>
+                </div>
+
+                <div id="factoryResetStatus" class="setting-status"></div>
+
+            </div>
+
+        </div>
 
     </div>
 

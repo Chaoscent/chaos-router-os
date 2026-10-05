@@ -1,9 +1,10 @@
+import ipaddress
 import os
 import re
 import shutil
 import tempfile
 
-from services.config import load_settings
+from services.config import load_settings, load_running, save_running
 
 from services import transaction
 
@@ -82,8 +83,17 @@ DEFAULT_SETTINGS = {
     "channel": 6,
     "country": "DE",
     "hidden": False,
-    "isolate_clients": False
+    "isolate_clients": False,
+    # The router's address on the access point interface (e.g. wlan1),
+    # so Wi-Fi clients can get DHCP and reach the router. Not used
+    # while the LAN bridge is on (the AP joins br0 instead).
+    "address": "10.42.0.1",
+    "prefix": 24
 }
+
+# /tmp/chaos-router-os/wifi_address.json: where the address was set,
+# so it can be removed when the access point moves or turns off.
+APPLIED_ADDRESS = "wifi_address"
 
 COUNTRY_RE = re.compile(r"^[A-Z]{2}$")
 
@@ -272,6 +282,16 @@ def validate_wifi_settings(data):
     if not COUNTRY_RE.fullmatch(country):
         return False, "Country must be a two-letter code, e.g. DE or US."
 
+    ok, result = validate_address(
+        settings.get("address"), settings.get("prefix"),
+        interface, check_overlap=enabled and not is_bridged()
+    )
+
+    if not ok:
+        return False, result
+
+    address, prefix = result
+
     return True, {
         "enabled": enabled,
         "interface": interface,
@@ -282,8 +302,82 @@ def validate_wifi_settings(data):
         "channel": channel,
         "country": country,
         "hidden": settings.get("hidden") is True,
-        "isolate_clients": settings.get("isolate_clients") is True
+        "isolate_clients": settings.get("isolate_clients") is True,
+        "address": address,
+        "prefix": prefix
     }
+
+
+def is_bridged():
+
+    return get_network_settings()["lan"]["bridge"]
+
+
+def get_other_networks(interface):
+    """
+    [(interface, IPv4Network)] for every IPv4 address on the other
+    interfaces. The access point's interface and the one its address
+    was set on before are skipped: that address is replaced anyway.
+    """
+
+    networks = []
+
+    previous = (load_running(APPLIED_ADDRESS, None) or {}).get("interface")
+
+    for line in (run(["ip", "-4", "-o", "addr", "show"]) or "").splitlines():
+
+        parts = line.split()
+
+        if len(parts) < 4 or parts[2] != "inet":
+            continue
+
+        name = parts[1]
+
+        if name in ("lo", interface, previous):
+            continue
+
+        try:
+            networks.append((name, ipaddress.IPv4Interface(parts[3]).network))
+        except ValueError:
+            pass
+
+    return networks
+
+
+def validate_address(address, prefix, interface, check_overlap=True):
+    """
+    Returns (True, (address, prefix)) or (False, message).
+    """
+
+    try:
+        ip = ipaddress.IPv4Address(str(address or "").strip())
+    except ValueError:
+        return False, "Invalid router address."
+
+    try:
+        prefix = int(prefix)
+    except (TypeError, ValueError):
+        return False, "Invalid prefix (CIDR), e.g. 24."
+
+    if not 8 <= prefix <= 30:
+        return False, "The prefix (CIDR) must be between 8 and 30."
+
+    network = ipaddress.IPv4Interface(f"{ip}/{prefix}").network
+
+    if ip in (network.network_address, network.broadcast_address):
+        return False, f"{ip} is the network or broadcast address of {network}."
+
+    if check_overlap:
+
+        for name, other in get_other_networks(interface):
+
+            if network.overlaps(other):
+                return False, (
+                    f"{network} overlaps {other} on {name}. "
+                    f"Choose another subnet, e.g. 10.42.0.1/24."
+                )
+
+    return True, (str(ip), prefix)
 
 
 # -------------------------------------------------------------------
@@ -463,10 +557,20 @@ def save_wifi_settings(data):
 
 def verify_wifi_settings():
 
-    if not get_wifi_settings()["enabled"]:
+    settings = get_wifi_settings()
+
+    if not settings["enabled"]:
         return True, "OK"
 
-    return unit_stays_active("hostapd")
+    ok, message = unit_stays_active("hostapd")
+
+    if not ok:
+        return False, message
+
+    if not is_bridged() and not has_address(settings["interface"], settings["address"], settings["prefix"]):
+        return False, f"{settings['address']}/{settings['prefix']} is not set on {settings['interface']}."
+
+    return True, "OK"
 
 
 def apply_wifi_settings():
@@ -483,22 +587,37 @@ def apply_wifi_settings():
 
         return False, "hostapd is not available."
 
-    interface = settings["interface"]
-
     if not settings["enabled"]:
+        return stop_access_point(settings["interface"])
 
-        for cmd in (
-            ["systemctl", "stop", "hostapd"],
-            ["systemctl", "disable", "hostapd"]
-        ):
-            ok, result = run_command(privileged(cmd))
+    return start_access_point(settings)
 
-            if not ok:
-                return False, f"Wi-Fi settings could not be applied: {result}"
 
-        set_networkmanager_managed(interface, True)
+def stop_access_point(interface):
 
-        return True, "Access point turned off."
+    for cmd in (
+        ["systemctl", "stop", "hostapd"],
+        ["systemctl", "disable", "hostapd"]
+    ):
+        ok, result = run_command(privileged(cmd))
+
+        if not ok:
+            return False, f"Wi-Fi settings could not be applied: {result}"
+
+    clear_address()
+
+    set_networkmanager_managed(interface, True)
+
+    return True, "Access point turned off."
+
+
+def start_access_point(settings):
+    """
+    Starts hostapd with these settings and gives the interface its
+    address (or joins the LAN bridge). Also used for the setup Wi-Fi.
+    """
+
+    interface = settings["interface"]
 
     ok, result = install_hostapd_config(
         render_hostapd_config(settings)
@@ -538,7 +657,71 @@ def apply_wifi_settings():
 
             return False, f"Wi-Fi settings could not be applied: {result}"
 
-    return True, "Access point applied."
+    # Bridged: the access point is a port of br0 and has no address.
+    if is_bridged():
+
+        clear_address()
+
+        return True, "Access point applied (LAN bridge)."
+
+    ok, result = set_address(interface, settings["address"], settings["prefix"])
+
+    if not ok:
+        return False, f"The address could not be set on {interface}: {result}"
+
+    return True, f"Access point applied, {settings['address']}/{settings['prefix']} on {interface}."
+
+
+def ip_command(*args):
+
+    return run_command(privileged(["ip", *args]))
+
+
+def clear_address():
+    """
+    Removes the address set earlier (wherever the access point was).
+    """
+
+    applied = load_running(APPLIED_ADDRESS, None)
+
+    if applied and applied.get("interface"):
+        ip_command("-4", "addr", "flush", "dev", applied["interface"])
+
+    save_running(APPLIED_ADDRESS, {})
+
+
+def set_address(interface, address, prefix):
+    """
+    The equivalent of `ip addr add 10.42.0.1/24 dev wlan1`, replacing
+    whatever IPv4 address the interface had.
+    """
+
+    applied = load_running(APPLIED_ADDRESS, None) or {}
+
+    # The access point moved to another interface.
+    if applied.get("interface") and applied["interface"] != interface:
+        ip_command("-4", "addr", "flush", "dev", applied["interface"])
+
+    ok, result = ip_command("-4", "addr", "flush", "dev", interface)
+
+    if not ok:
+        return False, result
+
+    ok, result = ip_command("addr", "add", f"{address}/{prefix}", "dev", interface)
+
+    if not ok:
+        return False, result
+
+    save_running(APPLIED_ADDRESS, {"interface": interface, "address": f"{address}/{prefix}"})
+
+    return True, "OK"
+
+
+def has_address(interface, address, prefix):
+
+    output = run(["ip", "-4", "-o", "addr", "show", "dev", interface]) or ""
+
+    return f"inet {address}/{prefix} " in output + " "
 
 
 # -------------------------------------------------------------------
