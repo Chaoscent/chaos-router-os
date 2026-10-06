@@ -223,7 +223,7 @@ const Setup = {
         next.textContent = "Finish Setup";
 
         if (res && res.ok && data.success) {
-            this.showDone(false);
+            this.showDone(false, data.warning);
             return;
         }
 
@@ -238,7 +238,7 @@ const Setup = {
 
     },
 
-    showDone(lostConnection) {
+    showDone(lostConnection, warning = null) {
 
         const ssid = this.$("setupSsid").value;
         const url = this.dashboardUrl();
@@ -254,6 +254,9 @@ const Setup = {
         document.querySelector(".setup-open").href = url;
 
         this.show("done");
+
+        // Setup is done, but something (e.g. DHCP) needs attention.
+        if (warning) this.error(warning);
 
     },
 

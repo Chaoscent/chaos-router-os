@@ -1,0 +1,45 @@
+# Chaos Router OS dashboard and router control.
+#
+# Installed by deploy/install-service.sh, which fills in @USER@,
+# @GROUP@ and @APP_DIR@. Logs: journalctl -u chaos-router-os
+
+[Unit]
+Description=Chaos Router OS
+Documentation=https://github.com/chaoscent/chaos-router-os
+# The app applies the network, Wi-Fi, DHCP and firewall settings at
+# boot, so NetworkManager has to be up first.
+After=network-online.target NetworkManager.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@USER@
+Group=@GROUP@
+WorkingDirectory=@APP_DIR@/backend
+
+Environment=PYTHONUNBUFFERED=1
+Environment=CHAOS_PORT=5000
+
+# One process: Safe Apply's confirmation timer and the traffic sampler
+# live in it. Threads serve requests in parallel. No control socket:
+# its default place (/run/user/<uid>) does not exist at boot.
+ExecStart=@APP_DIR@/.venv/bin/gunicorn \
+    --workers 1 \
+    --threads 8 \
+    --bind 0.0.0.0:${CHAOS_PORT} \
+    --timeout 120 \
+    --graceful-timeout 10 \
+    --access-logfile - \
+    --no-control-socket \
+    app:app
+
+Restart=on-failure
+RestartSec=3
+
+# Not hardened on purpose:
+# - no NoNewPrivileges: the app runs system changes through `sudo -n`;
+# - no PrivateTmp: /tmp/chaos-router-os holds the running config, which
+#   must survive an app restart (Safe Apply reverts from there).
+
+[Install]
+WantedBy=multi-user.target

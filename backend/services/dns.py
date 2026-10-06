@@ -29,7 +29,8 @@ from services.dhcp import (
     install_dnsmasq_config,
     remove_dnsmasq_config,
     restart_dnsmasq,
-    get_dhcp_settings
+    get_dhcp_settings,
+    is_dnsmasq_running
 )
 
 from services.firewall import get_interfaces
@@ -675,7 +676,28 @@ def lookup(name, qtype="A"):
     result["name"] = name
     result["type"] = qtype
 
+    # The query goes to the router's own dnsmasq; say why it failed.
+    if result.get("error") and not result.get("answers"):
+        result["error"] = explain_lookup_error(result["error"])
+
     return result
+
+
+def explain_lookup_error(error):
+
+    if not has_dnsmasq():
+        return "The router's DNS server (dnsmasq) is not installed."
+
+    if not is_dnsmasq_running():
+        return "The router's DNS server (dnsmasq) is not running."
+
+    if not get_dns_settings()["enabled"]:
+        return "The router's DNS server is turned off on this page."
+
+    return (
+        f"The router's DNS server did not answer: {error} "
+        f"It may not reach its upstream servers."
+    )
 
 
 def get_cache_stats():

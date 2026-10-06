@@ -64,10 +64,14 @@ Networking-first installation.
 * Caddy *(planned)*
 * MikroTik-style SPA navigation
 
-Planned Install Command (coming with V1):
+Install on Raspberry Pi OS Lite (64-bit), logged in as your normal user:
 ```bash
-curl -fsSL chaos-software.dev/router-os/core | sudo bash
+curl -fsSL https://raw.githubusercontent.com/chaoscent/chaos-router-os/main/install.sh | sudo bash
 ```
+
+The installer sets up the packages, the app, the default settings and the service, asks for your Wi-Fi country, and finishes with a QR code for the setup Wi-Fi. Scan it with your phone and the setup page opens. Running it again updates an existing install; your settings are kept. Options: `--country DE`, `--dir PATH`, `--yes`.
+
+Later this will also be available as `curl -fsSL chaos-software.dev/router-os/core | sudo bash`.
 
 ---
 
@@ -207,6 +211,20 @@ sudo .venv/bin/python backend/install_defaults.py
 ```
 
 For development and tests, the three config folders can be moved with `CHAOS_DEFAULTS_DIR`, `CHAOS_STATE_DIR` and `CHAOS_RUNTIME_DIR`.
+
+### Run as a service (starts at boot)
+
+On the router, install the systemd service instead of starting `python backend/app.py` by hand. It runs the app with gunicorn (no debug mode) as your user, after NetworkManager is up, and restarts it if it crashes:
+
+```bash
+sudo deploy/install-service.sh            # install or update, then start
+sudo deploy/install-service.sh --remove   # stop and remove (settings are kept)
+
+journalctl -u chaos-router-os -f          # logs
+sudo systemctl restart chaos-router-os    # after pulling new code
+```
+
+With the service, a reboot (including the one after a factory reset) brings the router back on its saved settings, or into the setup Wi-Fi when it is not set up.
 
 ### System Requirements
 

@@ -461,12 +461,34 @@ def remove_dnsmasq_config(path=DNSMASQ_CONF_FILE):
 
 
 def restart_dnsmasq():
+    """
+    Restarts dnsmasq; on failure the message is dnsmasq's own reason
+    from the journal (e.g. "address already in use").
+    """
 
-    return run_command(privileged([
+    ok, result = run_command(privileged([
         "systemctl",
         "restart",
         "dnsmasq"
     ]))
+
+    return (True, result) if ok else (False, get_dnsmasq_error() or result)
+
+
+def get_dnsmasq_error():
+
+    ok, output = run_command(privileged([
+        "journalctl",
+        "-u",
+        "dnsmasq",
+        "-n",
+        "6",
+        "--no-pager",
+        "-o",
+        "cat"
+    ]))
+
+    return output if ok and output else None
 
 
 # -------------------------------------------------------------------
@@ -547,7 +569,12 @@ def verify_dhcp_settings():
     if not get_dhcp_settings()["enabled"] or is_paused():
         return True, "OK"
 
-    return unit_stays_active("dnsmasq")
+    ok, message = unit_stays_active("dnsmasq")
+
+    if not ok:
+        return False, f"{message} {get_dnsmasq_error() or ''}".strip()
+
+    return True, "OK"
 
 
 # -------------------------------------------------------------------

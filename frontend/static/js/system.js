@@ -100,6 +100,10 @@ window.Page.system = {
         pingIntervalInput.disabled =
             pingEnabledInput.value !== "true";
 
+        // Keep the custom dropdowns in step with the native selects.
+        ChaosSelect.refresh(pingEnabledInput);
+        ChaosSelect.refresh(pingIntervalInput);
+
     },
 
 
@@ -800,6 +804,10 @@ window.Page.system = {
 
 
     init() {
+
+        // Same dropdown look as every other page.
+        ChaosSelect.enhance(pingEnabledInput);
+        ChaosSelect.enhance(pingIntervalInput);
 
         this.load();
 

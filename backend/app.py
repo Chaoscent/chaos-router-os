@@ -234,7 +234,9 @@ from services.vpn_profiles import (
 
         disconnect_profile as disconnect_vpn_profile,
 
-        set_autostart as set_vpn_autostart
+        set_autostart as set_vpn_autostart,
+
+        set_full_tunnel as set_vpn_full_tunnel
 
 )
 
@@ -382,7 +384,7 @@ def setup_gate():
 
                 return None
 
-        if is_setup_path or path.startswith("/static/"):
+        if is_setup_path or path.startswith("/static/") or path == "/favicon.ico":
                 return None
 
         if path.startswith(("/api/", "/fragment/")) or request.method != "GET":
@@ -568,6 +570,17 @@ def home():
 
 
 
+# Browsers ask for /favicon.ico on their own; the icon is an SVG.
+@app.route("/favicon.ico")
+
+def favicon():
+
+        return redirect(url_for("static", filename="favicon.svg"), code=301)
+
+
+
+
+
 @app.route("/setup")
 
 def setup_page():
@@ -603,9 +616,9 @@ def setup_complete_api():
 
 
         # Signed in right away: setup ends on the dashboard.
-        login_user(result)
+        login_user(result["username"])
 
-        return jsonify({"success": True})
+        return jsonify({"success": True, "warning": result["warning"]})
 
 
 
@@ -1739,6 +1752,22 @@ def vpn_disconnect_profile_api(profile_id):
         log_event("vpn", message, "info" if ok else "error")
 
         return vpn_response(ok, message, status=500)
+
+
+
+
+@app.route("/api/vpn/profiles/<int:profile_id>/full-tunnel", methods=["POST"])
+
+@login_required
+
+def vpn_full_tunnel_profile_api(profile_id):
+
+        data = request.get_json(silent=True) or {}
+
+        return vpn_response(
+                *set_vpn_full_tunnel(profile_id, data.get("enabled") is True)
+        )
+
 
 
 

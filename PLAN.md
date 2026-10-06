@@ -39,8 +39,11 @@ Without these it isn't a router yet.
   - [ ] Once Caddy is in front, drop port 5000 from the essential rules (`CHAOS_PORT`).
   - [ ] Dev setups that enabled the firewall before this change still have the old "allow from any" essential copies as user rules; delete them on the Firewall page.
   - [ ] Consider TCP MSS clamping for the modem link (mobile networks often have a smaller MTU).
-- [ ] **Start at boot.** A systemd unit for the app. Without it, Safe Apply's boot recovery (`sync_boot` + `apply_all`) never runs unless the app is started by hand.
-- [ ] **Production server.** Run under gunicorn or waitress (one or two workers), bound to localhost, with Caddy in front. The Flask dev server must not face the LAN.
+- [x] **Start at boot.** `deploy/chaos-router-os.service`, installed with `sudo deploy/install-service.sh` (`--remove` to uninstall): starts after NetworkManager, runs as the user who called sudo, restarts on failure, logs to the journal. Boot recovery (`sync_boot` + `apply_all`) and the setup Wi-Fi now run at every boot.
+  - [ ] Test on the Pi 5: boot, factory reset reboot into the setup Wi-Fi, app crash restart.
+  - [ ] The installer runs `install-service.sh` (or the same steps).
+- [x] **Production server.** The service runs gunicorn (1 worker, 8 threads: Safe Apply's timer and the traffic sampler must stay in one process), no debug mode.
+  - [ ] Bind to localhost once Caddy is in front (now `0.0.0.0:5000`).
 - [ ] **Hardware testing.** Everything marked 🧪 has only been tested with fakes in WSL. Most likely to need fixes: Wi-Fi, 6 GHz, the OpenVPN PKI, the firewall.
 - [x] **Mock modem data removed.** `get_modem_data()` reports `state`: `ready`, `not_ready` (modem found, no answer yet) or `absent`. Unknown values are `null` and shown as "--"; the header and Modem page say "No modem" / "Not ready". The header's Online/Offline pill follows the default route instead of always saying "Online".
   - [ ] Check the `mmcli` parsing against the real RM520N-GL on the Pi 5: signal values per section (`rsrp`, `rsrq`, `s/n`, 5G preferred over LTE), access tech ("lte, 5gnr" → "5G NSA"), SIM state. The parsing was written from documented output, not tested on the modem.
@@ -54,7 +57,7 @@ Without these it isn't a router yet.
 - [x] **Reboot** on the System page: confirmation (warns about unconfirmed changes, which a reboot reverts), `systemctl reboot` via sudo two seconds after answering, then the page waits for the router to go down and come back and reloads. Refused with a clear message when sudo does not allow it. Logged in the event log.
   - [ ] Test on the Pi 5.
 - [x] **Factory reset** (`backend/factory_reset.py`, System page, asks for the password): every area is applied with its defaults (Wi-Fi, DHCP, DNS, VPNs off, own firewall rules removed, LAN bridge removed; eth0's connection is kept so the router stays reachable), OpenVPN PKI / WireGuard / hostapd configs and VPN client profiles are deleted, `/var/lib/chaos-router-os` and `/tmp/chaos-router-os` are emptied, then it reboots. At boot the `/etc` defaults (firewall, NAT) apply and the setup Wi-Fi with captive portal starts.
-  - [ ] **Not tested yet** (on purpose): test on the Pi 5.
+  - [x] Tested on the Pi 5: works.
   - [ ] Until the systemd service exists, the app has to be started by hand after the reset's reboot, otherwise no setup Wi-Fi appears.
   - [ ] eth0 keeps settings made in WAN mode (DHCP client, route metric 50) after a reset.
 - [ ] **Version and updates** on the System page: show the installed version, check for a newer release, and start the updater (see Updater). Needs a version source (e.g. a `VERSION` file written by the installer).
@@ -89,6 +92,10 @@ Without these it isn't a router yet.
   - [ ] The bridge pulls eth0 in while eth0 is in LAN mode, which cuts off access when eth0 is plugged into another router (seen on the test Pi; Safe Apply reverted it). Consider a bridge of Wi-Fi only, or refuse while eth0 has a DHCP-client address.
   - [ ] Only one access point at a time (one hostapd config). Running wlan0 (2.4/5 GHz) and wlan1 (6 GHz) together needs one hostapd instance per radio.
 - [x] LAN interfaces are detected instead of a fixed list (eth0, wlan0, br0): every Ethernet (`eth*`, `en*`), Wi-Fi (`wlan*`, `wl*`) and bridge (`br*`) interface except the WAN. DHCP, DNS and the firewall's essential rules now include extra adapters like wlan1.
+- [x] **VPN client: all traffic through the VPN** ("All traffic" per profile, checkbox on import): WireGuard AllowedIPs become 0.0.0.0/0 (+ ::/0 with an IPv6 tunnel address), OpenVPN gets `redirect-gateway def1`. Applied to the written files only; off = the profile's own routing.
+  - [ ] Test on the Pi 5 with a real provider: LAN devices' public IP is the VPN's.
+  - [ ] While a full tunnel is up, answers to connections from the internet side (WireGuard/OpenVPN servers on the router, remote dashboard access over the modem) also go into the tunnel and break. Needs policy routing for traffic that came in on the WAN.
+  - [ ] Kill switch: block LAN internet access while the full-tunnel VPN is down, so nothing leaks over the WAN.
 - [ ] **Apps page.** Still a placeholder. Hide it or label it "coming in v2" before v1.
 - [ ] **Active Clients is not a real count.** The dashboard shows 1 whenever there is any traffic. Count clients that sent traffic recently instead (per-client counters, e.g. from the neighbour table plus iptables accounting or conntrack).
 - [ ] **OpenVPN on slower CPUs.** Consider putting `CHACHA20-POLY1305` first in `CIPHERS`; it's faster than AES on a Pi 4, which lacks AES instructions.
@@ -97,20 +104,22 @@ Without these it isn't a router yet.
 
 ## 4. Installer
 
-One command (`curl -fsSL chaos-software.dev/router-os/core | sudo bash`). It must be **idempotent**: running it twice repairs rather than breaks.
+`install.sh` in the repo root: `curl -fsSL https://raw.githubusercontent.com/chaoscent/chaos-router-os/main/install.sh | sudo bash` (later also `chaos-software.dev/router-os/core`), or `sudo ./install.sh` from a clone. **Idempotent**: running it again updates, settings stay. Options `--country`, `--dir`, `--yes`.
 
-- [ ] Check for Raspberry Pi OS Lite 64-bit; warn on anything else.
-- [ ] Install the apt packages:
-  `dnsmasq hostapd ufw iptables wireguard-tools openvpn easy-rsa openresolv iw rfkill qrencode`
-- [ ] Create a dedicated service user.
-- [ ] Install the app, Python venv and dependencies (check pins against the OS Python: 3.11 on Bookworm, 3.13 on Trixie).
-- [ ] Install the root helper and the sudoers file.
-- [ ] Run `backend/install_defaults.py` to write `/etc/chaos-router-os`.
-- [ ] Unmask hostapd and set a Wi-Fi country (ask, or default to the worldwide setting).
-- [ ] Make sure nothing else holds port 53 (DNS) or 67 (DHCP).
-- [ ] Install and enable the systemd units (app, later Caddy).
-- [ ] **If installed over the Pi's Wi-Fi:** detect it, warn that the SSH session will drop, and switch wlan0 to AP mode only as the very last step.
-- [ ] Start the app, then run `python backend/setup_wifi.py` to print the setup Wi-Fi's name, password and QR code (see Setup Wizard).
+- [x] Check for Raspberry Pi OS (64-bit, Raspberry Pi board); warn on anything else.
+- [x] Install the apt packages (incl. git, python3-venv, NetworkManager, qrencode).
+- [x] Get the code: the clone it runs from, else clone/update `/opt/chaos-router-os` (owned by the app user).
+- [x] Python venv and dependencies.
+- [x] `backend/install_defaults.py` writes `/etc/chaos-router-os`; stale `users.json` default login removed.
+- [x] Wi-Fi country: asked (default: raspi-config's current value or DE), set via `raspi-config` (regulatory domain + rfkill unblock) and as the Wi-Fi default.
+- [x] Passwordless sudo: kept if present, otherwise `/etc/sudoers.d/chaos-router-os` for exactly the app's commands (validated with visudo).
+- [x] Warn when something other than dnsmasq holds port 53 or 67.
+- [x] Install and start the systemd service (`deploy/install-service.sh`).
+- [x] **Installed over the Pi's Wi-Fi** (detected from the open SSH connections): the setup Wi-Fi's name, password and QR code are shown *before* the service starts, then 15 s to scan.
+- [x] Finish: setup Wi-Fi name, 12-character password and QR code (`backend/setup_wifi.py`), or the dashboard address when the router is already set up.
+- [ ] Test on a fresh Raspberry Pi OS Lite (64-bit) on the Pi 5, both over Ethernet and over Wi-Fi SSH.
+- [ ] Check the Python package pins against the OS Python (3.11 on Bookworm, 3.13 on Trixie).
+- [ ] Dedicated service user + root helper (instead of running as the installing user with sudo).
 
 ---
 

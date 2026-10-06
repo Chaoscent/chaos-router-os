@@ -322,7 +322,7 @@ window.Page.vpn = {
         vpnProfileTable.innerHTML = "";
 
         if (!profiles.length) {
-            this.emptyRow(vpnProfileTable, 4, "No profiles. Import one below.");
+            this.emptyRow(vpnProfileTable, 5, "No profiles. Import one below.");
             return;
         }
 
@@ -339,6 +339,13 @@ window.Page.vpn = {
                 </td>
                 <td>${this.badge(profile.connected, profile.connected ? "Connected" : "Disconnected")}</td>
                 <td>
+                    <button class="table-btn" data-action="full-tunnel">
+                        ${profile.full_tunnel ? "On" : "Off"}
+                    </button>
+                    ${!profile.full_tunnel && profile.routes_all_by_profile
+                        ? "<br><small>Profile routes all</small>" : ""}
+                </td>
+                <td>
                     <button class="table-btn" data-action="autostart">
                         ${profile.autostart ? "On" : "Off"}
                     </button>
@@ -353,6 +360,9 @@ window.Page.vpn = {
 
             row.querySelector('[data-action="autostart"]').onclick =
                 () => this.toggleAutostart(profile);
+
+            row.querySelector('[data-action="full-tunnel"]').onclick =
+                () => this.toggleFullTunnel(profile);
 
             row.querySelector('[data-action="toggle"]').onclick =
                 () => this.toggleProfile(profile);
@@ -627,7 +637,8 @@ window.Page.vpn = {
                 type: vpnImportTypeInput.value,
                 config: vpnImportConfigInput.value,
                 username: openvpn ? vpnImportUserInput.value : "",
-                password: openvpn ? vpnImportPassInput.value : ""
+                password: openvpn ? vpnImportPassInput.value : "",
+                full_tunnel: vpnImportFullTunnelInput.checked
             })
         );
 
@@ -666,6 +677,19 @@ window.Page.vpn = {
             vpnProfileStatus,
             profile.connected ? "Disconnecting..." : "Connecting...",
             () => this.send(`/api/vpn/profiles/${profile.id}/${action}`)
+        );
+
+    },
+
+
+    async toggleFullTunnel(profile) {
+
+        await this.run(
+            vpnProfileStatus,
+            profile.connected ? "Saving and reconnecting..." : "Saving...",
+            () => this.send(`/api/vpn/profiles/${profile.id}/full-tunnel`, {
+                enabled: !profile.full_tunnel
+            })
         );
 
     },

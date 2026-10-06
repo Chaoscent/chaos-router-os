@@ -313,6 +313,7 @@
                         <tr>
                             <th>Profile</th>
                             <th>Status</th>
+                            <th>All traffic</th>
                             <th>Connect at boot</th>
                             <th></th>
                         </tr>
@@ -323,7 +324,9 @@
 
             <p class="setting-hint">
                 While connected, the router and every device on your network use
-                the VPN. Only one profile can be connected at a time.
+                the VPN. With "All traffic" on, everything goes through it, even if
+                the profile would only send some networks. Only one profile can be
+                connected at a time.
             </p>
 
             <div id="vpnProfileStatus" class="setting-status"></div>
@@ -375,6 +378,11 @@
                     rows="8" spellcheck="false"
                     placeholder="Paste the config here, or choose a file."></textarea>
             </div>
+
+            <label class="modal-check vpn-full-tunnel">
+                <input id="vpnImportFullTunnelInput" type="checkbox" checked>
+                <span>Route all internet traffic through this VPN</span>
+            </label>
 
             <input id="vpnImportFileInput" type="file"
                 accept=".conf,.ovpn,text/plain" class="hidden">

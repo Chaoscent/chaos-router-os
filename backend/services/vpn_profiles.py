@@ -4,6 +4,10 @@ WireGuard or OpenVPN server, e.g. a VPN provider.
 
 Imported configs are sanitised: anything that could run commands
 as root is removed, and NAT is added by our own hooks instead.
+
+"full_tunnel" routes all internet traffic of the router and its LAN
+through the VPN, whatever the profile itself says. It is applied when
+the files are written; the stored config stays as imported.
 """
 
 import re
@@ -406,6 +410,7 @@ def import_profile(data):
         "name": name,
         "type": kind,
         "autostart": False,
+        "full_tunnel": data.get("full_tunnel") is True,
         "created": int(time.time()),
         "username": username,
         "password": password
@@ -463,9 +468,101 @@ def import_profile(data):
     return True, message, profile_view(profile)
 
 
+# -------------------------------------------------------------------
+# All traffic through the VPN
+# -------------------------------------------------------------------
+
+def _wireguard_sections(config):
+    """
+    [(type, [line indexes])] of a rendered WireGuard config.
+    """
+
+    sections = []
+
+    for index, line in enumerate(config.splitlines()):
+
+        match = re.fullmatch(r"\[(\w+)\]", line.strip())
+
+        if match:
+            sections.append((match.group(1).lower(), [index]))
+        elif sections:
+            sections[-1][1].append(index)
+
+    return sections
+
+
+def _key_value(line):
+
+    key, _, value = line.partition("=")
+
+    return key.strip(), value.strip()
+
+
+def wireguard_full_tunnel(config):
+    """
+    AllowedIPs of the peer(s) with an Endpoint become 0.0.0.0/0 (and
+    ::/0 when the tunnel has an IPv6 address), so wg-quick routes all
+    traffic through it.
+    """
+
+    lines = config.splitlines()
+    sections = _wireguard_sections(config)
+
+    ipv6 = any(
+        key == "Address" and ":" in value
+        for kind, indexes in sections if kind == "interface"
+        for key, value in (_key_value(lines[i]) for i in indexes)
+    )
+
+    everything = "0.0.0.0/0, ::/0" if ipv6 else "0.0.0.0/0"
+
+    for kind, indexes in sections:
+
+        keys = [_key_value(lines[i])[0] for i in indexes]
+
+        if kind != "peer" or "Endpoint" not in keys:
+            continue
+
+        for i in indexes:
+            if _key_value(lines[i])[0] == "AllowedIPs":
+                lines[i] = f"AllowedIPs = {everything}"
+
+    return "\n".join(lines) + "\n"
+
+
+def routes_all_by_profile(profile):
+    """
+    Whether the imported profile itself already sends all traffic
+    through the tunnel (an OpenVPN server may also push this).
+    """
+
+    config = profile["config"]
+
+    if profile["type"] == "wireguard":
+        return bool(re.search(r"^AllowedIPs\s*=.*\b0\.0\.0\.0/0", config, re.MULTILINE))
+
+    return bool(re.search(r"^redirect-gateway\b", config, re.MULTILINE))
+
+
+def effective_config(profile):
+
+    config = profile["config"]
+
+    if not profile.get("full_tunnel"):
+        return config
+
+    if profile["type"] == "wireguard":
+        return wireguard_full_tunnel(config)
+
+    return config.rstrip("\n") + (
+        "\n\n# All traffic through the VPN (Chaos Router OS).\n"
+        "redirect-gateway def1\n"
+    )
+
+
 def write_profile_files(profile):
 
-    ok, result = write_root_file(config_path(profile), profile["config"])
+    ok, result = write_root_file(config_path(profile), effective_config(profile))
 
     if not ok:
         return False, result
@@ -636,6 +733,42 @@ def disconnect_profile(profile_id):
     return True, f"Disconnected from {profile['name']}."
 
 
+def set_full_tunnel(profile_id, enabled):
+    """
+    Routes all internet traffic through this profile (or back to the
+    profile's own routing). A connected profile reconnects.
+    """
+
+    profiles = load_profiles()
+    profile = find_profile(profiles, profile_id)
+
+    if not profile:
+        return False, "Profile not found."
+
+    profile["full_tunnel"] = enabled
+
+    outcome = save_profiles(profiles)
+
+    if not outcome["success"]:
+        return False, outcome["message"]
+
+    message = (
+        f"All traffic now goes through {profile['name']}."
+        if enabled else f"{profile['name']} uses its own routing."
+    )
+
+    if unit_active(unit_name(profile)):
+
+        ok, result = start_unit(unit_name(profile), enable=profile["autostart"])
+
+        if not ok:
+            return False, f"Saved, but reconnecting failed: {result}"
+
+        message += " Reconnected."
+
+    return True, message
+
+
 def set_autostart(profile_id, enabled):
     """
     Only one profile may connect at boot.
@@ -672,6 +805,8 @@ def profile_view(profile):
         "name": profile["name"],
         "type": profile["type"],
         "autostart": profile["autostart"],
+        "full_tunnel": profile.get("full_tunnel") is True,
+        "routes_all_by_profile": routes_all_by_profile(profile),
         "created": profile.get("created"),
         "interface": interface_name(profile),
         "has_credentials": bool(profile.get("username"))

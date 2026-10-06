@@ -371,6 +371,7 @@ def _validate_profiles(data):
             "name": profile["name"],
             "type": profile["type"],
             "autostart": profile.get("autostart") is True,
+            "full_tunnel": profile.get("full_tunnel") is True,
             "created": int(profile.get("created", 0)),
             "username": username,
             "password": password

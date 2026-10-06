@@ -1240,12 +1240,14 @@ select.setting-input:disabled{
 }
 
 .interface-card .chaos-select-trigger:disabled .chaos-select-value,
+.system-sections .chaos-select-trigger:disabled .chaos-select-value,
 .setup-card .chaos-select-trigger:disabled .chaos-select-value,
 .settings-sections .chaos-select-trigger:disabled .chaos-select-value{
     color:#626b7b;
 }
 
 .interface-card .chaos-select-trigger:disabled .chaos-select-chevron,
+.system-sections .chaos-select-trigger:disabled .chaos-select-chevron,
 .setup-card .chaos-select-trigger:disabled .chaos-select-chevron,
 .settings-sections .chaos-select-trigger:disabled .chaos-select-chevron{
     color:#4d5666;
@@ -1548,6 +1550,7 @@ select.setting-input:disabled{
 /* ========================================================= */
 
 .interface-card .chaos-select,
+.system-sections .chaos-select,
 .setup-card .chaos-select,
 .settings-sections .chaos-select{
     position:relative;
@@ -1556,6 +1559,7 @@ select.setting-input:disabled{
 }
 
 .interface-card .chaos-select-trigger,
+.system-sections .chaos-select-trigger,
 .setup-card .chaos-select-trigger,
 .settings-sections .chaos-select-trigger{
     width:100%;
@@ -1573,6 +1577,7 @@ select.setting-input:disabled{
 }
 
 .interface-card .chaos-select-value,
+.system-sections .chaos-select-value,
 .setup-card .chaos-select-value,
 .settings-sections .chaos-select-value{
     display:flex;
@@ -1590,6 +1595,7 @@ select.setting-input:disabled{
 
 /* Override the generic .card span muted color for the mode value. */
 .interface-card .chaos-select-trigger .chaos-select-value,
+.system-sections .chaos-select-trigger .chaos-select-value,
 .setup-card .chaos-select-trigger .chaos-select-value,
 .settings-sections .chaos-select-trigger .chaos-select-value{
     color:var(--text);
@@ -1597,12 +1603,14 @@ select.setting-input:disabled{
 
 /* Keep only disabled/read-only interface text muted. */
 .interface-card .chaos-select-trigger:disabled .chaos-select-value,
+.system-sections .chaos-select-trigger:disabled .chaos-select-value,
 .setup-card .chaos-select-trigger:disabled .chaos-select-value,
 .settings-sections .chaos-select-trigger:disabled .chaos-select-value{
     color:#626b7b;
 }
 
 .interface-card .chaos-select-chevron,
+.system-sections .chaos-select-chevron,
 .setup-card .chaos-select-chevron,
 .settings-sections .chaos-select-chevron{
     width:16px;
@@ -1620,6 +1628,7 @@ select.setting-input:disabled{
 }
 
 .interface-card .chaos-select-chevron svg,
+.system-sections .chaos-select-chevron svg,
 .setup-card .chaos-select-chevron svg,
 .settings-sections .chaos-select-chevron svg{
     display:block;
@@ -1629,12 +1638,14 @@ select.setting-input:disabled{
 }
 
 .interface-card .chaos-select-menu,
+.system-sections .chaos-select-menu,
 .setup-card .chaos-select-menu,
 .settings-sections .chaos-select-menu{
     box-sizing:border-box;
 }
 
 .interface-card .chaos-select-option,
+.system-sections .chaos-select-option,
 .setup-card .chaos-select-option,
 .settings-sections .chaos-select-option{
     width:100%;
@@ -1652,6 +1663,7 @@ select.setting-input:disabled{
 }
 
 .interface-card .chaos-select-option > span:first-child,
+.system-sections .chaos-select-option > span:first-child,
 .setup-card .chaos-select-option > span:first-child,
 .settings-sections .chaos-select-option > span:first-child{
     display:flex;
@@ -1663,6 +1675,7 @@ select.setting-input:disabled{
 }
 
 .interface-card .chaos-select-check,
+.system-sections .chaos-select-check,
 .setup-card .chaos-select-check,
 .settings-sections .chaos-select-check{
     height:100%;
@@ -1675,12 +1688,15 @@ select.setting-input:disabled{
 
 /* Prevent the field/card from shifting while interacting with it. */
 .interface-card .chaos-select-trigger:hover,
+.system-sections .chaos-select-trigger:hover,
 .setup-card .chaos-select-trigger:hover,
 .settings-sections .chaos-select-trigger:hover,
 .interface-card .chaos-select-trigger:focus,
+.system-sections .chaos-select-trigger:focus,
 .setup-card .chaos-select-trigger:focus,
 .settings-sections .chaos-select-trigger:focus,
 .interface-card .chaos-select-trigger:active,
+.system-sections .chaos-select-trigger:active,
 .setup-card .chaos-select-trigger:active,
 .settings-sections .chaos-select-trigger:active{
     transform:none;
@@ -3030,4 +3046,8 @@ a.setup-open{
     margin-top:12px;
     font-size:14px;
     font-weight:600;
+}
+
+.vpn-full-tunnel{
+    margin-top:14px;
 }

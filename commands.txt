@@ -5,7 +5,9 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-
+sudo mkdir -p /var/lib/chaos-router-os
+sudo chown $USER /var/lib/chaos-router-os
+sudo -n true && echo "sudo OK"
 
 git add .
 git commit -m ""

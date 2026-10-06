@@ -154,7 +154,7 @@ def stop_setup_wifi_later(keep_access_point):
 
 def complete_setup(data):
     """
-    Returns (True, username) or (False, message).
+    Returns (True, {"username", "warning"}) or (False, message).
     """
 
     with _lock:
@@ -171,6 +171,8 @@ def complete_setup(data):
 
         if not ok:
             return False, f"Wi-Fi: {wifi_settings}"
+
+        warning = None
 
         if wifi_settings:
 
@@ -196,7 +198,12 @@ def complete_setup(data):
             )
 
             if not outcome["success"]:
-                log_event("setup", f"DHCP for the new Wi-Fi failed: {outcome['message']}", "warning")
+
+                # Setup still completes (the account is what matters), but
+                # the page shows why devices get no address.
+                warning = f"DHCP for the new Wi-Fi could not be started: {outcome['message']}"
+
+                log_event("setup", warning, "warning")
 
         outcome = transaction.change(USERS, {
             username: {"password": generate_password_hash(data["admin"]["password"])}
@@ -211,4 +218,4 @@ def complete_setup(data):
         if not wifi_settings:
             stop_setup_wifi_later(keep_access_point=False)
 
-        return True, username
+        return True, {"username": username, "warning": warning}
