@@ -1,0 +1,66 @@
+<section class="page shell-page">
+
+    <div class="page-header">
+
+        <h1>Shell</h1>
+
+        <p>
+            A terminal on the router. Commands run as the router's user,
+            which can use sudo: this is full control over the router.
+        </p>
+
+    </div>
+
+
+    <!-- Why the shell cannot be opened (off, WAN side, phone). -->
+
+    <div id="shellNotice" class="card shell-notice hidden">
+        <span id="shellNoticeTitle">Shell</span>
+        <p id="shellNoticeText" class="setting-hint"></p>
+        <a id="shellNoticeLink" href="#/system" class="secondary-btn hidden">Open the System page</a>
+    </div>
+
+
+    <!-- Password before every session. -->
+
+    <div id="shellUnlock" class="card shell-unlock hidden">
+
+        <span>Open a Shell</span>
+
+        <p class="setting-hint">
+            Enter your password to open a shell. Sessions close after 15
+            minutes without typing. Every session is logged.
+        </p>
+
+        <div class="setting-row">
+
+            <input
+                id="shellPasswordInput"
+                class="setting-input"
+                type="password"
+                autocomplete="current-password"
+                placeholder="Your password">
+
+            <button id="shellOpen" class="save-btn">Open Shell</button>
+
+        </div>
+
+        <div id="shellUnlockStatus" class="setting-status"></div>
+
+    </div>
+
+
+    <!-- The terminal. -->
+
+    <div id="shellTerminalCard" class="card shell-terminal-card hidden">
+
+        <div class="shell-toolbar">
+            <span id="shellState" class="shell-state">Connecting...</span>
+            <button id="shellClose" class="secondary-btn">Disconnect</button>
+        </div>
+
+        <div id="shellTerminal" class="shell-terminal"></div>
+
+    </div>
+
+</section>

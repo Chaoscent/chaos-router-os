@@ -3051,3 +3051,86 @@ a.setup-open{
 .vpn-full-tunnel{
     margin-top:14px;
 }
+
+/* ========================================================= */
+/* Web shell                                                 */
+/* ========================================================= */
+
+/* The terminal fills the height left under the header. */
+.page.shell-page{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:18px;
+}
+
+.shell-page .page-header{
+    margin-bottom:0;
+}
+
+.shell-unlock .setting-row .setting-input{
+    max-width:360px;
+}
+
+.shell-notice a.secondary-btn{
+    display:inline-flex;
+    align-items:center;
+    margin-top:4px;
+    text-decoration:none;
+}
+
+.shell-terminal-card{
+    flex:1 1 0;
+    min-height:360px;
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+}
+
+.shell-toolbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:12px;
+}
+
+.shell-toolbar .shell-state{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    margin:0;
+    font-size:13px;
+}
+
+.shell-toolbar .shell-state::before{
+    content:"";
+    width:8px;
+    height:8px;
+    border-radius:50%;
+    background:#626b7b;
+}
+
+.shell-toolbar .shell-state.connected::before{
+    background:#22c55e;
+}
+
+.shell-terminal{
+    flex:1 1 0;
+    min-height:0;
+    padding:10px;
+    background:#0f1117;
+    border:1px solid var(--border);
+    border-radius:12px;
+    overflow:hidden;
+}
+
+/* Phones and touch-only devices: the shell entry is greyed out. */
+@media (max-width:900px), (hover:none) and (pointer:coarse){
+
+    .sidebar a.nav-desktop-only{
+        opacity:.4;
+        pointer-events:none;
+        cursor:not-allowed;
+    }
+
+}

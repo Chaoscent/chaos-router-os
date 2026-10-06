@@ -59,6 +59,7 @@ Networking-first installation.
 * VPN (WireGuard and OpenVPN, servers and clients)
 * Logs
 * System
+* Shell (web terminal; off by default, password per session, desktop only)
 * Safe Apply (bad settings never brick the router)
 * Setup Wizard (first-time setup at `/setup`)
 * Caddy *(planned)*
@@ -270,6 +271,7 @@ A ready-made sudoers file will ship with the installer.
 | 🧪 | VPN page: OpenVPN server with its own certificate authority |
 | 🧪 | VPN page: WireGuard and OpenVPN client profiles |
 | 🧪 | Logs (router events and service logs) |
+| 🧪 | Web shell (xterm.js; off by default, password per session, LAN only) |
 | ⬜ | Start the app at boot (systemd service) |
 | ⬜ | Installer with sudoers file |
 | 🧪 | Setup Wizard (`/setup`: admin account, Wi-Fi; only until an account exists) |

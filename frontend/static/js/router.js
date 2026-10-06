@@ -24,6 +24,27 @@ document.addEventListener("DOMContentLoaded", ()=>{
         setNavOpen(false);
     });
 
+    // Phones: the shell needs a keyboard, so its entry is greyed out
+    // (CSS) and cannot be opened (also not from the keyboard).
+    const mobile = window.matchMedia("(max-width: 900px), (hover: none) and (pointer: coarse)");
+
+    const markMobileOnly = () => {
+        document.querySelectorAll(".sidebar a.nav-desktop-only").forEach(link=>{
+            link.setAttribute("aria-disabled", String(mobile.matches));
+            link.tabIndex = mobile.matches ? -1 : 0;
+            link.title = mobile.matches ? link.dataset.mobileTitle || "" : "";
+        });
+    };
+
+    markMobileOnly();
+    mobile.addEventListener("change", markMobileOnly);
+
+    document.querySelectorAll(".sidebar a.nav-desktop-only").forEach(link=>{
+        link.addEventListener("click", event=>{
+            if(mobile.matches) event.preventDefault();
+        });
+    });
+
     // Picking a page closes the menu.
     document.querySelectorAll(".sidebar nav a").forEach(link=>{
         link.addEventListener("click", ()=>setNavOpen(false));

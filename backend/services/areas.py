@@ -154,6 +154,7 @@ AREAS = {area.name: area for area in (
     Area("device_aliases", "Device names"),
     Area("dashboard", "Dashboard"),
     Area("security", "Session timeouts"),
+    Area("shell", "Web shell"),
     Area("users", "Login", secret=True)
 
 )}

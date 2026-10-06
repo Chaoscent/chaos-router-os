@@ -2,7 +2,13 @@ import json
 
 import os
 
+import time
 
+from urllib.parse import urlsplit
+
+
+
+from flask_sock import Sock
 
 from flask import (
 
@@ -296,6 +302,8 @@ from services import transaction
 
 from services import setup_network
 
+from services import shell as web_shell
+
 from factory_reset import factory_reset
 
 from setup import (
@@ -366,6 +374,9 @@ app.config.update(
 )
 
 app.jinja_env.globals["csrf_token"] = csrf_token
+
+# WebSockets (web shell).
+sock = Sock(app)
 
 
 @app.before_request
@@ -743,6 +754,8 @@ def logout():
 VALID_PAGES = {
 
         "dashboard",
+
+        "shell",
 
         "network",
 
@@ -2626,6 +2639,150 @@ def system_reboot_api():
                 log_event("system", f"Reboot requested by {session.get('user')} from {get_viewer_ip()}.")
 
         return jsonify({"success": ok, "message": message}), 200 if ok else 400
+
+
+
+
+
+# ------------------------------------------------------------
+
+# Web shell
+
+# ------------------------------------------------------------
+
+
+
+def check_password_again(password):
+        """
+        Asks for the admin password again (shell). Wrong attempts count
+        towards the login lockout. Returns None or an error response.
+        """
+
+        address = get_viewer_ip()
+
+        wait = login_retry_after(address)
+
+        if wait:
+                return jsonify({"success": False, "message": f"Too many failed attempts. Try again in {wait} seconds."}), 429
+
+        if not verify_login(session.get("user"), str(password or "")):
+
+                lockout = record_login_failure(address)
+
+                log_event("shell", f"Wrong password for the web shell from {address}.", "warning")
+
+                message = f"Wrong password. Locked for {lockout} seconds." if lockout else "Wrong password."
+
+                return jsonify({"success": False, "message": message}), 403
+
+        record_login_success(address)
+
+        return None
+
+
+
+
+
+@app.route("/api/shell/status")
+
+@login_required
+
+def shell_status_api():
+
+        return jsonify(web_shell.get_shell_status(get_viewer_ip()))
+
+
+
+
+
+@app.route("/api/shell/settings", methods=["POST"])
+
+@login_required
+
+def shell_settings_api():
+
+        data = request.get_json(silent=True) or {}
+
+        denied = check_password_again(data.get("password"))
+
+        if denied:
+                return denied
+
+        return safe_apply_response(web_shell.save_shell_settings(data.get("enabled") is True))
+
+
+
+
+
+@app.route("/api/shell/unlock", methods=["POST"])
+
+@login_required
+
+def shell_unlock_api():
+
+        address = get_viewer_ip()
+
+        if not web_shell.get_shell_settings()["enabled"]:
+                return jsonify({"success": False, "message": "The web shell is turned off (System page)."}), 403
+
+        allowed, reason = web_shell.is_allowed_address(address)
+
+        if not allowed:
+                return jsonify({"success": False, "message": reason}), 403
+
+        data = request.get_json(silent=True) or {}
+
+        denied = check_password_again(data.get("password"))
+
+        if denied:
+                return denied
+
+        return jsonify({"success": True, "token": web_shell.issue_token(session.get("user"), address)})
+
+
+
+
+
+@sock.route("/api/shell/ws")
+
+def shell_ws(ws):
+
+        # Same checks as every page, by hand: a WebSocket gets no
+        # login_required redirect and no CSRF header.
+        address = get_viewer_ip()
+
+        def refuse(message):
+                ws.send(f"\r\n\x1b[31m{message}\x1b[0m\r\n")
+                ws.close()
+
+        if not is_logged_in():
+                return refuse("Not signed in.")
+
+        # Another website always has another host name; ports are left
+        # out because not every client sends them in the Host header.
+        origin = urlsplit(request.headers.get("Origin", "")).hostname
+        host = urlsplit(f"//{request.host}").hostname
+
+        if not origin or origin != host:
+                return refuse("Connection refused (wrong origin).")
+
+        if not web_shell.get_shell_settings()["enabled"]:
+                return refuse("The web shell is turned off.")
+
+        allowed, reason = web_shell.is_allowed_address(address)
+
+        if not allowed:
+                return refuse(reason)
+
+        user = session.get("user")
+
+        if not web_shell.redeem_token(request.args.get("token"), user, address):
+                return refuse("The key expired. Enter your password again.")
+
+        # Never longer than the dashboard session itself.
+        lifetime = max(0, session.get("created_at", 0) + get_absolute_timeout() - time.time())
+
+        web_shell.run_session(ws, user, address, lifetime)
 
 
 

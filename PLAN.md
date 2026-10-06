@@ -96,6 +96,9 @@ Without these it isn't a router yet.
   - [ ] Test on the Pi 5 with a real provider: LAN devices' public IP is the VPN's.
   - [ ] While a full tunnel is up, answers to connections from the internet side (WireGuard/OpenVPN servers on the router, remote dashboard access over the modem) also go into the tunnel and break. Needs policy routing for traffic that came in on the WAN.
   - [ ] Kill switch: block LAN internet access while the full-tunnel VPN is down, so nothing leaks over the WAN.
+- [x] **Web shell** (Shell page; `backend/services/shell.py`, xterm.js 6 + fit add-on vendored in `frontend/static/vendor/xterm`, MIT): off by default (System > Web Shell, password to switch), password + 60 s one-time key per session (counts toward the login lockout), WebSocket origin check, never from the WAN interface or the modem, max 2 sessions, 15 min idle and session-lifetime limits, every session logged. Greyed out on phones/touch-only devices.
+  - [ ] Test on the Pi 5 under the systemd service (gunicorn threads + WebSocket).
+  - [ ] Keystrokes travel unencrypted until Caddy serves HTTPS.
 - [ ] **Apps page.** Still a placeholder. Hide it or label it "coming in v2" before v1.
 - [ ] **Active Clients is not a real count.** The dashboard shows 1 whenever there is any traffic. Count clients that sent traffic recently instead (per-client counters, e.g. from the neighbour table plus iptables accounting or conntrack).
 - [ ] **OpenVPN on slower CPUs.** Consider putting `CHACHA20-POLY1305` first in `CIPHERS`; it's faster than AES on a Pi 4, which lacks AES instructions.

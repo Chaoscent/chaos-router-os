@@ -682,6 +682,95 @@ window.Page.system = {
     },
 
     // ------------------------------------------------------------
+    // Web shell
+    // ------------------------------------------------------------
+
+    shellEnabled: false,
+
+    async loadShell() {
+
+        try {
+
+            const res = await fetch("/api/shell/status");
+
+            if (!res.ok) return;
+
+            this.shellEnabled = (await res.json()).enabled;
+
+        } catch {
+            return;
+        }
+
+        shellToggle.disabled = false;
+        shellToggle.textContent = this.shellEnabled ? "Turn Off" : "Turn On…";
+        shellToggle.classList.toggle("danger-btn", this.shellEnabled);
+
+        if (!shellSettingStatus.dataset.keep) {
+            shellSettingStatus.textContent = this.shellEnabled ? "The web shell is on." : "The web shell is off.";
+        }
+
+        delete shellSettingStatus.dataset.keep;
+
+    },
+
+    async toggleShell() {
+
+        const enable = !this.shellEnabled;
+
+        const body = document.createElement("div");
+
+        body.innerHTML = `
+            <label class="modal-field">
+                <span>Your password</span>
+                <input id="shellSettingPassword" class="setting-input" type="password" autocomplete="current-password">
+            </label>
+        `;
+
+        const confirmed = await ChaosModal.confirm({
+            title: enable ? "Turn on the web shell?" : "Turn off the web shell?",
+            subtitle: enable
+                ? "Anyone who signs in to this dashboard and knows your password can then run any command on the router."
+                : "Open shells keep running until they are closed or time out.",
+            body,
+            confirmText: enable ? "Turn On" : "Turn Off"
+        });
+
+        if (!confirmed) return;
+
+        shellToggle.disabled = true;
+        shellSettingStatus.textContent = "Saving...";
+
+        let data = {};
+
+        try {
+
+            const res = await fetch("/api/shell/settings", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    enabled: enable,
+                    password: body.querySelector("#shellSettingPassword").value
+                })
+            });
+
+            data = await res.json();
+
+        } catch {
+            data = { message: "The router did not answer." };
+        }
+
+        shellSettingStatus.textContent = data.success
+            ? (enable ? "✓ Web shell turned on" : "✓ Web shell turned off")
+            : data.message || "Could not be saved.";
+
+        shellSettingStatus.dataset.keep = "1";
+
+        await this.loadShell();
+
+    },
+
+
+    // ------------------------------------------------------------
     // Factory reset
     // ------------------------------------------------------------
 
@@ -860,6 +949,10 @@ window.Page.system = {
         rebootButton.onclick = () => this.reboot();
 
         factoryResetButton.onclick = () => this.factoryReset();
+
+        shellToggle.onclick = () => this.toggleShell();
+
+        this.loadShell();
 
     },
 

@@ -454,6 +454,13 @@ def _validate_security(data):
     return cleaned
 
 
+def _validate_shell(data):
+
+    _require(isinstance(data.get("enabled"), bool), "Invalid web shell setting.")
+
+    return {"enabled": data["enabled"]}
+
+
 def _validate_users(data):
 
     _require(isinstance(data, dict) and data, "No login users.")
@@ -518,6 +525,7 @@ def get_validators():
         "device_aliases": _validate_aliases,
         "dashboard": _validate_dashboard,
         "security": _validate_security,
+        "shell": _validate_shell,
         "users": _validate_users
     }
 
