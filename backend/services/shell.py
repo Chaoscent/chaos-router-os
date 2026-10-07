@@ -1,8 +1,10 @@
 """
 Web shell: a terminal on the router in the browser (System > Shell).
 
-The app's user has passwordless sudo, so this is root access to the
-router. Safeguards:
+Commands run as the app's user. With passwordless sudo for everything
+(Raspberry Pi OS's default user) that is root access to the router;
+with the installer's limited sudoers file, other sudo commands ask for
+the user's password. Either way, guarded:
 
 - Off by default; switched on in the System page (shell.json).
 - Every session needs the admin password again (counted by the login

@@ -142,13 +142,21 @@ body{
     color:white;
 }
 
+/* Each sidebar section has its own colour for the active marker. */
+.sidebar a[data-group="overview"]{ --nav-color:#4ea1ff; }
+.sidebar a[data-group="network"]{ --nav-color:#22d3ee; }
+.sidebar a[data-group="security"]{ --nav-color:#f59e0b; }
+.sidebar a[data-group="system"]{ --nav-color:#a78bfa; }
+.sidebar a[data-group="apps"]{ --nav-color:#4ade80; }
+
 .sidebar a.active{
     background:rgba(78,161,255,.18);
+    background:color-mix(in srgb, var(--nav-color, var(--accent)) 18%, transparent);
     color:white;
 }
 
 .sidebar a.active::before{
-    background:var(--accent);
+    background:var(--nav-color, var(--accent));
 }
 
 .sidebar-divider{
@@ -3114,14 +3122,29 @@ a.setup-open{
     background:#22c55e;
 }
 
+/* xterm's fit add-on sizes the terminal from this box's height and
+   only subtracts the padding of xterm's own element. So: no padding
+   here, and a height without the border (content-box), otherwise the
+   last row ends up below the frame. */
 .shell-terminal{
     flex:1 1 0;
     min-height:0;
-    padding:10px;
+    box-sizing:content-box;
+    padding:0;
     background:#0f1117;
     border:1px solid var(--border);
     border-radius:12px;
     overflow:hidden;
+}
+
+.shell-terminal .xterm{
+    padding:10px;
+}
+
+/* xterm.css paints the scroll area black; match the terminal colour. */
+.shell-terminal .xterm,
+.shell-terminal .xterm .xterm-viewport{
+    background-color:#0f1117;
 }
 
 /* Phones and touch-only devices: the shell entry is greyed out. */

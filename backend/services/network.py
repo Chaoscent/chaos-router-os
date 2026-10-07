@@ -406,8 +406,9 @@ def get_default_interface():
 
 def get_connection_type(interface):
 
+    # LTE or 5G: the header shows which, from the modem itself.
     if interface.startswith(("wwan", "cdc", "usb")):
-        return "5G"
+        return "Cellular"
 
     if interface.startswith("eth"):
         return "Ethernet"

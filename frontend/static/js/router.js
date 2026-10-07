@@ -130,7 +130,7 @@ async function loadController(route){
         const script = document.createElement("script");
 
         script.id = "page-controller";
-        script.src = `/static/js/${route}.js`;
+        script.src = `/static/js/${route}.js?v=${window.ASSET_VERSION || ""}`;
 
         script.onload = resolve;
         script.onerror = resolve;

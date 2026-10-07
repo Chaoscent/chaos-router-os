@@ -5,9 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Chaos Router OS</title>
-    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
+    <link rel="icon" sizes="16x16 32x32 48x48" href="{{ asset('favicon.ico') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/style.css') }}">
 </head>
 <body>
 
@@ -18,32 +20,32 @@
         <div class="logo">Chaos Router OS</div>
 
         <nav>
-            <a href="#/dashboard" data-route="dashboard">Dashboard</a>
+            <a href="#/dashboard" data-route="dashboard" data-group="overview">Dashboard</a>
 
             <hr class="sidebar-divider">
 
-            <a href="#/modem" data-route="modem">Modem</a>
-            <a href="#/network" data-route="network">Network</a>
-            <a href="#/wifi" data-route="wifi">WiFi</a>
-            <a href="#/dhcp" data-route="dhcp">DHCP</a>
-            <a href="#/dns" data-route="dns">DNS</a>
-            <a href="#/clients" data-route="clients">Clients</a>
+            <a href="#/modem" data-route="modem" data-group="network">Modem</a>
+            <a href="#/network" data-route="network" data-group="network">Network</a>
+            <a href="#/wifi" data-route="wifi" data-group="network">WiFi</a>
+            <a href="#/dhcp" data-route="dhcp" data-group="network">DHCP</a>
+            <a href="#/dns" data-route="dns" data-group="network">DNS</a>
+            <a href="#/clients" data-route="clients" data-group="network">Clients</a>
 
             <hr class="sidebar-divider">
 
-            <a href="#/firewall" data-route="firewall">Firewall</a>
-            <a href="#/vpn" data-route="vpn">VPN</a>
+            <a href="#/firewall" data-route="firewall" data-group="security">Firewall</a>
+            <a href="#/vpn" data-route="vpn" data-group="security">VPN</a>
 
             <hr class="sidebar-divider">
 
-            <a href="#/logs" data-route="logs">Logs</a>
-            <a href="#/system" data-route="system">System</a>
-            <a href="#/shell" data-route="shell" class="nav-desktop-only"
+            <a href="#/logs" data-route="logs" data-group="system">Logs</a>
+            <a href="#/system" data-route="system" data-group="system">System</a>
+            <a href="#/shell" data-route="shell" data-group="system" class="nav-desktop-only"
                data-mobile-title="The shell needs a computer with a keyboard">Shell</a>
 
             <hr class="sidebar-divider">
 
-            <a href="#/apps" data-route="apps">Apps</a>
+            <a href="#/apps" data-route="apps" data-group="apps">Apps</a>
         </nav>
 
         <footer class="sidebar-credits">
@@ -195,12 +197,14 @@
 
 </div>
 
-<script src="{{ url_for('static', filename='js/csrf.js') }}"></script>
-<script src="{{ url_for('static', filename='js/header.js') }}"></script>
-<script src="{{ url_for('static', filename='js/select.js') }}"></script>
-<script src="{{ url_for('static', filename='js/modal.js') }}"></script>
-<script src="{{ url_for('static', filename='js/apply.js') }}"></script>
-<script src="{{ url_for('static', filename='js/router.js') }}"></script>
+<!-- router.js adds this to the page scripts it loads (cache busting). -->
+<script>window.ASSET_VERSION = "{{ page_scripts_version() }}";</script>
+<script src="{{ asset('js/csrf.js') }}"></script>
+<script src="{{ asset('js/header.js') }}"></script>
+<script src="{{ asset('js/select.js') }}"></script>
+<script src="{{ asset('js/modal.js') }}"></script>
+<script src="{{ asset('js/apply.js') }}"></script>
+<script src="{{ asset('js/router.js') }}"></script>
 
 </body>
 </html>

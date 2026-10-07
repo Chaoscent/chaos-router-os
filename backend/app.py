@@ -375,6 +375,39 @@ app.config.update(
 
 app.jinja_env.globals["csrf_token"] = csrf_token
 
+
+def asset(filename):
+        """
+        A static file's URL with its modification time (?v=...): a
+        changed file gets a new URL, so browsers never keep an old copy
+        (tab icons are cached especially stubbornly).
+        """
+
+        try:
+                version = int(os.path.getmtime(os.path.join(app.static_folder, filename)))
+        except OSError:
+                version = 0
+
+        return url_for("static", filename=filename, v=version)
+
+
+def page_scripts_version():
+        """
+        Newest change among the page scripts that router.js loads by
+        name (/static/js/<page>.js).
+        """
+
+        folder = os.path.join(app.static_folder, "js")
+
+        try:
+                return max(int(e.stat().st_mtime) for e in os.scandir(folder) if e.name.endswith(".js"))
+        except (OSError, ValueError):
+                return 0
+
+
+app.jinja_env.globals["asset"] = asset
+app.jinja_env.globals["page_scripts_version"] = page_scripts_version
+
 # WebSockets (web shell).
 sock = Sock(app)
 
@@ -581,12 +614,12 @@ def home():
 
 
 
-# Browsers ask for /favicon.ico on their own; the icon is an SVG.
+# Browsers ask for /favicon.ico on their own.
 @app.route("/favicon.ico")
 
 def favicon():
 
-        return redirect(url_for("static", filename="favicon.svg"), code=301)
+        return app.send_static_file("favicon.ico")
 
 
 

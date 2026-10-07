@@ -85,9 +85,10 @@ window.Page.shell = {
 
         const status = await res.json();
 
+
         if (!status.enabled) {
             this.notice("The shell is turned off",
-                "Turn it on in the System page (Maintenance > Web Shell). It is off by default because it gives full control over the router.",
+                "Turn it on in the System page (Maintenance > Web Shell). It is off by default because commands run on the router itself.",
                 true);
             return;
         }
