@@ -549,6 +549,16 @@ Planned: offering a backup download before a reset. Today, download one on the S
 
 ---
 
+# Licensing
+
+- **Software** (Core, Hardware Edition branch, Apps Addon): PolyForm Noncommercial 1.0.0 ([LICENSE.md](LICENSE.md)). Free for noncommercial use; commercial use needs a license from the author. The `Required Notice` line (Chaoscent) must stay in every copy.
+- **Docs, website, images, videos:** CC BY-NC 4.0.
+- **Contributions:** under the agreement in [CONTRIBUTING.md](CONTRIBUTING.md), which lets the author use them in commercial products, e.g. on Chaos Router hardware.
+- **Names and logos:** not licensed. **Chaos Router hardware** (PCB, case): not public.
+- **Third-party code** keeps its license (xterm.js: MIT). Devices sold with Chaos Router OS preinstalled must also meet the obligations of the GPL software in the OS image (Linux, dnsmasq, ...): its source code or a written offer for it, and its license texts.
+
+---
+
 # Development Workflow
 
 Development happens on a PC (WSL), hardware testing on the Raspberry Pi.

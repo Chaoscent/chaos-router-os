@@ -350,7 +350,21 @@ These are considered non-negotiable for Chaos Router OS.
 
 ## License
 
-License to be decided before v1 release.
+Chaos Router OS is free for **noncommercial use**: at home, for learning, in schools, clubs and nonprofits. You may use, change and share it, as long as the copyright notice in [LICENSE.md](LICENSE.md) ("Chaoscent - Chaos Router OS") stays with every copy.
+
+**Companies and any commercial use need permission first.** That includes selling devices with it, offering it as a service, or using it in a business. Ask at contact@chaos-software.dev for a commercial license.
+
+| Part | License |
+|---|---|
+| Software (this repository, the Apps Addon) | [PolyForm Noncommercial 1.0.0](LICENSE.md) |
+| Documentation, website texts, images, videos | [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/): credit Chaoscent, no commercial use |
+| xterm.js (`frontend/static/vendor/xterm`) | MIT, its own license files |
+| Names "Chaos Router", "Chaos Router OS" and the logos | Not licensed |
+| Chaos Router hardware (PCB, case) | Not public |
+
+The source code is public, but it is **source-available**, not "open source" in the OSI sense, because commercial use needs permission.
+
+Contributions come under the agreement in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
