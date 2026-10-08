@@ -1,0 +1,14 @@
+# Jellyfin. Media goes into ${CHAOS_DATA}/media on the router.
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${CHAOS_PORT}:8096"
+    volumes:
+      - "${CHAOS_DATA}/config:/config"
+      - "${CHAOS_DATA}/cache:/cache"
+      - "${CHAOS_DATA}/media:/media"
+    environment:
+      TZ: "${TZ}"
+      JELLYFIN_PublishedServerUrl: "http://${CHAOS_HOST}"

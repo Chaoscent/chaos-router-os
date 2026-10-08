@@ -1,0 +1,12 @@
+{
+  "id": "vaultwarden",
+  "name": "Vaultwarden",
+  "description": "Password manager for the whole household. Works with the Bitwarden apps and browser extensions.",
+  "category": "Security",
+  "website": "https://github.com/dani-garcia/vaultwarden",
+  "port": 9102,
+  "download_mb": 250,
+  "https": true,
+  "dirs": ["data"],
+  "first_steps": "Open it over HTTPS and create your account. Anyone on your network can sign up until you set SIGNUPS_ALLOWED to false."
+}

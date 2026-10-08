@@ -1,0 +1,12 @@
+{
+  "id": "nextcloud",
+  "name": "Nextcloud",
+  "description": "Your own cloud: files, calendar and contacts, synced to every device.",
+  "category": "Productivity",
+  "website": "https://nextcloud.com",
+  "port": 9104,
+  "download_mb": 1500,
+  "secrets": ["DB_PASSWORD", "DB_ROOT_PASSWORD"],
+  "dirs": ["html", "db"],
+  "first_steps": "Create the admin account on the first visit; the database is already set up."
+}

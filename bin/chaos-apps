@@ -1,0 +1,595 @@
+#!/usr/bin/env python3
+"""
+Chaos Router Apps: the App Manager.
+
+Installs and runs the apps in catalog/ with Docker Compose. Runs as
+root (Docker); Chaos Router OS calls it with `sudo -n chaos-apps ...`,
+which its sudoers file allows. Only apps from the catalog can be
+installed, so this never runs a compose file from anywhere else.
+
+    chaos-apps version                      versions, Docker state (JSON)
+    chaos-apps catalog                      apps that can be installed (JSON)
+    chaos-apps status                       installed apps and their state (JSON)
+    chaos-apps install <app> --host <name>  pull and start an app
+    chaos-apps start|stop|restart <app>
+    chaos-apps update <app>                 pull newer images, recreate
+    chaos-apps set-host <app> <name>        the name the app is reached at
+    chaos-apps remove <app> [--delete-data]
+    chaos-apps logs <app> [--lines N]
+
+Every app is a Compose project "chaos-<app>". Its settings (app.env,
+with generated passwords) and data live in /var/lib/chaos-router-apps/
+apps/<app>/; removing an app keeps its data unless --delete-data.
+"""
+
+import argparse
+import fcntl
+import json
+import os
+import re
+import secrets
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+
+VERSION = "0.1.0"
+
+ADDON_DIR = Path(__file__).resolve().parent.parent
+CATALOG_DIR = ADDON_DIR / "catalog"
+
+# Overridable for tests only (sudo resets the environment).
+STATE_DIR = Path(os.environ.get("CHAOS_APPS_STATE", "/var/lib/chaos-router-apps"))
+DOCKER = os.environ.get("CHAOS_APPS_DOCKER", "docker")
+
+APPS_DIR = STATE_DIR / "apps"
+LOCK_FILE = STATE_DIR / ".lock"
+
+APP_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,30}$")
+HOST_RE = re.compile(r"^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
+SECRET_RE = re.compile(r"^[A-Z][A-Z0-9_]{0,63}$")
+
+
+class Fail(Exception):
+    """A message for the user; exit status 1."""
+
+
+# -------------------------------------------------------------------
+# Output
+# -------------------------------------------------------------------
+
+def say(message):
+    print(message, flush=True)
+
+
+def print_json(data):
+    print(json.dumps(data, indent=1))
+
+
+# -------------------------------------------------------------------
+# Catalog
+# -------------------------------------------------------------------
+
+def load_app(app_id):
+    """
+    The app's catalog entry (app.json) plus its compose file path.
+    """
+
+    if not APP_ID_RE.fullmatch(app_id or ""):
+        raise Fail(f"Unknown app: {app_id}")
+
+    folder = CATALOG_DIR / app_id
+    compose = folder / "compose.yaml"
+
+    try:
+        with open(folder / "app.json") as f:
+            app = json.load(f)
+    except (OSError, ValueError):
+        raise Fail(f"Unknown app: {app_id}")
+
+    if app.get("id") != app_id or not compose.is_file():
+        raise Fail(f"The catalog entry for {app_id} is broken.")
+
+    app["compose_file"] = compose
+
+    return app
+
+
+def catalog():
+
+    apps = []
+
+    for folder in sorted(CATALOG_DIR.iterdir()) if CATALOG_DIR.is_dir() else []:
+
+        if not (folder / "app.json").is_file():
+            continue
+
+        try:
+            app = load_app(folder.name)
+        except Fail:
+            continue
+
+        app.pop("compose_file")
+        apps.append(app)
+
+    return apps
+
+
+# -------------------------------------------------------------------
+# Installed apps
+# -------------------------------------------------------------------
+
+def app_dir(app_id):
+    return APPS_DIR / app_id
+
+
+def env_file(app_id):
+    return app_dir(app_id) / "app.env"
+
+
+def data_dir(app_id):
+    return app_dir(app_id) / "data"
+
+
+def is_installed(app_id):
+    return env_file(app_id).is_file()
+
+
+def read_env(app_id):
+
+    values = {}
+
+    try:
+        with open(env_file(app_id)) as f:
+            for line in f:
+                key, sep, value = line.strip().partition("=")
+                if sep and not key.startswith("#"):
+                    values[key] = value
+    except OSError:
+        pass
+
+    return values
+
+
+def write_env(app_id, values):
+
+    path = env_file(app_id)
+    tmp = path.with_suffix(".tmp")
+
+    with open(os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600), "w") as f:
+        f.write("# Chaos Router Apps: settings of this app. Generated, keep private.\n")
+        for key, value in values.items():
+            f.write(f"{key}={value}\n")
+
+    os.replace(tmp, path)
+
+
+def timezone():
+
+    try:
+        with open("/etc/timezone") as f:
+            zone = f.read().strip()
+            if zone:
+                return zone
+    except OSError:
+        pass
+
+    try:
+        return str(Path("/etc/localtime").resolve()).split("/zoneinfo/", 1)[1]
+    except (OSError, IndexError):
+        return "UTC"
+
+
+def new_env(app, host):
+    """
+    Settings for the compose file: where the app keeps its data, the
+    port it is published on (127.0.0.1 only), its name, and passwords
+    generated for this router.
+    """
+
+    values = {
+        "CHAOS_APP": app["id"],
+        "CHAOS_HOST": host,
+        "CHAOS_PORT": str(app["port"]),
+        "CHAOS_DATA": str(data_dir(app["id"])),
+        "TZ": timezone()
+    }
+
+    for name in app.get("secrets", []):
+
+        if not SECRET_RE.fullmatch(name):
+            raise Fail(f"The catalog entry for {app['id']} has an invalid secret name.")
+
+        values[name] = secrets.token_urlsafe(24)
+
+    return values
+
+
+# -------------------------------------------------------------------
+# Docker
+# -------------------------------------------------------------------
+
+def docker_ok():
+
+    try:
+        result = subprocess.run(
+            [DOCKER, "info", "--format", "{{.ServerVersion}}"],
+            capture_output=True, text=True, timeout=20
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+
+    return result.stdout.strip() or None if result.returncode == 0 else None
+
+
+def require_docker():
+
+    if not docker_ok():
+        raise Fail("Docker is not running. Start it with: sudo systemctl start docker")
+
+
+def compose_cmd(app, *args):
+
+    app_id = app["id"]
+
+    return [
+        DOCKER, "compose",
+        "--project-name", f"chaos-{app_id}",
+        "--project-directory", str(app_dir(app_id)),
+        "--file", str(app["compose_file"]),
+        "--env-file", str(env_file(app_id)),
+        *args
+    ]
+
+
+def stream(cmd):
+    """
+    Runs a command, passing its output through line by line.
+    """
+
+    try:
+        process = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, bufsize=1
+        )
+    except OSError as e:
+        raise Fail(f"Could not run {cmd[0]}: {e}")
+
+    for line in process.stdout:
+        line = line.rstrip()
+        if line:
+            say(line)
+
+    return process.wait() == 0
+
+
+def compose(app, *args, what="Docker Compose"):
+
+    if not stream(compose_cmd(app, *args)):
+        raise Fail(f"{what} failed (see above).")
+
+
+def containers(app):
+    """
+    The app's containers: [{"name", "service", "state", "status"}].
+    Compose prints a JSON array (older v2) or one object per line.
+    """
+
+    result = subprocess.run(
+        compose_cmd(app, "ps", "--all", "--format", "json"),
+        capture_output=True, text=True
+    )
+
+    if result.returncode != 0:
+        return []
+
+    text = result.stdout.strip()
+
+    if not text:
+        return []
+
+    try:
+        items = json.loads(text)
+        items = items if isinstance(items, list) else [items]
+    except ValueError:
+        items = [json.loads(line) for line in text.splitlines() if line.strip()]
+
+    return [
+        {
+            "name": c.get("Name", ""),
+            "service": c.get("Service", ""),
+            "state": c.get("State", ""),
+            "status": c.get("Status", "")
+        }
+        for c in items
+    ]
+
+
+def app_state(items):
+
+    states = [c["state"] for c in items]
+
+    if not states:
+        return "stopped"
+
+    if all(s == "running" for s in states):
+        return "running"
+
+    if any(s in ("restarting", "dead") for s in states):
+        return "error"
+
+    if any(s == "running" for s in states):
+        return "partial"
+
+    return "stopped"
+
+
+# -------------------------------------------------------------------
+# Commands
+# -------------------------------------------------------------------
+
+def cmd_version(args):
+
+    compose_version = None
+
+    try:
+        result = subprocess.run(
+            [DOCKER, "compose", "version", "--short"],
+            capture_output=True, text=True, timeout=20
+        )
+        if result.returncode == 0:
+            compose_version = result.stdout.strip() or None
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+    server = docker_ok()
+
+    print_json({
+        "addon": VERSION,
+        "docker": server,
+        "running": server is not None,
+        "compose": compose_version
+    })
+
+
+def cmd_catalog(args):
+    print_json(catalog())
+
+
+def cmd_status(args):
+
+    running = docker_ok() is not None
+    result = []
+
+    for app in catalog():
+
+        if not is_installed(app["id"]):
+            continue
+
+        env = read_env(app["id"])
+        items = containers(load_app(app["id"])) if running else []
+
+        result.append({
+            "id": app["id"],
+            "host": env.get("CHAOS_HOST", ""),
+            "port": app["port"],
+            "state": app_state(items) if running else "unknown",
+            "containers": items
+        })
+
+    print_json(result)
+
+
+def check_host(host):
+
+    host = str(host or "").strip().lower().rstrip(".")
+
+    if not HOST_RE.fullmatch(host):
+        raise Fail(f"Not a valid host name: {host}")
+
+    return host
+
+
+def cmd_install(args):
+
+    app = load_app(args.app)
+    host = check_host(args.host)
+
+    if is_installed(app["id"]):
+        raise Fail(f"{app['name']} is already installed.")
+
+    require_docker()
+
+    folder = app_dir(app["id"])
+    new_folder = not folder.exists()
+
+    data = data_dir(app["id"])
+    data.mkdir(parents=True, exist_ok=True)
+    os.chmod(folder, 0o700)
+
+    for sub in app.get("dirs", []):
+        if re.fullmatch(r"[a-z0-9_-]{1,32}", sub):
+            (data / sub).mkdir(exist_ok=True)
+
+    write_env(app["id"], new_env(app, host))
+
+    try:
+        say(f"==> Downloading {app['name']} (this can take a while)")
+        compose(app, "pull", "--quiet", what="Downloading")
+
+        say(f"==> Starting {app['name']}")
+        compose(app, "up", "--detach", "--remove-orphans", what="Starting")
+
+    except Fail:
+        # Back to "not installed"; data from an earlier install stays.
+        stream(compose_cmd(app, "down", "--remove-orphans"))
+        env_file(app["id"]).unlink(missing_ok=True)
+
+        if new_folder:
+            shutil.rmtree(folder, ignore_errors=True)
+
+        raise
+
+    say(f"==> {app['name']} is installed: http://{host}/")
+
+
+def installed_app(app_id):
+
+    app = load_app(app_id)
+
+    if not is_installed(app["id"]):
+        raise Fail(f"{app['name']} is not installed.")
+
+    return app
+
+
+def cmd_start(args):
+    app = installed_app(args.app)
+    require_docker()
+    compose(app, "up", "--detach", "--remove-orphans", what="Starting")
+    say(f"==> {app['name']} is running.")
+
+
+def cmd_stop(args):
+    app = installed_app(args.app)
+    require_docker()
+    compose(app, "stop", what="Stopping")
+    say(f"==> {app['name']} is stopped.")
+
+
+def cmd_restart(args):
+    app = installed_app(args.app)
+    require_docker()
+    compose(app, "restart", what="Restarting")
+    say(f"==> {app['name']} restarted.")
+
+
+def cmd_update(args):
+    app = installed_app(args.app)
+    require_docker()
+    say(f"==> Downloading updates for {app['name']}")
+    compose(app, "pull", "--quiet", what="Downloading")
+    compose(app, "up", "--detach", "--remove-orphans", what="Starting")
+    say(f"==> {app['name']} is up to date.")
+
+
+def cmd_set_host(args):
+
+    app = installed_app(args.app)
+    host = check_host(args.host)
+
+    env = read_env(app["id"])
+
+    if env.get("CHAOS_HOST") == host:
+        say(f"{app['name']} already uses {host}.")
+        return
+
+    env["CHAOS_HOST"] = host
+    write_env(app["id"], env)
+
+    # Containers that use the name are recreated.
+    if docker_ok():
+        compose(app, "up", "--detach", "--remove-orphans", what="Starting")
+
+    say(f"==> {app['name']} is now reached at {host}.")
+
+
+def cmd_remove(args):
+
+    app = installed_app(args.app)
+    require_docker()
+
+    say(f"==> Removing {app['name']}")
+    compose(app, "down", "--remove-orphans", "--rmi", "all", what="Removing")
+
+    env_file(app["id"]).unlink(missing_ok=True)
+
+    folder = app_dir(app["id"])
+
+    if args.delete_data:
+        # Only ever below the apps folder.
+        if folder.resolve().parent == APPS_DIR.resolve():
+            shutil.rmtree(folder, ignore_errors=True)
+        say(f"==> {app['name']} and its data are removed.")
+    else:
+        say(f"==> {app['name']} is removed. Its data stays in {data_dir(app['id'])}.")
+
+
+def cmd_logs(args):
+    app = installed_app(args.app)
+    require_docker()
+    lines = max(1, min(int(args.lines), 2000))
+    stream(compose_cmd(app, "logs", "--no-color", "--tail", str(lines)))
+
+
+# -------------------------------------------------------------------
+# Main
+# -------------------------------------------------------------------
+
+def parser():
+
+    p = argparse.ArgumentParser(prog="chaos-apps", description="Chaos Router Apps: App Manager")
+    sub = p.add_subparsers(dest="command", required=True)
+
+    sub.add_parser("version").set_defaults(func=cmd_version, locked=False)
+    sub.add_parser("catalog").set_defaults(func=cmd_catalog, locked=False)
+    sub.add_parser("status").set_defaults(func=cmd_status, locked=False)
+
+    s = sub.add_parser("install")
+    s.add_argument("app")
+    s.add_argument("--host", required=True)
+    s.set_defaults(func=cmd_install, locked=True)
+
+    for name, func in (("start", cmd_start), ("stop", cmd_stop),
+                       ("restart", cmd_restart), ("update", cmd_update)):
+        s = sub.add_parser(name)
+        s.add_argument("app")
+        s.set_defaults(func=func, locked=True)
+
+    s = sub.add_parser("set-host")
+    s.add_argument("app")
+    s.add_argument("host")
+    s.set_defaults(func=cmd_set_host, locked=True)
+
+    s = sub.add_parser("remove")
+    s.add_argument("app")
+    s.add_argument("--delete-data", action="store_true")
+    s.set_defaults(func=cmd_remove, locked=True)
+
+    s = sub.add_parser("logs")
+    s.add_argument("app")
+    s.add_argument("--lines", default="200")
+    s.set_defaults(func=cmd_logs, locked=False)
+
+    return p
+
+
+def main():
+
+    args = parser().parse_args()
+
+    try:
+
+        if args.locked:
+            # One change at a time.
+            APPS_DIR.mkdir(parents=True, exist_ok=True)
+            lock = open(LOCK_FILE, "w")
+            try:
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError:
+                raise Fail("Another app change is running. Try again when it is done.")
+
+        args.func(args)
+
+    except Fail as e:
+        print(f"Error: {e}", file=sys.stderr, flush=True)
+        return 1
+
+    except KeyboardInterrupt:
+        return 130
+
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

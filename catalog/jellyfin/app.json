@@ -1,0 +1,11 @@
+{
+  "id": "jellyfin",
+  "name": "Jellyfin",
+  "description": "Media server for your films, series and music, on TVs, phones and in the browser.",
+  "category": "Media",
+  "website": "https://jellyfin.org",
+  "port": 9103,
+  "download_mb": 1200,
+  "dirs": ["config", "cache", "media"],
+  "first_steps": "Follow the setup on the first visit. Put your media into the app's media folder on the router (shown on the Apps page)."
+}

@@ -1,0 +1,13 @@
+# Vaultwarden. The web vault only works over HTTPS (browsers allow its
+# encryption only there), which Caddy on the router provides.
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${CHAOS_PORT}:80"
+    volumes:
+      - "${CHAOS_DATA}/data:/data"
+    environment:
+      DOMAIN: "https://${CHAOS_HOST}"
+      TZ: "${TZ}"

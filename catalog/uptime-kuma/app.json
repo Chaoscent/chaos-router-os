@@ -1,0 +1,11 @@
+{
+  "id": "uptime-kuma",
+  "name": "Uptime Kuma",
+  "description": "Watches websites, servers and devices and tells you when one goes down.",
+  "category": "Monitoring",
+  "website": "https://github.com/louislam/uptime-kuma",
+  "port": 9101,
+  "download_mb": 450,
+  "dirs": ["data"],
+  "first_steps": "Create the admin account on the first visit."
+}
