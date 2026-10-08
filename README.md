@@ -362,8 +362,6 @@ Chaos Router OS is free for **noncommercial use**: at home, for learning, in sch
 | Names "Chaos Router", "Chaos Router OS" and the logos | Not licensed |
 | Chaos Router hardware (PCB, case) | Not public |
 
-The source code is public, but it is **source-available**, not "open source" in the OSI sense, because commercial use needs permission.
-
 Contributions come under the agreement in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
