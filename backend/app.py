@@ -417,6 +417,34 @@ def page_scripts_version():
 app.jinja_env.globals["asset"] = asset
 app.jinja_env.globals["page_scripts_version"] = page_scripts_version
 
+
+def read_app_version():
+        """
+        The version from VERSION in the repository root, plus the git
+        commit when running from a clone, e.g. "0.1.0-alpha (c827d5b)".
+        Read once at startup.
+        """
+
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+        try:
+                with open(os.path.join(root, "VERSION")) as f:
+                        version = f.read().strip() or "unknown"
+        except OSError:
+                version = "unknown"
+
+        from services.network import run
+
+        # None without git or outside a clone: then just the version.
+        commit = run(["git", "-C", root, "rev-parse", "--short", "HEAD"])
+
+        return f"{version} ({commit})" if commit else version
+
+
+APP_VERSION = read_app_version()
+
+app.jinja_env.globals["app_version"] = APP_VERSION
+
 # WebSockets (web shell).
 sock = Sock(app)
 

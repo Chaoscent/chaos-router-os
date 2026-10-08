@@ -353,7 +353,7 @@ License to be decided before v1 release.
 
 ## Status
 
-**Early development.**
+**Alpha: version 0.1.0-alpha** (the `VERSION` file; the dashboard shows it at the bottom of the sidebar, with the git commit on installs from a clone). Versions follow [semantic versioning](https://semver.org): `0.x` until the v1 release, then `1.0.0`.
 
 If something is broken, open an issue.
 

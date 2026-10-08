@@ -2652,6 +2652,11 @@ main > *{
     opacity:.75;
 }
 
+.sidebar-version{
+    display:block;
+    font-variant-numeric:tabular-nums;
+}
+
 /* Undo the navigation link style for these small text links. */
 .sidebar .sidebar-credits a{
     display:inline;
