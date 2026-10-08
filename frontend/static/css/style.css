@@ -3172,9 +3172,9 @@ a.setup-open{
    desktops report touch input even with a mouse and keyboard. */
 @media (max-width:900px){
 
+    /* Still tappable: a tap explains why it does not open. */
     .sidebar a.nav-desktop-only{
         opacity:.4;
-        pointer-events:none;
         cursor:not-allowed;
     }
 

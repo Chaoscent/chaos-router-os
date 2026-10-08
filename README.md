@@ -268,7 +268,7 @@ Without Caddy the service falls back to port 5000 on every address, as in develo
 The installer will set all of these up. For development, install them by hand:
 
 ```bash
-sudo apt install dnsmasq hostapd modemmanager ufw iptables wireguard-tools openvpn easy-rsa openresolv iw rfkill qrencode caddy avahi-daemon avahi-utils
+sudo apt install dnsmasq hostapd modemmanager mobile-broadband-provider-info ufw iptables wireguard-tools openvpn easy-rsa openresolv iw rfkill qrencode caddy avahi-daemon avahi-utils
 ```
 
 The app runs as a normal user and uses `sudo -n` for system changes, so that user needs passwordless sudo for:

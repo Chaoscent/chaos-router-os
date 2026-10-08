@@ -25,13 +25,12 @@ document.addEventListener("DOMContentLoaded", ()=>{
     });
 
     // Phones: the shell needs a keyboard, so its entry is greyed out
-    // (CSS) and cannot be opened (also not from the keyboard).
+    // (CSS) and does not open; tapping it explains why.
     const mobile = window.matchMedia("(max-width: 900px)");
 
     const markMobileOnly = () => {
         document.querySelectorAll(".sidebar a.nav-desktop-only").forEach(link=>{
             link.setAttribute("aria-disabled", String(mobile.matches));
-            link.tabIndex = mobile.matches ? -1 : 0;
             link.title = mobile.matches ? link.dataset.mobileTitle || "" : "";
         });
     };
@@ -39,9 +38,24 @@ document.addEventListener("DOMContentLoaded", ()=>{
     markMobileOnly();
     mobile.addEventListener("change", markMobileOnly);
 
+    // Tapped on a phone: say why it does not open.
     document.querySelectorAll(".sidebar a.nav-desktop-only").forEach(link=>{
         link.addEventListener("click", event=>{
-            if(mobile.matches) event.preventDefault();
+
+            if(!mobile.matches) return;
+
+            event.preventDefault();
+            event.stopImmediatePropagation();
+
+            setNavOpen(false);
+
+            ChaosModal.notice({
+                title: `${link.textContent.trim()} is not available on mobile`,
+                subtitle: link.dataset.mobileTitle
+                    ? `${link.dataset.mobileTitle}. Open the dashboard on a computer to use it.`
+                    : "Open the dashboard on a computer to use it."
+            });
+
         });
     });
 

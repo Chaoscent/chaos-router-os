@@ -46,7 +46,7 @@ PACKAGES=(
     git python3-venv python3-pip
     network-manager
     dnsmasq hostapd iw rfkill
-    modemmanager
+    modemmanager mobile-broadband-provider-info
     ufw iptables
     wireguard-tools openvpn easy-rsa openresolv
     qrencode
@@ -167,6 +167,47 @@ install_packages() {
         sort -u -o "$PACKAGES_RECORD" "$PACKAGES_RECORD"
         info "Newly installed: ${new[*]}"
     fi
+
+    find_modem
+}
+
+
+# A modem that was plugged in before ModemManager was installed is not
+# found until its ports are tagged for ModemManager (udev rules that
+# came with the package) and ModemManager looks again. Without this it
+# only shows up after a reboot.
+find_modem() {
+
+    command -v mmcli >/dev/null || return 0
+
+    # No modem plugged in (USB vendors of the usual 4G/5G modules).
+    cat /sys/bus/usb/devices/*/idVendor 2>/dev/null \
+        | grep -qxiE '2c7c|1199|1e0e|05c6|2cb7|12d1|19d2|1bc7|413c' || return 0
+
+    if mmcli -L 2>/dev/null | grep -q "/Modem/"; then
+        return 0
+    fi
+
+    info "Looking for the modem (ModemManager)..."
+
+    # Only the modem's own ports: Ethernet and Wi-Fi stay untouched.
+    udevadm control --reload-rules 2>/dev/null || true
+    udevadm trigger --action=add --subsystem-match=usbmisc --subsystem-match=tty 2>/dev/null || true
+    udevadm trigger --action=add --subsystem-match=net --sysname-match='wwan*' 2>/dev/null || true
+    udevadm settle --timeout=15 2>/dev/null || true
+
+    systemctl restart ModemManager 2>/dev/null || true
+
+    local _
+    for _ in $(seq 1 30); do
+        if mmcli -L 2>/dev/null | grep -q "/Modem/"; then
+            info "Modem found."
+            return 0
+        fi
+        sleep 1
+    done
+
+    warn "ModemManager does not see the modem yet. If the Modem page stays empty, reboot once."
 }
 
 

@@ -15,14 +15,32 @@ def run(cmd):
         return None
 
 
+def privileged(cmd):
+
+    from services.network import privileged as wrap
+    return wrap(cmd)
+
+
+def run_command(cmd):
+
+    from services.network import run_command as runner
+    return runner(cmd)
+
+
 def enable_signal_polling(index):
+    """
+    Signal values (RSRP, RSRQ, SINR) are only measured after this, and
+    ModemManager only allows it as root. Retried until it worked.
+    """
+
     global SIGNAL_ENABLED
 
     if SIGNAL_ENABLED:
         return
 
-    run(["mmcli", "-m", index, "--signal-setup=5"])
-    SIGNAL_ENABLED = True
+    ok, _ = run_command(privileged(["mmcli", "-m", index, "--signal-setup=5"]))
+
+    SIGNAL_ENABLED = ok
 
 
 def parse(pattern, text, default="Unknown"):
@@ -128,6 +146,34 @@ def format_access_tech(value):
     return value
 
 
+# Locks that keep the SIM from working. Others, like sim-pin2 (the
+# second PIN, only for fixed dialing numbers), do not.
+BLOCKING_LOCKS = ("sim-pin", "sim-puk", "ph-sim-pin", "ph-net-pin")
+
+
+def sim_status(lock, state):
+    """
+    "Waiting for PIN", "Blocked (PUK)", "Ready" or None (unknown).
+    """
+
+    if lock in ("sim-pin", "ph-sim-pin", "ph-net-pin"):
+        return "Waiting for PIN"
+
+    if lock == "sim-puk":
+        return "Blocked (PUK)"
+
+    if state in ("failed",):
+        return "Failed"
+
+    if state in (
+        "enabled", "searching", "registered",
+        "connecting", "connected", "disconnecting"
+    ):
+        return "Ready"
+
+    return None
+
+
 def no_data(hardware, state, model=None):
     """
     Honest placeholder: which modem (if any) and why there is no data.
@@ -166,7 +212,11 @@ def get_modem_data():
     enable_signal_polling(index)
 
     info = run(["mmcli", "-m", index])
-    signal = run(["mmcli", "-m", index, "--signal-get"])
+
+    ok, signal = run_command(privileged(["mmcli", "-m", index, "--signal-get"]))
+
+    if not ok:
+        signal = None
 
     if info is None:
         return no_data(hardware, "not_ready")
@@ -187,7 +237,7 @@ def get_modem_data():
         "network": format_access_tech(field(r"access tech:\s+(.+)")),
         "signal": field(r"signal quality:\s+'?(\d+)"),
         "imei": field(r"equipment id:\s+(.+)"),
-        "sim": field(r"SIM\s+\|.*?state:\s+(.+)"),
+        "sim": sim_status(field(r"\|\s+lock:\s+(\S+)"), field(r"\|\s+state:\s+'?([a-z-]+)")),
 
         "rsrp": radio.get("rsrp"),
         "rsrq": radio.get("rsrq"),
@@ -230,18 +280,6 @@ DEFAULT_SETTINGS = {
 
 APN_RE = re.compile(r"^[A-Za-z0-9._-]{0,100}$")
 PIN_RE = re.compile(r"^\d{4,8}$")
-
-
-def privileged(cmd):
-
-    from services.network import privileged as wrap
-    return wrap(cmd)
-
-
-def run_command(cmd):
-
-    from services.network import run_command as runner
-    return runner(cmd)
 
 
 def get_modem_settings():
@@ -390,7 +428,12 @@ def get_connection_state():
     return "deactivated" if connection_exists() else None
 
 
-def connection_properties(settings, auto_config=True):
+def connection_properties(settings, apn_mode="auto", apn=None):
+    """
+    nmcli properties of the chaos-modem connection. apn_mode: "auto"
+    (the carrier's APN from NetworkManager's database), "given" (apn),
+    or "legacy" (NetworkManager without gsm.auto-config).
+    """
 
     props = [
         "connection.autoconnect", "yes",
@@ -406,17 +449,51 @@ def connection_properties(settings, auto_config=True):
         "ipv6.method", "auto"
     ]
 
-    if settings["apn"]:
-        props += ["gsm.apn", settings["apn"]]
-        if auto_config:
-            props += ["gsm.auto-config", "no"]
+    if apn_mode == "auto":
+        props += ["gsm.apn", "", "gsm.auto-config", "yes"]
+    elif apn_mode == "given":
+        props += ["gsm.apn", apn or "", "gsm.auto-config", "no"]
     else:
-        props += ["gsm.apn", ""]
-        # NetworkManager 1.42+: the APN from the carrier database.
-        if auto_config:
-            props += ["gsm.auto-config", "yes"]
+        props += ["gsm.apn", apn or ""]
 
     return props
+
+
+def network_apn():
+    """
+    The APN the network gave the modem when it attached (its initial
+    bearer), e.g. "internet.telekom"; None when it reports none.
+    """
+
+    index = get_modem_index()
+
+    if index is None:
+        return None
+
+    info = run(["mmcli", "-m", index]) or ""
+
+    match = re.search(r"initial bearer path:\s+\S*/Bearer/(\d+)", info)
+
+    if not match:
+        return None
+
+    bearer = run(["mmcli", "-b", match.group(1)]) or ""
+
+    apn = parse(r"\|\s+apn:\s+(\S+)", bearer, None)
+
+    return apn if apn and apn != "--" and APN_RE.fullmatch(apn) else None
+
+
+def short_error(message):
+    """
+    NetworkManager's error without its "Hint: use journalctl ..." tail.
+    """
+
+    message = str(message or "").strip()
+
+    message = re.split(r"\s*Hint: use ", message)[0].strip()
+
+    return message.removeprefix("Error: ")[:200]
 
 
 def apply_modem_settings():
@@ -445,35 +522,62 @@ def apply_modem_settings():
 
         return True, "Mobile data off."
 
-    def write(auto_config):
+    def write(apn_mode, apn=None):
+
+        props = connection_properties(settings, apn_mode, apn)
 
         if connection_exists():
             return run_command(privileged([
-                "nmcli", "connection", "modify", CONNECTION,
-                *connection_properties(settings, auto_config)
+                "nmcli", "connection", "modify", CONNECTION, *props
             ]))
 
         return run_command(privileged([
             "nmcli", "connection", "add", "type", "gsm", "ifname", "*",
-            "con-name", CONNECTION,
-            *connection_properties(settings, auto_config)
+            "con-name", CONNECTION, *props
         ]))
 
-    ok, result = write(auto_config=True)
+    def up():
+        return run_command(privileged(["nmcli", "--wait", "25", "connection", "up", CONNECTION]))
 
-    # Older NetworkManager without gsm.auto-config.
-    if not ok and "auto-config" in str(result):
-        ok, result = write(auto_config=False)
+    # The APNs to try: the one entered; otherwise the carrier's from
+    # NetworkManager's database, then the one the network gave the
+    # modem, then none (the network's default).
+    if settings["apn"]:
+        attempts = [("given", settings["apn"])]
+    else:
+        attempts = [("auto", None)]
+        given = network_apn()
+        if given:
+            attempts.append(("given", given))
+        attempts.append(("given", ""))
 
-    if not ok:
-        return False, f"The modem connection could not be saved: {result}"
+    message = ""
 
-    up, message = run_command(privileged(["nmcli", "--wait", "20", "connection", "up", CONNECTION]))
+    for apn_mode, apn in attempts:
 
-    if not up:
-        return True, f"Mobile data on; not connected yet ({str(message).strip()[:200]}). It connects by itself when it can."
+        ok, result = write(apn_mode, apn)
 
-    return True, "Mobile data connected."
+        # Older NetworkManager without gsm.auto-config.
+        if not ok and "auto-config" in str(result):
+            ok, result = write("legacy", apn)
+
+        if not ok:
+            return False, f"The modem connection could not be saved: {short_error(result)}"
+
+        connected, message = up()
+
+        if connected:
+            used = apn if apn_mode == "given" and apn else None
+            return True, "Mobile data connected" + (f" (APN {used})." if used else ".")
+
+        # Only a wrong APN is worth another attempt.
+        if "APN" not in str(message):
+            break
+
+    return True, (
+        f"Mobile data on, not connected yet: {short_error(message)}. "
+        f"It connects by itself when it can; if it never does, enter your carrier's APN."
+    )
 
 
 def get_sim_path(index):
@@ -511,7 +615,7 @@ def unlock_sim(pin, remember=True):
     if data.get("lock") == "sim-puk":
         return {"success": False, "message": "The SIM is blocked (PUK required). Unblock it in a phone first."}
 
-    if data.get("lock") not in ("sim-pin",):
+    if data.get("lock") != "sim-pin":
         return {"success": False, "message": "The SIM does not ask for a PIN."}
 
     sim = get_sim_path(index)

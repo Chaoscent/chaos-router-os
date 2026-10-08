@@ -4,6 +4,8 @@
  * ChaosModal.confirm({ title, subtitle, body, confirmText })
  * resolves to true when confirmed, false otherwise.
  * `body` is an optional DOM node shown inside the dialog.
+ *
+ * ChaosModal.notice({ title, subtitle }) only informs: one OK button.
  */
 
 window.ChaosModal = {
@@ -22,6 +24,8 @@ window.ChaosModal = {
             modalConfirm.textContent = confirmText;
             modalConfirm.disabled = false;
 
+            modalCancel.classList.remove("hidden");
+
             const finish = result => {
                 confirmModal.classList.add("hidden");
                 resolve(result);
@@ -37,6 +41,19 @@ window.ChaosModal = {
             confirmModal.classList.remove("hidden");
 
         });
+
+    },
+
+
+    async notice({ title, subtitle }) {
+
+        const done = this.confirm({ title, subtitle, confirmText: "OK" });
+
+        modalCancel.classList.add("hidden");
+
+        await done;
+
+        modalCancel.classList.remove("hidden");
 
     },
 

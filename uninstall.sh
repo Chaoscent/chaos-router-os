@@ -59,7 +59,7 @@ ALL_PACKAGES=(
     git python3-venv python3-pip
     network-manager
     dnsmasq hostapd iw rfkill
-    modemmanager
+    modemmanager mobile-broadband-provider-info
     ufw iptables
     wireguard-tools openvpn easy-rsa openresolv
     qrencode
