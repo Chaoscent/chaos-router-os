@@ -25,7 +25,7 @@ sudo chaos-router-apps/install.sh
 
 The addon lives in the Chaos Router OS repository, on the branches `dev/apps` and `release/apps` (from the v1 release).
 
-Running it again updates the addon; installed apps keep running. Remove it with `sudo /opt/chaos-router-apps/install.sh --remove` (add `--delete-data` to delete the apps' data too). Docker stays installed.
+Running it again updates the addon; installed apps keep running. Remove it with `sudo /opt/chaos-router-apps/install.sh --remove` (add `--delete-data` to delete the apps' data too). Docker stays installed; `--purge` removes it as well (and the apps' data), if this installer installed it. Chaos Router OS's `uninstall.sh` runs `--remove --purge`.
 
 ## How apps fit into the router
 

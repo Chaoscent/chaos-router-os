@@ -3,7 +3,10 @@
 # Chaos Router Apps: installs the Apps Addon for Chaos Router OS.
 #
 #   sudo ./install.sh [--user NAME] [--yes]     install or update
-#   sudo ./install.sh --remove [--delete-data]  remove the addon
+#   sudo ./install.sh --remove [--delete-data] [--purge]
+#                                               remove the addon; --purge
+#                                               also removes Docker if this
+#                                               installer installed it
 #
 # Installs Docker Engine and Docker Compose (Docker's own apt
 # repository), the App Manager (/usr/local/bin/chaos-apps) and a
@@ -23,6 +26,11 @@ DAEMON_JSON=/etc/docker/daemon.json
 # Copy of the daemon.json we wrote: tells ours from someone else's
 # (dockerd refuses unknown keys, so no marker inside the file).
 DAEMON_COPY=/var/lib/chaos-router-apps/daemon.json
+# Written when this installer installed Docker (--purge removes it then).
+DOCKER_MARKER=/var/lib/chaos-router-apps/docker-installed
+DOCKER_LIST=/etc/apt/sources.list.d/docker.list
+DOCKER_KEY=/etc/apt/keyrings/docker.asc
+DOCKER_PACKAGES=(docker-ce docker-ce-cli containerd.io docker-compose-plugin docker-buildx-plugin docker-ce-rootless-extras)
 ROUTER_STATE=/var/lib/chaos-router-os
 
 SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -30,6 +38,7 @@ SOURCE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 APP_USER=""
 REMOVE=0
 DELETE_DATA=0
+PURGE=0
 
 
 # -------------------------------------------------------------------
@@ -49,6 +58,7 @@ parse_args() {
             --user)        APP_USER=${2:-}; shift 2 ;;
             --remove)      REMOVE=1; shift ;;
             --delete-data) DELETE_DATA=1; shift ;;
+            --purge)       PURGE=1; DELETE_DATA=1; shift ;;
             --yes|-y)      shift ;;
             *)             die "Unknown option: $1" ;;
         esac
@@ -118,6 +128,10 @@ install_docker() {
 
     apt-get update -q
     apt-get install -y -q docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+    mkdir -p "$STATE_DIR"
+    chmod 700 "$STATE_DIR"
+    touch "$DOCKER_MARKER"
 
     info "$(docker --version)"
 }
@@ -239,7 +253,13 @@ remove_addon() {
 
     [[ $EUID -eq 0 ]] || die "Run with sudo: sudo $0 --remove"
 
-    local app
+    local app docker_ours=0
+
+    # Ours: the marker, or (older installs) our daemon.json copy next
+    # to Docker's apt source. Checked before the state folder goes.
+    if [[ -f $DOCKER_MARKER ]] || { [[ -f $DAEMON_COPY ]] && [[ -f $DOCKER_LIST ]]; }; then
+        docker_ours=1
+    fi
 
     if [[ -x $CLI_LINK ]] && docker info >/dev/null 2>&1; then
 
@@ -271,7 +291,38 @@ remove_addon() {
         info "App data kept in $STATE_DIR."
     fi
 
-    info "Docker stays installed (remove it with apt if you no longer need it)."
+    if (( PURGE )) && (( docker_ours )); then
+        purge_docker
+    elif (( PURGE )); then
+        info "Docker was installed before the addon; it stays."
+    else
+        info "Docker stays installed (--purge removes it if this installer installed it)."
+    fi
+}
+
+
+purge_docker() {
+
+    step "Removing Docker"
+
+    systemctl disable --now docker.socket docker containerd 2>/dev/null || true
+
+    local installed=() pkg
+
+    for pkg in "${DOCKER_PACKAGES[@]}"; do
+        dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed" && installed+=("$pkg")
+    done
+
+    if (( ${#installed[@]} )); then
+        DEBIAN_FRONTEND=noninteractive apt-get purge -y -q "${installed[@]}"
+        DEBIAN_FRONTEND=noninteractive apt-get autoremove --purge -y -q
+    fi
+
+    # Images, containers, volumes, settings and Docker's apt source.
+    rm -rf /var/lib/docker /var/lib/containerd /etc/docker
+    rm -f "$DOCKER_LIST" "$DOCKER_KEY"
+
+    info "Docker removed."
 }
 
 
