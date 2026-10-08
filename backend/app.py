@@ -1466,13 +1466,9 @@ def dhcp_settings_api():
         # Reservations have their own endpoints.
         data.pop("reservations", None)
 
-        outcome = save_dhcp_settings(data)
-
-        # App names end in the LAN domain set here.
-        if outcome["success"]:
-                router_apps.sync_integration_later()
-
-        return safe_apply_response(outcome)
+        return safe_apply_response(
+                save_dhcp_settings(data)
+        )
 
 
 
@@ -2504,6 +2500,35 @@ def rename_client():
 
 
 
+# Changes that can move the router's LAN addresses: the .local names
+# (DNS, mDNS) follow them.
+NAME_CHANGES = {
+        "/api/network/apply",
+        "/api/network/eth0-role",
+        "/api/network/lan",
+        "/api/wifi/settings",
+        "/api/config/confirm",
+        "/api/config/revert",
+        "/api/backup/restore"
+}
+
+
+@app.after_request
+def refresh_names(response):
+
+        if (
+                request.method == "POST"
+                and request.path in NAME_CHANGES
+                and response.status_code == 200
+        ):
+                router_apps.sync_integration_later()
+
+        return response
+
+
+
+
+
 @app.route("/api/apps")
 
 @login_required
@@ -2591,9 +2616,6 @@ def update_hostname():
 
 
         if success:
-
-                # App names contain the hostname (app.<hostname>.lan).
-                router_apps.sync_integration_later()
 
                 return jsonify({
 
@@ -3230,7 +3252,7 @@ def startup():
         # The app restarted while changes awaited confirmation.
         transaction.recover_pending()
 
-        # App names follow renames that happened while the app was down.
+        # App names and routes, e.g. after an update of Router OS.
         router_apps.sync_integration_later()
 
 

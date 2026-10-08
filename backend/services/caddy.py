@@ -94,6 +94,11 @@ def router_names():
         if domain:
             names.add(f"{hostname}.{domain}")
 
+    # The router's LAN name (dnsmasq answers it, see services/apps.py).
+    from services.apps import ROUTER_DOMAIN
+
+    names.add(ROUTER_DOMAIN)
+
     return names
 
 

@@ -117,7 +117,7 @@ The Apps Addon installs:
 
 Chaos Router OS does the integration when an app is installed:
 
-* **Name:** `<app>.<hostname>.<LAN domain, else "lan">`, e.g. `nextcloud.chaos-router.lan`
+* **Name:** `<app>.chaos-router.local`, e.g. `nextcloud.chaos-router.local` (the router itself: `chaos-router.local`)
 * **Local DNS:** dnsmasq answers the name with the router's address (`/etc/dnsmasq.d/chaos-router-apps.conf`)
 * **Caddy:** routes the name to the app over HTTP and HTTPS (`/etc/caddy/chaos-apps/<app>.caddy`)
 * **HTTPS:** certificates for the app names from the router's local certificate authority
@@ -146,7 +146,7 @@ Applications never need to expose user-facing ports directly.
 Example:
 
 ```text
-nextcloud.chaos-router.lan
+nextcloud.chaos-router.local
         │
       Caddy
         │
@@ -155,7 +155,12 @@ nextcloud.chaos-router.lan
 Nextcloud container (80)
 ```
 
-App names end in `.lan` (or the LAN domain), not `.local`: Apple devices only look up `.local` names with mDNS, never at the router's DNS.
+The router answers these names in two ways, because devices look up `.local` names differently:
+
+* **DNS** (dnsmasq, `/etc/dnsmasq.d/chaos-router-apps.conf`): Windows, Android and everything else that asks the router's DNS.
+* **mDNS** (Avahi, `chaos-router-mdns.service` running `deploy/mdns-publish.sh`): Apple devices and Linux with nss-mdns, which ask only over mDNS.
+
+`chaos-router.local` (the dashboard) works without the Apps Addon too.
 
 The user never has to remember `:9000`.
 
@@ -252,7 +257,7 @@ Without Caddy the service falls back to port 5000 on every address, as in develo
 The installer will set all of these up. For development, install them by hand:
 
 ```bash
-sudo apt install dnsmasq hostapd ufw iptables wireguard-tools openvpn easy-rsa openresolv iw rfkill qrencode caddy
+sudo apt install dnsmasq hostapd ufw iptables wireguard-tools openvpn easy-rsa openresolv iw rfkill qrencode caddy avahi-daemon avahi-utils
 ```
 
 The app runs as a normal user and uses `sudo -n` for system changes, so that user needs passwordless sudo for:

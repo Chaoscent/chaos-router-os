@@ -37,6 +37,7 @@ PACKAGES=(
     wireguard-tools openvpn easy-rsa openresolv
     qrencode
     caddy
+    avahi-daemon avahi-utils
 )
 
 # Commands the app runs with `sudo -n` (see README, System Requirements).
@@ -384,6 +385,18 @@ start_service() {
 }
 
 
+has_wifi() {
+
+    local dev
+
+    for dev in /sys/class/net/*; do
+        [[ -d $dev/wireless ]] && return 0
+    done
+
+    return 1
+}
+
+
 wait_for_setup_wifi() {
 
     local _
@@ -410,6 +423,18 @@ finish() {
         return
     fi
 
+    # No Wi-Fi card (e.g. a VM): set up from a computer on the LAN.
+    if ! has_wifi; then
+
+        start_service
+
+        step "Set up your router"
+        info "This router has no Wi-Fi, so there is no setup Wi-Fi."
+        info "Open the setup page from a computer on the LAN:"
+        info "  http://chaos-router.local/setup  or  http://$address/setup"
+        return
+    fi
+
     prepare_setup_wifi
 
     if ssh_over_wifi; then
@@ -430,14 +455,16 @@ finish() {
 
     step "Set up your router"
 
-    if wait_for_setup_wifi; then
-        info "The setup Wi-Fi is on. Scan the QR code with your phone;"
-        info "the setup page opens by itself."
-    else
-        warn "The setup Wi-Fi did not start (no Wi-Fi radio?)."
-        info "Set up the router from a computer on Ethernet instead:"
-        info "http://$address/setup"
+    # The QR code only when the setup Wi-Fi really runs.
+    if ! wait_for_setup_wifi; then
+        warn "The setup Wi-Fi did not start (journalctl -u chaos-router-os shows why)."
+        info "Set up the router from a computer on the LAN instead:"
+        info "  http://chaos-router.local/setup  or  http://$address/setup"
+        return
     fi
+
+    info "The setup Wi-Fi is on. Scan the QR code with your phone;"
+    info "the setup page opens by itself."
 
     show_setup_wifi
 

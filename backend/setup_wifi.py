@@ -16,13 +16,18 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from services.config import load_persistent, load_system
-from services.setup_network import SETUP_WIFI, ADDRESS, qr_payload
+from services.setup_network import SETUP_WIFI, ADDRESS, qr_payload, pick_interface
 
 
 def main():
 
     if load_persistent("users", None):
         print("The router is already set up; there is no setup Wi-Fi.")
+        return 1
+
+    if not pick_interface():
+        print("This router has no Wi-Fi, so there is no setup Wi-Fi.")
+        print("Open http://chaos-router.local/setup from a computer on the LAN.")
         return 1
 
     credentials = load_system(SETUP_WIFI, None)

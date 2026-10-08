@@ -23,6 +23,9 @@ STATE_DIR=/var/lib/chaos-router-os
 APP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 TEMPLATE=$APP_DIR/deploy/$SERVICE.service
 
+MDNS_SERVICE=chaos-router-mdns
+MDNS_UNIT_FILE=/etc/systemd/system/$MDNS_SERVICE.service
+
 CADDYFILE=/etc/caddy/Caddyfile
 CADDY_BACKUP=/etc/caddy/Caddyfile.before-chaos
 # First line of deploy/Caddyfile: tells our config from someone else's.
@@ -37,8 +40,8 @@ fi
 
 if [[ ${1:-} == "--remove" ]]; then
 
-    systemctl disable --now "$SERVICE" 2>/dev/null || true
-    rm -f "$UNIT_FILE"
+    systemctl disable --now "$SERVICE" "$MDNS_SERVICE" 2>/dev/null || true
+    rm -f "$UNIT_FILE" "$MDNS_UNIT_FILE"
     systemctl daemon-reload
 
     # Caddy: back to the config it had before, or stopped (ours would
@@ -134,6 +137,24 @@ chmod 644 "$UNIT_FILE"
 systemctl daemon-reload
 systemctl enable "$SERVICE"
 systemctl restart "$SERVICE"
+
+# .local names over mDNS (needs avahi-daemon and avahi-utils).
+if command -v avahi-publish >/dev/null; then
+
+    sed \
+        -e "s|@USER@|$APP_USER|g" \
+        -e "s|@APP_DIR@|$APP_DIR|g" \
+        -e "s|@STATE_DIR@|$STATE_DIR|g" \
+        "$APP_DIR/deploy/$MDNS_SERVICE.service" > "$MDNS_UNIT_FILE"
+
+    chmod 644 "$MDNS_UNIT_FILE"
+    systemctl daemon-reload
+    systemctl enable "$MDNS_SERVICE" >/dev/null 2>&1
+    systemctl restart "$MDNS_SERVICE"
+
+else
+    echo "avahi-utils is not installed: .local names only work through the router's DNS." >&2
+fi
 
 # Restart, not reload: the Caddyfile turns Caddy's admin API off.
 if [[ $BIND == 127.0.0.1 ]]; then
