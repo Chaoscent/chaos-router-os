@@ -36,6 +36,7 @@ PACKAGES=(
     ufw iptables
     wireguard-tools openvpn easy-rsa openresolv
     qrencode
+    caddy
 )
 
 # Commands the app runs with `sudo -n` (see README, System Requirements).
@@ -263,6 +264,9 @@ setup_sudo() {
 
     done
 
+    # The Apps page's one-click Apps Addon install, without arguments.
+    paths+=("$INSTALL_DIR/deploy/install-apps.sh \"\"")
+
     local tmp joined
     tmp=$(mktemp)
 
@@ -287,7 +291,7 @@ setup_sudo() {
 
 check_ports() {
 
-    step "Checking DNS and DHCP ports"
+    step "Checking ports"
 
     # dnsmasq serves DNS (53) and DHCP (67); anything else there clashes.
     local other
@@ -296,7 +300,18 @@ check_ports() {
     if [[ -n $other ]]; then
         warn "Another program uses port 53 or 67 (dnsmasq will clash with it):"
         echo "$other" | sed 's/^/      /' >&2
-    else
+    fi
+
+    # Caddy serves the dashboard on 80 and 443 (e.g. not Apache or nginx).
+    local web
+    web=$(ss -H -ltnp 2>/dev/null | grep -E ':(80|443) ' | grep -v caddy || true)
+
+    if [[ -n $web ]]; then
+        warn "Another program uses port 80 or 443 (Caddy needs them for the dashboard):"
+        echo "$web" | sed 's/^/      /' >&2
+    fi
+
+    if [[ -z $other && -z $web ]]; then
         info "OK"
     fi
 }
@@ -381,7 +396,7 @@ finish() {
 
         step "Done"
         info "Chaos Router OS is updated and running."
-        info "Dashboard: http://$address:5000"
+        info "Dashboard: http://$address/"
         return
     fi
 
@@ -411,7 +426,7 @@ finish() {
     else
         warn "The setup Wi-Fi did not start (no Wi-Fi radio?)."
         info "Set up the router from a computer on Ethernet instead:"
-        info "http://$address:5000/setup"
+        info "http://$address/setup"
     fi
 
     show_setup_wifi

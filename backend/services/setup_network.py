@@ -28,6 +28,8 @@ from services.network import run_command, privileged
 
 from services import wifi, dhcp
 
+from services.caddy import APP_PORT, BEHIND_CADDY
+
 from services.logs import log_event
 
 SETUP_WIFI = "setup_wifi"
@@ -43,8 +45,6 @@ DNSMASQ_FILE = "/etc/dnsmasq.d/chaos-router-setup.conf"
 
 NAT_CHAIN = "CHAOS-SETUP"
 
-# Port the app listens on (no Caddy in front during setup).
-APP_PORT = os.getenv("CHAOS_PORT", "5000")
 
 # Easy to read and type: no 0/O, 1/l/I.
 PASSWORD_CHARS = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -251,10 +251,15 @@ def start():
     if not ok:
         return False, f"DHCP for the setup Wi-Fi failed: {result}"
 
-    ok, result = redirect_web(interface)
+    # Caddy serves port 80 itself; without it, port 80 is redirected to
+    # the app's own port.
+    if BEHIND_CADDY:
+        remove_redirect()
+    else:
+        ok, result = redirect_web(interface)
 
-    if not ok:
-        return False, f"The captive portal could not be set up: {result}"
+        if not ok:
+            return False, f"The captive portal could not be set up: {result}"
 
     log_event(
         "setup",

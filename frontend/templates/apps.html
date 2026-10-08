@@ -1,4 +1,94 @@
 <section class="page">
-    <h1>Apps</h1>
-    <p>Install Apps Addon.</p>
+
+    <div class="page-header">
+
+        <h1>Apps</h1>
+
+    </div>
+
+
+    <!-- Status -->
+
+    <div class="card-grid status-cards">
+
+        <div class="card">
+            <span>Apps Addon</span>
+            <h2 id="appsAddonState">--</h2>
+        </div>
+
+        <div class="card">
+            <span>Docker</span>
+            <h2 id="appsDockerState">--</h2>
+        </div>
+
+        <div class="card">
+            <span>Installed Apps</span>
+            <h2 id="appsInstalledCount">--</h2>
+        </div>
+
+        <div class="card">
+            <span>Running</span>
+            <h2 id="appsRunningCount">--</h2>
+        </div>
+
+    </div>
+
+
+    <div class="settings-sections">
+
+        <!-- Install, remove, ... in progress (or just finished) -->
+
+        <div id="appsJob" class="card hidden">
+
+            <span id="appsJobTitle">--</span>
+
+            <pre id="appsJobLog" class="config-preview apps-log"></pre>
+
+            <div class="setting-row">
+                <div id="appsJobStatus" class="setting-status"></div>
+                <button id="appsJobClose" class="secondary-btn hidden">Close</button>
+            </div>
+
+        </div>
+
+
+        <!-- No addon yet -->
+
+        <div id="appsAddon" class="card hidden">
+
+            <span>Apps Addon</span>
+
+            <p class="setting-hint">
+                Run apps like Nextcloud, Jellyfin or Vaultwarden on the router,
+                each reached by its own name in your network. The addon installs
+                Docker Engine, Docker Compose and the App Manager. It takes a few
+                minutes and needs internet. The router itself never depends on it.
+            </p>
+
+            <div class="setting-row">
+                <button id="appsAddonInstall" class="save-btn">Install Apps Addon</button>
+            </div>
+
+            <div id="appsAddonStatus" class="setting-status"></div>
+
+        </div>
+
+
+        <!-- Docker stopped, App Manager errors -->
+
+        <div id="appsNotice" class="modem-notice hidden" role="status"></div>
+
+
+        <!-- Catalog -->
+
+        <div id="appsCatalog" class="hidden">
+
+            <div id="appsGrid" class="apps-grid"></div>
+
+            <p id="appsNamesHint" class="setting-hint apps-names-hint"></p>
+
+        </div>
+
+    </div>
+
 </section>

@@ -304,6 +304,10 @@ from services import setup_network
 
 from services import shell as web_shell
 
+from services.caddy import tls_allowed
+
+from services import apps as router_apps
+
 from factory_reset import factory_reset
 
 from setup import (
@@ -314,6 +318,8 @@ from setup import (
 
 from security import (
         load_secret_key,
+        SessionInterface,
+        LOCALHOST,
         csrf_token,
         check_csrf,
         login_retry_after,
@@ -367,6 +373,9 @@ app = Flask(
 
 # Random per router (see security.py), never a known default.
 app.secret_key = load_secret_key()
+
+# Secure session cookie for browsers on HTTPS (Caddy).
+app.session_interface = SessionInterface()
 
 app.config.update(
         SESSION_COOKIE_HTTPONLY=True,
@@ -428,7 +437,11 @@ def setup_gate():
 
                 return None
 
-        if is_setup_path or path.startswith("/static/") or path == "/favicon.ico":
+        if (
+                is_setup_path
+                or path.startswith("/static/")
+                or path in ("/favicon.ico", "/caddy/tls-allowed")
+        ):
                 return None
 
         if path.startswith(("/api/", "/fragment/")) or request.method != "GET":
@@ -448,7 +461,7 @@ def setup_gate():
         # On the setup Wi-Fi every name points at the router, so send
         # phones to its address rather than the name they asked for.
         if (
-                setup_network.is_on_setup_network(request.remote_addr)
+                setup_network.is_on_setup_network(get_viewer_ip())
                 and request.host.split(":")[0] != setup_network.ADDRESS
         ):
                 return redirect(f"http://{setup_network.ADDRESS}/setup")
@@ -620,6 +633,27 @@ def home():
 def favicon():
 
         return app.send_static_file("favicon.ico")
+
+
+
+
+
+# Caddy asks here before it makes an HTTPS certificate (on_demand_tls
+# in deploy/Caddyfile): only for the router's own LAN addresses and
+# names. Answered only to Caddy itself: it asks from localhost, without
+# X-Forwarded-For (requests it forwards from browsers carry that header,
+# and the Caddyfile does not forward /caddy/ at all).
+@app.route("/caddy/tls-allowed")
+
+def caddy_tls_allowed():
+
+        if request.remote_addr not in LOCALHOST or "X-Forwarded-For" in request.headers:
+                abort(404)
+
+        if tls_allowed(request.args.get("domain")):
+                return "", 200
+
+        return "", 403
 
 
 
@@ -1432,9 +1466,13 @@ def dhcp_settings_api():
         # Reservations have their own endpoints.
         data.pop("reservations", None)
 
-        return safe_apply_response(
-                save_dhcp_settings(data)
-        )
+        outcome = save_dhcp_settings(data)
+
+        # App names end in the LAN domain set here.
+        if outcome["success"]:
+                router_apps.sync_integration_later()
+
+        return safe_apply_response(outcome)
 
 
 
@@ -2306,7 +2344,7 @@ def get_viewer_ip():
         # Behind Caddy the request comes from localhost; the browser's
         # address is in X-Forwarded-For. Caddy appends it last, earlier
         # entries come from the client and can be faked.
-        if request.remote_addr in ("127.0.0.1", "::1"):
+        if request.remote_addr in LOCALHOST:
 
                 forwarded = request.headers.get("X-Forwarded-For", "")
 
@@ -2460,6 +2498,72 @@ def rename_client():
 
 # ------------------------------------------------------------
 
+# Apps (Apps Addon)
+
+# ------------------------------------------------------------
+
+
+
+@app.route("/api/apps")
+
+@login_required
+
+def apps_api():
+
+        return jsonify(router_apps.get_apps())
+
+
+
+
+
+@app.route("/api/apps/addon/install", methods=["POST"])
+
+@login_required
+
+def apps_addon_install_api():
+
+        ok, message = router_apps.install_addon()
+
+        return jsonify({"success": ok, "message": message}), 200 if ok else 400
+
+
+
+
+
+@app.route("/api/apps/<app_id>/<action>", methods=["POST"])
+
+@login_required
+
+def apps_action_api(app_id, action):
+
+        data = request.get_json(silent=True) or {}
+
+        ok, message = router_apps.run_action(
+                action, app_id, delete_data=data.get("delete_data") is True
+        )
+
+        return jsonify({"success": ok, "message": message}), 200 if ok else 400
+
+
+
+
+
+@app.route("/api/apps/<app_id>/logs")
+
+@login_required
+
+def apps_logs_api(app_id):
+
+        ok, logs = router_apps.get_logs(app_id)
+
+        return jsonify({"success": ok, "logs": logs if ok else "", "message": "" if ok else logs}), 200 if ok else 400
+
+
+
+
+
+# ------------------------------------------------------------
+
 # System
 
 # ------------------------------------------------------------
@@ -2488,7 +2592,8 @@ def update_hostname():
 
         if success:
 
-
+                # App names contain the hostname (app.<hostname>.lan).
+                router_apps.sync_integration_later()
 
                 return jsonify({
 
@@ -3116,12 +3221,17 @@ def startup():
 
                 transaction.apply_all()
 
+                router_apps.sync_integration_later()
+
                 return
 
 
 
         # The app restarted while changes awaited confirmation.
         transaction.recover_pending()
+
+        # App names follow renames that happened while the app was down.
+        router_apps.sync_integration_later()
 
 
 def start_setup_wifi():

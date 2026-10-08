@@ -3148,7 +3148,9 @@ a.setup-open{
 }
 
 /* Phones and touch-only devices: the shell entry is greyed out. */
-@media (max-width:900px), (hover:none) and (pointer:coarse){
+/* Phone-sized screens. Not by input device: touch laptops and remote
+   desktops report touch input even with a mouse and keyboard. */
+@media (max-width:900px){
 
     .sidebar a.nav-desktop-only{
         opacity:.4;
@@ -3156,4 +3158,123 @@ a.setup-open{
         cursor:not-allowed;
     }
 
+}
+
+/* ========================================================= */
+/* Apps Page                                                 */
+/* ========================================================= */
+
+.apps-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(min(300px,100%),1fr));
+    gap:18px;
+}
+
+.app-card{
+    display:flex;
+    flex-direction:column;
+    gap:12px;
+}
+
+.settings-sections .app-card:hover{
+    transform:none;
+}
+
+.app-card-head{
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+.app-icon{
+    flex:none;
+    width:42px;
+    height:42px;
+    display:grid;
+    place-items:center;
+    border-radius:12px;
+    background:rgba(74,222,128,.14);
+    color:#4ade80;
+    font-size:18px;
+    font-weight:700;
+}
+
+.app-title{
+    flex:1;
+    min-width:0;
+    display:flex;
+    flex-direction:column;
+}
+
+.app-title small{
+    color:var(--muted);
+    font-size:13px;
+}
+
+/* Undo the generic ".card span" label style for the state badge. */
+.app-card .status{
+    display:inline-flex;
+    flex:none;
+    margin:0;
+    padding:4px 10px;
+    color:#9fd0ff;
+    font-size:13px;
+}
+
+.app-card .status.online{
+    color:#8ce5aa;
+}
+
+.app-card .status.offline{
+    color:#ffb4b4;
+}
+
+.app-description{
+    flex:1;
+    margin:0;
+    font-size:14px;
+    line-height:1.5;
+}
+
+.app-card .setting-hint{
+    margin:0;
+}
+
+.app-address{
+    margin:0;
+    font-size:14px;
+    overflow-wrap:anywhere;
+}
+
+.app-address a{
+    color:var(--accent);
+}
+
+.app-actions{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:8px;
+}
+
+.app-actions .save-btn{
+    min-width:0;
+    height:36px;
+    padding:0 18px;
+    font-size:14px;
+}
+
+.app-open{
+    text-decoration:none;
+}
+
+.apps-log{
+    max-height:320px;
+    overflow:auto;
+    white-space:pre-wrap;
+    overflow-wrap:anywhere;
+}
+
+.apps-names-hint{
+    margin-top:14px;
 }

@@ -10,6 +10,8 @@ rate limiting.
   must not come from another site (Origin header).
 - Failed logins are counted per client address. After a few, that
   address is locked out for a while, longer each time.
+- Behind Caddy, the session cookie is marked Secure for browsers that
+  came over HTTPS.
 """
 
 import hmac
@@ -19,6 +21,7 @@ import threading
 import time
 
 from flask import request, session, jsonify
+from flask.sessions import SecureCookieSessionInterface
 
 from services.config import load_system, save_system
 
@@ -52,6 +55,37 @@ def load_secret_key():
         print(f"[security] Could not store the session key: {e}")
 
     return key
+
+
+# -------------------------------------------------------------------
+# HTTPS (through Caddy)
+# -------------------------------------------------------------------
+
+LOCALHOST = ("127.0.0.1", "::1")
+
+
+def is_https():
+    """
+    Whether the browser uses HTTPS. Caddy talks to the app over plain
+    HTTP from localhost and says so in X-Forwarded-Proto; from anywhere
+    else that header is ignored (it could be faked).
+    """
+
+    return (
+        request.remote_addr in LOCALHOST
+        and request.headers.get("X-Forwarded-Proto") == "https"
+    )
+
+
+class SessionInterface(SecureCookieSessionInterface):
+    """
+    The session cookie is Secure (never sent over plain HTTP) when it
+    was set over HTTPS. Plain HTTP stays usable for the setup Wi-Fi's
+    captive portal, so this can't be a fixed setting.
+    """
+
+    def get_cookie_secure(self, app):
+        return is_https()
 
 
 # -------------------------------------------------------------------

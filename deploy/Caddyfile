@@ -1,0 +1,58 @@
+# Chaos Router OS: Caddy in front of the dashboard.
+#
+# Installed to /etc/caddy/Caddyfile by deploy/install-service.sh (the
+# file that was there before is kept as Caddyfile.before-chaos).
+#
+# HTTP (80) and HTTPS (443) on every address of the router; the app
+# itself only listens on 127.0.0.1:5000. Port 80 stays plain HTTP with
+# no redirect: the setup Wi-Fi's captive portal and the connectivity
+# checks of phones need it. The firewall keeps both ports closed on the
+# internet side.
+#
+# HTTPS uses Caddy's own local CA, so no domain is needed. A certificate
+# is made on the first visit for the name or address in the browser,
+# but only for the router's own LAN addresses and hostname: Caddy asks
+# the app first (on_demand_tls ask). Browsers warn once per device
+# because they don't know the local CA.
+#
+# Apps (Apps Addon): Chaos Router OS writes one file per installed app
+# to /etc/caddy/chaos-apps/ (its name -> the app's port on 127.0.0.1)
+# and restarts Caddy. Everything else is the dashboard.
+{
+	# No admin API: nothing on the router can change this config while
+	# Caddy runs. Apply changes with `systemctl restart caddy`.
+	admin off
+
+	# Port 80 is its own site below, so no HTTP -> HTTPS redirect.
+	auto_https disable_redirects
+
+	# Don't try to add the local CA to the system's trust store.
+	skip_install_trust
+
+	on_demand_tls {
+		ask http://127.0.0.1:5000/caddy/tls-allowed
+	}
+}
+
+(router) {
+	import /etc/caddy/chaos-apps/*.caddy
+
+	handle {
+		# Only for Caddy itself (above), never from the network.
+		respond /caddy/* 404
+
+		reverse_proxy 127.0.0.1:5000
+	}
+}
+
+http:// {
+	import router
+}
+
+https:// {
+	tls internal {
+		on_demand
+	}
+
+	import router
+}

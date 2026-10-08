@@ -12,8 +12,8 @@ window.Page.shell = {
     ws: null,
     resizeObserver: null,
 
-    // Phones and tablets without a keyboard: greyed out in the sidebar.
-    MOBILE_QUERY: "(max-width: 900px), (hover: none) and (pointer: coarse)",
+    // Phone-sized screens: greyed out in the sidebar.
+    MOBILE_QUERY: "(max-width: 900px)",
 
     VENDOR: "/static/vendor/xterm",
 

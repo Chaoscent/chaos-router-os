@@ -26,6 +26,8 @@ from services.config import load_persistent
 
 from services import transaction, wifi, dhcp, setup_network
 
+from services.caddy import dashboard_url
+
 from services.logs import log_event
 
 USERS = "users"
@@ -76,9 +78,9 @@ def get_setup_info(viewer_ip=None):
         # This browser is on the setup Wi-Fi: skipping Wi-Fi ends its
         # connection, and a new Wi-Fi replaces the network it is on.
         "via_setup_wifi": bool(viewer_ip) and setup_network.is_on_setup_network(viewer_ip),
-        # After setup the portal's port-80 redirect is gone (no Caddy
-        # yet): the dashboard is on the app's own port.
-        "dashboard_url": f"http://{setup_network.ADDRESS}:{setup_network.APP_PORT}/"
+        # Behind Caddy on port 80; without it the portal's port-80
+        # redirect is gone after setup, so the app's own port.
+        "dashboard_url": dashboard_url(setup_network.ADDRESS)
     }
 
 

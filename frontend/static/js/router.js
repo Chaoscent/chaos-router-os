@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", ()=>{
 
     // Phones: the shell needs a keyboard, so its entry is greyed out
     // (CSS) and cannot be opened (also not from the keyboard).
-    const mobile = window.matchMedia("(max-width: 900px), (hover: none) and (pointer: coarse)");
+    const mobile = window.matchMedia("(max-width: 900px)");
 
     const markMobileOnly = () => {
         document.querySelectorAll(".sidebar a.nav-desktop-only").forEach(link=>{

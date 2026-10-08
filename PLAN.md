@@ -36,14 +36,14 @@ Without these it isn't a router yet.
   - [x] **Security:** SSH and the dashboard are only allowed on LAN interfaces, never on the WAN.
 - [x] **Firewall on by default.** The installer ships `/etc/chaos-router-os/firewall.json`: on, incoming and routed denied, outgoing allowed, essential rules on. Applied at boot before the first change.
   - [ ] Test on the Pi 5 that a fresh install keeps SSH and the dashboard reachable from eth0 and Wi-Fi.
-  - [ ] Once Caddy is in front, drop port 5000 from the essential rules (`CHAOS_PORT`).
+  - [x] With Caddy in front, the essential rules only open 80 and 443 (port 5000 only without Caddy, `CHAOS_BIND`).
   - [ ] Dev setups that enabled the firewall before this change still have the old "allow from any" essential copies as user rules; delete them on the Firewall page.
   - [ ] Consider TCP MSS clamping for the modem link (mobile networks often have a smaller MTU).
 - [x] **Start at boot.** `deploy/chaos-router-os.service`, installed with `sudo deploy/install-service.sh` (`--remove` to uninstall): starts after NetworkManager, runs as the user who called sudo, restarts on failure, logs to the journal. Boot recovery (`sync_boot` + `apply_all`) and the setup Wi-Fi now run at every boot.
   - [ ] Test on the Pi 5: boot, factory reset reboot into the setup Wi-Fi, app crash restart.
   - [ ] The installer runs `install-service.sh` (or the same steps).
 - [x] **Production server.** The service runs gunicorn (1 worker, 8 threads: Safe Apply's timer and the traffic sampler must stay in one process), no debug mode.
-  - [ ] Bind to localhost once Caddy is in front (now `0.0.0.0:5000`).
+  - [x] Binds to `127.0.0.1:5000` when Caddy is in front (`CHAOS_BIND`, set by `install-service.sh`), `0.0.0.0:5000` without it.
 - [ ] **Hardware testing.** Everything marked 🧪 has only been tested with fakes in WSL. Most likely to need fixes: Wi-Fi, 6 GHz, the OpenVPN PKI, the firewall.
 - [x] **Mock modem data removed.** `get_modem_data()` reports `state`: `ready`, `not_ready` (modem found, no answer yet) or `absent`. Unknown values are `null` and shown as "--"; the header and Modem page say "No modem" / "Not ready". The header's Online/Offline pill follows the default route instead of always saying "Online".
   - [ ] Check the `mmcli` parsing against the real RM520N-GL on the Pi 5: signal values per section (`rsrp`, `rsrq`, `s/n`, 5G preferred over LTE), access tech ("lte, 5gnr" → "5G NSA"), SIM state. The parsing was written from documented output, not tested on the modem.
@@ -72,7 +72,7 @@ Without these it isn't a router yet.
   - Logout is a POST with the token.
   - Login: 5 failures within 15 minutes lock the client address out for 60 s, doubling up to 15 minutes; forgiven after 15 quiet minutes. Kept in memory (a restart clears it).
   - `X-Forwarded-For` is only trusted from localhost (Caddy), and its last entry is used (earlier ones can be faked by the client).
-  - [ ] Once Caddy serves HTTPS: set `SESSION_COOKIE_SECURE`.
+  - [x] The session cookie is Secure for browsers on HTTPS (per request: plain HTTP stays usable for the captive portal).
 - [x] **No default credentials.** `backend/data/users.json` is gone, and `/etc` no longer ships a login. Without an admin account in `/var/lib`, the router is in setup mode.
   - [ ] On routers that ran an older `install_defaults.py`, delete the stale `/etc/chaos-router-os/users.json` (no longer read).
 - [ ] **Root helper instead of a broad sudoers list.** Passwordless `cp`, `rm`, `cat`, `install` and `find` together equal full root. Replace them with one small root helper script that only accepts specific operations; sudoers allows only that script (plus the service commands that are needed).
@@ -96,10 +96,15 @@ Without these it isn't a router yet.
   - [ ] Test on the Pi 5 with a real provider: LAN devices' public IP is the VPN's.
   - [ ] While a full tunnel is up, answers to connections from the internet side (WireGuard/OpenVPN servers on the router, remote dashboard access over the modem) also go into the tunnel and break. Needs policy routing for traffic that came in on the WAN.
   - [ ] Kill switch: block LAN internet access while the full-tunnel VPN is down, so nothing leaks over the WAN.
-- [x] **Web shell** (Shell page; `backend/services/shell.py`, xterm.js 6 + fit add-on vendored in `frontend/static/vendor/xterm`, MIT): off by default (System > Web Shell, password to switch), password + 60 s one-time key per session (counts toward the login lockout), WebSocket origin check, never from the WAN interface or the modem, max 2 sessions, 15 min idle and session-lifetime limits, every session logged. Greyed out on phones/touch-only devices.
+- [x] **Web shell** (Shell page; `backend/services/shell.py`, xterm.js 6 + fit add-on vendored in `frontend/static/vendor/xterm`, MIT): off by default (System > Web Shell, password to switch), password + 60 s one-time key per session (counts toward the login lockout), WebSocket origin check, never from the WAN interface or the modem, max 2 sessions, 15 min idle and session-lifetime limits, every session logged. Greyed out on phone-sized screens (up to 900 px; not by input device, which touch laptops and remote desktops report wrongly).
   - [ ] Test on the Pi 5 under the systemd service (gunicorn threads + WebSocket).
-  - [ ] Keystrokes travel unencrypted until Caddy serves HTTPS.
-- [ ] **Apps page.** Still a placeholder. Hide it or label it "coming in v2" before v1.
+  - [ ] Over plain HTTP, keystrokes still travel unencrypted. Consider allowing the shell only over HTTPS.
+- [x] **Apps page.** Works with the Apps Addon (`~/projects/apps`, to be published as chaos-router-apps): one-click addon install (`deploy/install-apps.sh`, allowed in sudoers without arguments), catalog with install/open/start/stop/update/logs/remove as background jobs with live output. Installed apps get `<app>.<hostname>.<domain|lan>`: own dnsmasq drop-in (`interface-name` + `localise-queries`), a Caddy file per app (`/etc/caddy/chaos-apps/`, Caddy restarted), HTTPS allowed for the name. Names follow hostname and LAN-domain changes. Tested in WSL with the real App Manager, real Compose validation, real Caddy 2.6.2 and dnsmasq 2.92; Docker itself faked.
+  - [ ] Publish `~/projects/apps` as github.com/chaoscent/chaos-router-apps (the one-click install clones it from there).
+  - [ ] Test on the Pi 5 with real Docker: each catalog app, update, remove, a router rename, Vaultwarden over HTTPS.
+  - [ ] Media and files for apps (Jellyfin's media folder is root-only in `/var/lib/chaos-router-apps`): a shared folder the user can fill (Samba/SFTP), or a USB drive.
+  - [ ] Warn about RAM-heavy apps on 1 GB boards (see Hardware notes).
+  - [ ] Interfaces added later (e.g. a USB Wi-Fi) only get app names after the next sync (startup, rename).
 - [ ] **Active Clients is not a real count.** The dashboard shows 1 whenever there is any traffic. Count clients that sent traffic recently instead (per-client counters, e.g. from the neighbour table plus iptables accounting or conntrack).
 - [ ] **OpenVPN on slower CPUs.** Consider putting `CHACHA20-POLY1305` first in `CIPHERS`; it's faster than AES on a Pi 4, which lacks AES instructions.
 
@@ -166,7 +171,7 @@ Hardware Edition: show the same QR code on the OLED.
 
 - [x] Wi-Fi is applied first through Safe Apply without confirmation (the browser may lose the connection). If it fails to start, it is rolled back, the setup Wi-Fi comes back, no account is created and the user can try again.
 - [x] A Wi-Fi set up in the wizard keeps the setup subnet: 10.42.0.1/24 on the radio and DHCP 10.42.0.100-200 there. Without Wi-Fi, the setup Wi-Fi turns off a few seconds after the answer (the page warns when this device is on it).
-- [ ] After setup the dashboard is on port 5000 (the port-80 redirect only exists during setup) until Caddy serves port 80.
+- [x] Caddy serves port 80, so the portal and the dashboard after setup are on `http://10.42.0.1/` (the iptables port-80 redirect is only used without Caddy).
 - [x] The page tells the user to join the new Wi-Fi and gives the dashboard address.
 - [x] `/setup` and `/api/setup/*` return 404 once an admin account exists; a factory reset (empty `/var/lib`) brings setup back.
 - [ ] Test on the Pi 5 together with the installer's setup network.
@@ -202,9 +207,11 @@ Most of what's needed already exists.
 
 ## 8. Caddy and HTTPS
 
-- [ ] Caddy in front of the app on ports 80 and 443.
-- [ ] Self-signed or local CA certificate.
-- [ ] `get_viewer_ip()` already honours `X-Forwarded-For`; make sure only Caddy (localhost) is trusted for it.
+- [x] Caddy in front of the app on ports 80 and 443 (`deploy/Caddyfile`, installed by `install-service.sh`; the installer adds the `caddy` package). Port 80 is never redirected to HTTPS: the captive portal needs plain HTTP.
+- [x] Local CA certificate: Caddy's `tls internal` with on-demand certificates for the address or name in the browser, allowed only for the router's LAN addresses and names (`/caddy/tls-allowed`, `services/caddy.py`). Admin API off.
+- [x] `get_viewer_ip()` only trusts `X-Forwarded-For` from localhost (Caddy); the setup gate uses it too, so the captive portal works behind Caddy.
+- [ ] Test on the Pi 5 with Debian's Caddy package: certificates by IP and by hostname, the captive portal on the setup Wi-Fi, the web shell over `wss://`, `--remove` restoring the old Caddyfile. (Tested in WSL with Caddy 2.6.2: HTTP, HTTPS by IP and localhost, foreign names refused, Secure cookie, client address in the logs, WebSocket.)
+- [ ] Offer the local CA's root certificate for download (System page), so devices can trust it and the browser warning goes away. It lives in Caddy's data folder (`/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt`), which the app user cannot read yet.
 
 ---
 

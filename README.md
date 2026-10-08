@@ -62,7 +62,7 @@ Networking-first installation.
 * Shell (web terminal; off by default, password per session, desktop only)
 * Safe Apply (bad settings never brick the router)
 * Setup Wizard (first-time setup at `/setup`)
-* Caddy *(planned)*
+* Caddy (dashboard on ports 80 and 443, HTTPS with the router's own certificate authority)
 * MikroTik-style SPA navigation
 
 Install on Raspberry Pi OS Lite (64-bit), logged in as your normal user:
@@ -105,28 +105,35 @@ Neither **Core** nor **Hardware Edition** ships with the Apps Addon.
 
 The sidebar always contains an **Apps** page.
 
-Before installation, it offers a one-click installer for the Container Runtime.
+Before installation, it offers a one-click installer for the addon (`deploy/install-apps.sh`, which downloads [Chaos Router Apps](https://github.com/chaoscent/chaos-router-apps) and runs its installer).
 
-After installation, it becomes the App Store.
+After installation, it becomes the App Store: install, open, start/stop, update, view logs and remove apps, with the install output shown live.
 
 The Apps Addon installs:
 
 * Docker Engine
 * Docker Compose
-* App Manager
-* Caddy integration
-* Local DNS integration
+* App Manager (`chaos-apps`; only installs apps from its catalog)
+
+Chaos Router OS does the integration when an app is installed:
+
+* **Name:** `<app>.<hostname>.<LAN domain, else "lan">`, e.g. `nextcloud.chaos-router.lan`
+* **Local DNS:** dnsmasq answers the name with the router's address (`/etc/dnsmasq.d/chaos-router-apps.conf`)
+* **Caddy:** routes the name to the app over HTTP and HTTPS (`/etc/caddy/chaos-apps/<app>.caddy`)
+* **HTTPS:** certificates for the app names from the router's local certificate authority
+
+Apps publish their ports on 127.0.0.1 only: Caddy is the only way in.
 
 Core networking functionality never depends on Docker or installed applications.
 
-Planned apps include:
+Apps in the catalog:
 
 * Nextcloud
-* Pi-hole
 * Uptime Kuma
-* AdGuard
 * Jellyfin
-* Immich
+* Vaultwarden
+
+Planned: Immich. Pi-hole and AdGuard need port 53, which the router's DNS uses.
 
 ---
 
@@ -139,14 +146,16 @@ Applications never need to expose user-facing ports directly.
 Example:
 
 ```text
-nextcloud.chaos-router.local
+nextcloud.chaos-router.lan
         │
       Caddy
         │
-localhost:9000
+127.0.0.1:9104
         │
 Nextcloud container (80)
 ```
+
+App names end in `.lan` (or the LAN domain), not `.local`: Apple devices only look up `.local` names with mDNS, never at the router's DNS.
 
 The user never has to remember `:9000`.
 
@@ -201,7 +210,7 @@ pip install -r requirements.txt
 python backend/app.py
 ```
 
-The dashboard runs on port `5000`. There is no default login: on first start every page leads to `/setup`, where you create the admin account.
+The dashboard runs on port `5000` (on the router, Caddy serves it on ports 80 and 443; see below). There is no default login: on first start every page leads to `/setup`, where you create the admin account.
 
 While the router is not set up, the app also starts a setup Wi-Fi (WPA2, 10.42.0.1/24) with a captive portal. Show its name, password and QR code with `python backend/setup_wifi.py`. Set `CHAOS_SETUP_WIFI=0` to keep it off during development.
 
@@ -227,12 +236,23 @@ sudo systemctl restart chaos-router-os    # after pulling new code
 
 With the service, a reboot (including the one after a factory reset) brings the router back on its saved settings, or into the setup Wi-Fi when it is not set up.
 
+### Caddy (ports 80 and 443)
+
+When Caddy is installed (`sudo apt install caddy`; the installer does this), `install-service.sh` makes `deploy/Caddyfile` the system's `/etc/caddy/Caddyfile` (an existing one is kept as `Caddyfile.before-chaos` and put back by `--remove`). The app then only listens on `127.0.0.1:5000`, and Caddy serves the dashboard:
+
+- `http://<router>/`: plain HTTP, never redirected. The setup Wi-Fi's captive portal and the connectivity checks of phones need it.
+- `https://<router>/`: HTTPS with a certificate from Caddy's own local certificate authority, made on the first visit for the address or name in the browser. Caddy asks the app first (`/caddy/tls-allowed`), which only allows the router's LAN addresses, its hostname, `<hostname>.local` and `<hostname>.<LAN domain>`. Browsers warn once per device, since they don't know this authority.
+
+Over HTTPS the session cookie is marked Secure. The firewall keeps ports 80 and 443 closed on the internet side. The Caddyfile turns Caddy's admin API off, so apply changes with `sudo systemctl restart caddy` (not `reload`).
+
+Without Caddy the service falls back to port 5000 on every address, as in development.
+
 ### System Requirements
 
 The installer will set all of these up. For development, install them by hand:
 
 ```bash
-sudo apt install dnsmasq hostapd ufw iptables wireguard-tools openvpn easy-rsa openresolv iw rfkill qrencode
+sudo apt install dnsmasq hostapd ufw iptables wireguard-tools openvpn easy-rsa openresolv iw rfkill qrencode caddy
 ```
 
 The app runs as a normal user and uses `sudo -n` for system changes, so that user needs passwordless sudo for:
@@ -275,15 +295,16 @@ A ready-made sudoers file will ship with the installer.
 | ⬜ | Start the app at boot (systemd service) |
 | ⬜ | Installer with sudoers file |
 | 🧪 | Setup Wizard (`/setup`: admin account, Wi-Fi; only until an account exists) |
-| ⬜ | Caddy |
-| ⬜ | Apps installer page |
+| 🧪 | Caddy (ports 80 and 443, HTTPS from a local certificate authority) |
+| 🧪 | Apps page: one-click Apps Addon install, app catalog (install, open, start/stop, update, logs, remove) |
 
 ### Apps Addon (released with v2)
 
-* [ ] Container Runtime installer
-* [ ] App Manager
-* [ ] Caddy automation
-* [ ] First installable app
+* [x] Container Runtime installer (Apps Addon: Docker Engine + Compose)
+* [x] App Manager
+* [x] Caddy automation (and local DNS names)
+* [x] First installable apps (Nextcloud, Uptime Kuma, Jellyfin, Vaultwarden)
+* [ ] Test on the Pi 5 with real Docker
 
 ### Hardware Edition
 

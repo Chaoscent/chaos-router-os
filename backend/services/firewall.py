@@ -22,6 +22,8 @@ from services.config import (
 
 from services import transaction
 
+from services.caddy import APP_PORT, BEHIND_CADDY
+
 # -------------------------------------------------------------------
 # Configuration
 # -------------------------------------------------------------------
@@ -65,8 +67,9 @@ ESSENTIAL_COMMENT = "Chaos Router OS"
 # Comment prefix of the rules kept by the "essentials" setting.
 ESSENTIAL_PREFIX = f"{ESSENTIAL_COMMENT}: Essential"
 
-# The dashboard: HTTP, HTTPS (Caddy) and the app's own port.
-WEB_PORTS = ("80", "443", os.getenv("CHAOS_PORT", "5000"))
+# The dashboard: HTTP and HTTPS (Caddy). Without Caddy (development)
+# also the app's own port.
+WEB_PORTS = ("80", "443") + (() if BEHIND_CADDY else (APP_PORT,))
 
 # firewall.json: enabled, policies, logging, the essential rules
 # switch and the user's rules.
