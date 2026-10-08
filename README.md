@@ -72,7 +72,16 @@ curl -fsSL https://raw.githubusercontent.com/chaoscent/chaos-router-os/dev/core/
 
 The installer sets up the packages, the app, the default settings and the service, asks for your Wi-Fi country, and finishes with a QR code for the setup Wi-Fi. Scan it with your phone and the setup page opens. Running it again updates an existing install; your settings are kept. Options: `--country DE`, `--dir PATH`, `--yes`.
 
-Later this will also be available as `curl -fsSL chaos-software.dev/router-os/core | sudo bash`.
+Short form: `curl -fsSL https://chaos-software.dev/router-os/core | sudo bash`.
+
+To remove Chaos Router OS and everything it set up:
+
+```bash
+sudo /opt/chaos-router-os/uninstall.sh            # asks for confirmation
+sudo /opt/chaos-router-os/uninstall.sh --dry-run  # only shows what it would do
+```
+
+It removes the Apps Addon with all apps (and Docker, if the addon installed it), switches off and deletes everything Chaos Router OS set up (Wi-Fi, DHCP, DNS, VPNs, firewall rules, NAT, LAN bridge, Caddy routes, mDNS names), purges the packages the installer installed, and deletes all its files. It keeps eth0's address settings (so SSH over eth0 stays), the hostname, the Wi-Fi country and the system journal. A dropped SSH connection doesn't stop it halfway (log: `/tmp/chaos-router-os-uninstall.log`). Options: `--yes`, `--keep-packages`, `--all-packages` (for installs made before the installer recorded its packages).
 
 ---
 

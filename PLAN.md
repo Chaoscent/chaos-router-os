@@ -198,14 +198,14 @@ Hardware Edition: show the same QR code on the OLED.
 
 ## 7. Uninstaller
 
-Most of what's needed already exists.
-
-- [ ] Remove our dnsmasq drop-ins (`/etc/dnsmasq.d/chaos-router-*.conf`), WireGuard and OpenVPN files, and the OpenVPN NAT script.
-- [ ] Sync our firewall rules to empty via the ledger (`system/firewall_rules.json`) and delete the `CHAOS-BLOCK` chain (iptables and ip6tables).
-- [ ] Restore the recorded baselines.
-- [ ] Remove the systemd units, root helper, sudoers file and service user.
-- [ ] Ask about `/var/lib/chaos-router-os`: keep it, or export a backup before deleting it.
-- [ ] Never remove packages or settings the user had before installing.
+- [x] `uninstall.sh` (repo root; `--yes`, `--dry-run`, `--keep-packages`, `--all-packages`): asks once, then runs detached (`setsid`, log in `/tmp`) so a dropped SSH connection doesn't stop it halfway.
+  - Apps Addon: `install.sh --remove --purge` (apps, data, App Manager; Docker only if the addon installed it, marker `docker-installed`).
+  - Services `chaos-router-os` and `chaos-router-mdns` stopped and removed.
+  - `backend/uninstall.py`: every area off through its own code (VPN profiles, OpenVPN, WireGuard, Wi-Fi, DNS, DHCP, blocked devices, routing off, firewall off with all ledger rules removed, LAN bridge gone), the `CHAOS-NAT`, `CHAOS-SETUP` and `CHAOS-BLOCK` chains removed, our dnsmasq drop-ins, hostapd, VPN and Caddy files removed, never-default/route-metric back to NetworkManager defaults (`device reapply`, no disconnect).
+  - Caddyfile restored (or Caddy stopped), packages the installer installed purged (`/etc/chaos-router-os/installed-packages`; network-manager last), all files deleted (`/opt/chaos-router-os` only if it is the installer's copy).
+  - Kept on purpose: eth0's address settings (the original ones are not recorded after the first change), hostname, Wi-Fi country, journal.
+- [ ] Test in the VM (snapshot before): uninstall, then check `dpkg -l`, `/etc`, `iptables-save`, `nmcli connection`, `ufw status`; then a fresh install on the same VM.
+- [ ] Offer a backup download before deleting `/var/lib/chaos-router-os` (today: download one on the System page first).
 
 ---
 

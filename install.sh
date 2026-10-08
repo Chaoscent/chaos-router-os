@@ -29,6 +29,10 @@ ASSUME_YES=0
 STATE_DIR=/var/lib/chaos-router-os
 SUDOERS_FILE=/etc/sudoers.d/chaos-router-os
 
+# Packages this installer installed (not the ones that were already
+# there): uninstall.sh removes exactly these.
+PACKAGES_RECORD=/etc/chaos-router-os/installed-packages
+
 PACKAGES=(
     git python3-venv python3-pip
     network-manager
@@ -133,8 +137,24 @@ install_packages() {
 
     export DEBIAN_FRONTEND=noninteractive
 
+    local pkg new=()
+
+    for pkg in "${PACKAGES[@]}"; do
+        dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed" || new+=("$pkg")
+    done
+
     apt-get update -q
     apt-get install -y -q "${PACKAGES[@]}"
+
+    # Add to the record (an update may install packages added later).
+    mkdir -p "$(dirname "$PACKAGES_RECORD")"
+    touch "$PACKAGES_RECORD"
+
+    if (( ${#new[@]} )); then
+        printf '%s\n' "${new[@]}" >> "$PACKAGES_RECORD"
+        sort -u -o "$PACKAGES_RECORD" "$PACKAGES_RECORD"
+        info "Newly installed: ${new[*]}"
+    fi
 }
 
 
