@@ -38,6 +38,8 @@ Only hardware that can be tested is officially supported.
 
 **Wi-Fi 6E (6 GHz)** needs an extra adapter whose driver can run a 6 GHz access point. The Raspberry Pi 5's built-in Wi-Fi has no 6 GHz radio; the WiFi page detects this and only offers the bands the radio supports.
 
+**One network per radio.** Every Wi-Fi radio (the built-in one, USB adapters) runs its own access point with its own name, band and subnet. A radio sends on one band at a time, so 2.4 and 5 GHz at once need two radios.
+
 ---
 
 ## Editions
@@ -49,10 +51,10 @@ Networking-first installation.
 **Included**
 
 * Dashboard
-* Modem
-* Network
-* WiFi (hostapd, 2.4 / 5 / 6 GHz)
-* DHCP (dnsmasq)
+* Modem (ModemManager: mobile data, APN, SIM PIN)
+* Network (LAN bridge with selectable ports)
+* WiFi (hostapd, 2.4 / 5 / 6 GHz, one network per radio)
+* DHCP (dnsmasq, one range per interface)
 * DNS (dnsmasq)
 * Clients
 * Firewall (ufw)
@@ -70,7 +72,7 @@ Install on Raspberry Pi OS Lite (64-bit), logged in as your normal user:
 curl -fsSL https://raw.githubusercontent.com/chaoscent/chaos-router-os/dev/core/install.sh | sudo bash
 ```
 
-The installer sets up the packages, the app, the default settings and the service, asks for your Wi-Fi country, and finishes with a QR code for the setup Wi-Fi. Scan it with your phone and the setup page opens. Running it again updates an existing install; your settings are kept. Options: `--country DE`, `--dir PATH`, `--yes`.
+The installer sets up the packages, the app, the default settings and the service, asks for your Wi-Fi country, and finishes with a QR code for the setup Wi-Fi. Scan it with your phone and the setup page opens. Running it again updates an existing install; your settings are kept. The country has no default: the installer lists every country with its code and you type yours. Options: `--country US`, `--dir PATH`, `--yes` (needs `--country` unless the system already has one).
 
 Short form: `curl -fsSL https://chaos-software.dev/router-os/core | sudo bash`.
 
@@ -207,7 +209,7 @@ Everything Chaos Router OS writes to these folders is JSON.
 
 Deleting a file in `/var/lib/chaos-router-os/` restores that area's defaults.
 
-Services still read their own config files (`/etc/hostapd/`, `/etc/dnsmasq.d/`, `/etc/wireguard/`, `/etc/openvpn/`). Those are generated from the JSON settings and re-applied at boot.
+Services still read their own config files (`/etc/hostapd/chaos-<radio>.conf`, `/etc/dnsmasq.d/`, `/etc/wireguard/`, `/etc/openvpn/`). Those are generated from the JSON settings and re-applied at boot. Each Wi-Fi radio's access point is its own service, `chaos-hostapd@wlan0`, `chaos-hostapd@wlan1`, ...; the mobile data connection is the NetworkManager connection `chaos-modem`.
 
 ---
 
@@ -266,11 +268,11 @@ Without Caddy the service falls back to port 5000 on every address, as in develo
 The installer will set all of these up. For development, install them by hand:
 
 ```bash
-sudo apt install dnsmasq hostapd ufw iptables wireguard-tools openvpn easy-rsa openresolv iw rfkill qrencode caddy avahi-daemon avahi-utils
+sudo apt install dnsmasq hostapd modemmanager ufw iptables wireguard-tools openvpn easy-rsa openresolv iw rfkill qrencode caddy avahi-daemon avahi-utils
 ```
 
 The app runs as a normal user and uses `sudo -n` for system changes, so that user needs passwordless sudo for:
-`systemctl`, `journalctl`, `nmcli`, `hostnamectl`, `sysctl`, `ip`, `ufw`, `iptables`, `ip6tables`, `iw`, `rfkill`, `wg`, `openvpn`, `easyrsa`, `install`, `mkdir`, `cp`, `rm`, `cat`, `test`, `find`.
+`systemctl`, `journalctl`, `nmcli`, `mmcli`, `hostnamectl`, `sysctl`, `ip`, `ufw`, `iptables`, `ip6tables`, `iw`, `rfkill`, `wg`, `openvpn`, `easyrsa`, `install`, `mkdir`, `cp`, `rm`, `cat`, `test`, `find`.
 
 A ready-made sudoers file will ship with the installer.
 
@@ -290,17 +292,18 @@ A ready-made sudoers file will ship with the installer.
 | ✅ | SPA routing (`#/dashboard`) |
 | ✅ | Network page |
 | ✅ | Modem page (`mmcli`) |
+| 🧪 | Mobile data (NetworkManager connection: APN, roaming, SIM PIN unlock) |
 | ✅ | System |
 | 🧪 | Safe Apply (verify, confirm or auto-revert, recover at boot) |
 | 🧪 | Config layout (`/etc` defaults, `/var/lib` persistent, `/tmp` running) |
-| 🧪 | WiFi page (hostapd, WPA2/WPA3, 2.4/5/6 GHz, connected clients) |
-| 🧪 | DHCP page (dnsmasq, static leases, active leases) |
+| 🧪 | WiFi page (hostapd, WPA2/WPA3, 2.4/5/6 GHz, one network per radio, connected clients) |
+| 🧪 | DHCP page (dnsmasq, one range per interface, follows the Wi-Fi, static leases, active leases) |
 | 🧪 | DNS page (dnsmasq, upstream providers, local records, blocklist, lookup) |
 | 🧪 | Clients page (reserve DHCP IP, block device, ping, Wake-on-LAN) |
 | 🧪 | Firewall page (ufw, default policies, rules) |
 | 🧪 | Routing & NAT (IP forwarding, masquerading to the WAN) |
 | 🧪 | eth0 LAN/WAN switch (Ethernet uplink instead of the modem) |
-| 🧪 | LAN bridge (br0: Ethernet and Wi-Fi in one network) |
+| 🧪 | LAN bridge (br0: chosen Ethernet and Wi-Fi ports in one network) |
 | 🧪 | VPN page: WireGuard server |
 | 🧪 | VPN page: OpenVPN server with its own certificate authority |
 | 🧪 | VPN page: WireGuard and OpenVPN client profiles |

@@ -1,0 +1,20 @@
+# Chaos Router OS: one Wi-Fi access point per radio, e.g.
+# chaos-hostapd@wlan0 and chaos-hostapd@wlan1, each with its own
+# config (/etc/hostapd/chaos-<interface>.conf, written by the WiFi
+# page). Installed by deploy/install-service.sh; started, stopped and
+# enabled by the app.
+
+[Unit]
+Description=Chaos Router OS: Wi-Fi access point on %I
+Documentation=https://github.com/chaoscent/chaos-router-os
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+ExecStart=/usr/sbin/hostapd /etc/hostapd/chaos-%I.conf
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

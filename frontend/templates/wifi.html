@@ -26,10 +26,12 @@
             <h2 id="wifiChannelState">--</h2>
         </div>
 
-        <div class="card">
-            <span>Clients</span>
-            <h2 id="wifiClientCount">--</h2>
-        </div>
+        <a href="#/clients" class="card-link" title="Show all clients">
+            <div class="card">
+                <span>Clients</span>
+                <h2 id="wifiClientCount">--</h2>
+            </div>
+        </a>
 
     </div>
 
@@ -43,7 +45,18 @@
 
             <span>Wireless Network</span>
 
+            <p class="setting-hint wifi-radio-hint">
+                Every radio has its own network: choose a radio to set up its network.
+                One radio sends on one band at a time; for 2.4 and 5 GHz at once, use two radios
+                (e.g. the built-in Wi-Fi and a USB adapter).
+            </p>
+
             <div class="settings-grid">
+
+                <div class="setting-field">
+                    <label for="wifiInterfaceInput">Radio</label>
+                    <select id="wifiInterfaceInput" class="setting-input"></select>
+                </div>
 
                 <div class="setting-field">
                     <label for="wifiEnabledInput">Access point</label>
@@ -51,11 +64,6 @@
                         <option value="false">Off</option>
                         <option value="true">On</option>
                     </select>
-                </div>
-
-                <div class="setting-field">
-                    <label for="wifiInterfaceInput">Interface</label>
-                    <select id="wifiInterfaceInput" class="setting-input"></select>
                 </div>
 
                 <div class="setting-field">
@@ -178,12 +186,12 @@
                 </div>
 
                 <div class="setting-field">
-                    <label for="wifiCountryInput">Country code</label>
+                    <label for="wifiCountryInput">Country code (all radios)</label>
                     <input
                         id="wifiCountryInput"
                         class="setting-input"
                         type="text"
-                        placeholder="DE"
+                        placeholder="e.g. US"
                         maxlength="2"
                         autocomplete="off"
                         spellcheck="false">
@@ -231,6 +239,7 @@
                     <thead>
                         <tr>
                             <th>Device</th>
+                            <th>Radio</th>
                             <th>IP</th>
                             <th>Signal</th>
                             <th>Connected</th>

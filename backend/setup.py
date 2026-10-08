@@ -63,17 +63,20 @@ def get_setup_info(viewer_ip=None):
     What the setup page needs to offer the Wi-Fi step.
     """
 
-    settings = wifi.get_wifi_settings()
     interfaces = wifi.get_wireless_interfaces()
+
+    # The radio the setup Wi-Fi runs on.
+    interface = setup_network.pick_interface() or (interfaces[0] if interfaces else "wlan0")
+
+    network = wifi.get_network(interface)
 
     return {
         "wifi": {
             "available": bool(interfaces) and wifi.has_hostapd(),
             "interfaces": interfaces,
-            # The radio the setup Wi-Fi runs on.
-            "interface": setup_network.pick_interface() or settings["interface"],
-            "ssid": settings["ssid"],
-            "country": settings["country"]
+            "interface": interface,
+            "ssid": network["ssid"],
+            "country": network["country"]
         },
         # This browser is on the setup Wi-Fi: skipping Wi-Fi ends its
         # connection, and a new Wi-Fi replaces the network it is on.
@@ -109,7 +112,7 @@ def validate_wifi(data):
     if not data or data.get("enabled") is not True:
         return True, None
 
-    return wifi.validate_wifi_settings({
+    return wifi.validate_network({
         "enabled": True,
         "interface": data.get("interface"),
         "ssid": data.get("ssid"),
@@ -123,21 +126,6 @@ def validate_wifi(data):
         "address": setup_network.ADDRESS,
         "prefix": setup_network.PREFIX
     })
-
-
-def wifi_dhcp_settings(interface):
-    """
-    DHCP for the new Wi-Fi: the setup Wi-Fi's range on its radio.
-    """
-
-    return {
-        **dhcp.DEFAULT_SETTINGS,
-        "enabled": True,
-        "interface": interface,
-        "range_start": setup_network.DHCP_RANGE[0],
-        "range_end": setup_network.DHCP_RANGE[1],
-        "lease_time": "12h"
-    }
 
 
 def stop_setup_wifi_later(keep_access_point):
@@ -180,7 +168,11 @@ def complete_setup(data):
 
             # No confirmation: the browser may be on the old network.
             # A network that fails to start is rolled back instead.
-            outcome = transaction.change(wifi.WIFI_SETTINGS, wifi_settings, confirm=False)
+            outcome = transaction.change(
+                wifi.WIFI_SETTINGS,
+                wifi.with_network(wifi.get_wifi_settings(), wifi_settings),
+                confirm=False
+            )
 
             if not outcome["success"]:
 
@@ -193,13 +185,15 @@ def complete_setup(data):
             # before DHCP is set up for the same subnet.
             setup_network.stop(keep_access_point=True)
 
-            outcome = transaction.change(
-                dhcp.DHCP_SETTINGS,
-                wifi_dhcp_settings(wifi_settings["interface"]),
+            # The setup Wi-Fi's range (.100-.200) on the same subnet.
+            outcome = dhcp.follow_wifi(
+                wifi_settings["interface"],
+                wifi_settings["address"],
+                wifi_settings["prefix"],
                 confirm=False
             )
 
-            if not outcome["success"]:
+            if outcome and not outcome["success"]:
 
                 # Setup still completes (the account is what matters), but
                 # the page shows why devices get no address.

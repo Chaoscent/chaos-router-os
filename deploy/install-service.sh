@@ -26,6 +26,10 @@ TEMPLATE=$APP_DIR/deploy/$SERVICE.service
 MDNS_SERVICE=chaos-router-mdns
 MDNS_UNIT_FILE=/etc/systemd/system/$MDNS_SERVICE.service
 
+# One access point per Wi-Fi radio: chaos-hostapd@wlan0, @wlan1, ...
+AP_UNIT=chaos-hostapd@.service
+AP_UNIT_FILE=/etc/systemd/system/$AP_UNIT
+
 CADDYFILE=/etc/caddy/Caddyfile
 CADDY_BACKUP=/etc/caddy/Caddyfile.before-chaos
 # First line of deploy/Caddyfile: tells our config from someone else's.
@@ -41,7 +45,13 @@ fi
 if [[ ${1:-} == "--remove" ]]; then
 
     systemctl disable --now "$SERVICE" "$MDNS_SERVICE" 2>/dev/null || true
-    rm -f "$UNIT_FILE" "$MDNS_UNIT_FILE"
+
+    # Every access point instance (chaos-hostapd@wlan0, ...).
+    systemctl list-units --all --plain --no-legend 'chaos-hostapd@*' 2>/dev/null \
+        | awk '{print $1}' \
+        | while read -r unit; do systemctl disable --now "$unit" 2>/dev/null || true; done
+
+    rm -f "$UNIT_FILE" "$MDNS_UNIT_FILE" "$AP_UNIT_FILE"
     systemctl daemon-reload
 
     # Caddy: back to the config it had before, or stopped (ours would
@@ -153,6 +163,9 @@ sed \
     "$TEMPLATE" > "$UNIT_FILE"
 
 chmod 644 "$UNIT_FILE"
+
+# The access point unit; the app starts one instance per radio.
+install -m 644 "$APP_DIR/deploy/$AP_UNIT" "$AP_UNIT_FILE"
 
 systemctl daemon-reload
 systemctl enable "$SERVICE"

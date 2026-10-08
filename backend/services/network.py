@@ -862,10 +862,15 @@ def _lan_settings(lan, settings):
         or DEFAULT_LAN_CONFIG
     )
 
+    ports = lan.get("ports")
+
     return {
         "bridge": lan.get("bridge") is True,
         "ip": lan.get("ip") or source["ip"],
-        "subnet": lan.get("subnet") or source["subnet"]
+        "subnet": lan.get("subnet") or source["subnet"],
+        # The interfaces that join br0, or None for every LAN port
+        # (Ethernet in LAN mode and every access point).
+        "ports": sorted(set(ports)) if isinstance(ports, list) else None
     }
 
 
@@ -938,6 +943,47 @@ def get_lan_interface_names():
     ]
 
 
+WIRED_PREFIXES = ("eth", "en")
+
+
+def get_wired_interfaces():
+    """
+    Ethernet interfaces that exist now: eth0 and USB adapters.
+    """
+
+    try:
+        names = sorted(os.listdir("/sys/class/net"))
+    except OSError:
+        return []
+
+    return [
+        name for name in names
+        if is_lan_capable(name)
+        and name.startswith(WIRED_PREFIXES)
+        and not os.path.exists(f"/sys/class/net/{name}/wireless")
+    ]
+
+
+def bridges_interface(name, settings=None):
+    """
+    Whether this interface is (to be) a port of the LAN bridge: the
+    bridge is on, the interface is chosen as a port (all are by
+    default) and it is not the WAN.
+    """
+
+    settings = settings or get_network_settings()
+
+    lan = settings["lan"]
+
+    if not lan["bridge"]:
+        return False
+
+    if name == ETH0 and settings["eth0_role"] == "wan":
+        return False
+
+    return lan["ports"] is None or name in lan["ports"]
+
+
 def get_network_baseline():
     """
     The interface config NetworkManager runs now, before the first
@@ -975,10 +1021,6 @@ def apply_network_settings():
 
     bridged = settings["lan"]["bridge"]
 
-    # eth0 is a bridge port while it is a LAN port and the bridge is on;
-    # then it has no address of its own.
-    eth0_in_bridge = bridged and settings["eth0_role"] == "lan"
-
     if bridged:
 
         ok, result = apply_lan_bridge(settings["lan"])
@@ -986,20 +1028,26 @@ def apply_network_settings():
         if not ok:
             return False, f"LAN bridge: {result}"
 
-    if eth0_in_bridge:
+    # Wired ports join br0 while the bridge is on and they are chosen
+    # as its ports (eth0 only in LAN mode); then they have no address
+    # of their own. Wi-Fi access points join through hostapd.
+    in_bridge = set()
 
-        ok, result = add_bridge_port(ETH0)
+    for name in get_wired_interfaces():
+
+        if bridges_interface(name, settings):
+
+            in_bridge.add(name)
+
+            ok, result = add_bridge_port(name)
+
+        else:
+
+            # Back to the interface's own connection.
+            ok, result = remove_bridge_port(name)
 
         if not ok:
-            return False, f"{ETH0}: {result}"
-
-    else:
-
-        # Back to eth0's own connection (WAN, or LAN without bridge).
-        ok, result = remove_bridge_port(ETH0)
-
-        if not ok:
-            return False, f"{ETH0}: {result}"
+            return False, f"{name}: {result}"
 
     if not bridged:
 
@@ -1010,7 +1058,7 @@ def apply_network_settings():
 
     for name, config in settings["interfaces"].items():
 
-        if name == ETH0 and eth0_in_bridge:
+        if name in in_bridge:
             continue
 
         role = settings["eth0_role"] if name == ETH0 else "lan"
@@ -1206,7 +1254,21 @@ def validate_lan_bridge(data):
     if lan["ip"] in (str(network.network_address), str(network.broadcast_address)):
         return False, f"{lan['ip']} is the network or broadcast address of {network}."
 
-    return True, {"bridge": lan["bridge"], "ip": lan["ip"], "subnet": lan["subnet"]}
+    ports = lan.get("ports")
+
+    if ports is not None:
+
+        if not isinstance(ports, list) or not all(
+            is_lan_capable(p) and not str(p).startswith("br") for p in ports
+        ):
+            return False, "Invalid bridge ports."
+
+        ports = sorted(set(ports))
+
+        if lan["bridge"] and not ports:
+            return False, "Choose at least one port for the LAN bridge."
+
+    return True, {"bridge": lan["bridge"], "ip": lan["ip"], "subnet": lan["subnet"], "ports": ports}
 
 
 def set_lan_bridge(data):
@@ -1225,15 +1287,33 @@ def set_lan_bridge(data):
     )
 
 
+def _wireless_names():
+
+    try:
+        return [
+            n for n in os.listdir("/sys/class/net")
+            if os.path.exists(f"/sys/class/net/{n}/wireless")
+        ]
+    except OSError:
+        return []
+
+
 def get_lan_bridge_status():
 
     settings = get_network_settings()
+
+    wireless = set(_wireless_names())
 
     return {
         "settings": settings["lan"],
         "eth0_role": settings["eth0_role"],
         "active": os.path.exists(f"/sys/class/net/{BRIDGE}"),
         "ports": get_bridge_ports(),
+        # Interfaces that can be chosen as ports: Ethernet and Wi-Fi.
+        "candidates": [
+            {"name": name, "wireless": name in wireless}
+            for name in sorted(set(get_wired_interfaces()) | wireless)
+        ],
         "address": get_ip(BRIDGE),
         "eth0_address": get_ip(ETH0)
     }

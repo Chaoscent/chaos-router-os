@@ -12,7 +12,7 @@
     <div class="card-grid status-cards">
 
         <div class="card">
-            <span>DHCP Server</span>
+            <span>DHCP Serves</span>
             <h2 id="dhcpServerState">--</h2>
         </div>
 
@@ -43,19 +43,24 @@
 
             <span>Server Settings</span>
 
-            <div class="settings-grid">
+            <p class="setting-hint">
+                DHCP can serve several interfaces, each with its own range: choose an interface to set it up.
+                Ports of the LAN bridge are served through br0.
+            </p>
 
-                <div class="setting-field">
-                    <label for="dhcpEnabledInput">DHCP server</label>
-                    <select id="dhcpEnabledInput" class="setting-input">
-                        <option value="false">Disabled</option>
-                        <option value="true">Enabled</option>
-                    </select>
-                </div>
+            <div class="settings-grid">
 
                 <div class="setting-field">
                     <label for="dhcpInterfaceInput">Interface</label>
                     <select id="dhcpInterfaceInput" class="setting-input"></select>
+                </div>
+
+                <div class="setting-field">
+                    <label for="dhcpEnabledInput">DHCP on this interface</label>
+                    <select id="dhcpEnabledInput" class="setting-input">
+                        <option value="false">Off</option>
+                        <option value="true">On</option>
+                    </select>
                 </div>
 
                 <div class="setting-field">
@@ -132,7 +137,7 @@
                 </div>
 
                 <div class="setting-field">
-                    <label for="dhcpDomainInput">Local domain</label>
+                    <label for="dhcpDomainInput">Local domain (all interfaces)</label>
                     <input
                         id="dhcpDomainInput"
                         class="setting-input"

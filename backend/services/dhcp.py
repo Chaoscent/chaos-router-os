@@ -4,7 +4,7 @@ import re
 import tempfile
 import time
 
-from services.config import load_settings
+from services.config import load_defaults, load_running
 
 from services import transaction
 
@@ -49,17 +49,30 @@ LEASE_SECONDS = {
     "7d": 7 * 86400
 }
 
+# dhcp.json: one scope per interface DHCP serves, with its own range,
+# gateway and DNS; the domain and the reservations are shared:
+#
+#   {"interfaces": {"eth0": {...}, "wlan1": {...}},
+#    "domain": "", "reservations": [...]}
+#
+# Older versions stored a single scope ({"enabled", "interface",
+# "range_start", ...}); it is read as the scope of that interface.
 DEFAULT_SETTINGS = {
+    "interfaces": {},
+    "domain": "",
+    "reservations": []
+}
+
+DEFAULT_SCOPE = {
     "enabled": False,
-    "interface": "eth0",
     "range_start": "",
     "range_end": "",
     "lease_time": "12h",
     "gateway": "",
-    "dns": [],
-    "domain": "",
-    "reservations": []
+    "dns": []
 }
+
+SCOPE_FIELDS = tuple(DEFAULT_SCOPE)
 
 MAC_RE = re.compile(r"^([0-9A-F]{2}:){5}[0-9A-F]{2}$")
 
@@ -166,9 +179,135 @@ def _ipv4(value):
 # Settings
 # -------------------------------------------------------------------
 
+def normalize(data):
+    """
+    {"interfaces", "domain", "reservations"} from stored settings, in
+    the current or the old single-scope format.
+    """
+
+    data = data if isinstance(data, dict) else {}
+
+    scopes = data.get("interfaces")
+
+    if isinstance(scopes, dict):
+        scopes = {
+            name: {**DEFAULT_SCOPE, **{k: v for k, v in scope.items() if k in SCOPE_FIELDS}}
+            for name, scope in scopes.items()
+            if isinstance(scope, dict) and is_lan_capable(name)
+        }
+    elif data.get("interface"):
+        # Old format: one scope, flat.
+        scopes = {
+            str(data["interface"]): {
+                **DEFAULT_SCOPE,
+                **{k: data[k] for k in SCOPE_FIELDS if k in data}
+            }
+        }
+    else:
+        scopes = {}
+
+    reservations = data.get("reservations")
+
+    return {
+        "interfaces": scopes,
+        "domain": str(data.get("domain") or ""),
+        "reservations": reservations if isinstance(reservations, list) else []
+    }
+
+
 def get_dhcp_settings():
 
-    return load_settings(DHCP_SETTINGS, DEFAULT_SETTINGS)
+    # Each layer on its own: the two formats cannot be merged key by key.
+    running = load_running(DHCP_SETTINGS, None)
+
+    if isinstance(running, dict):
+        return normalize(running)
+
+    return normalize(load_defaults(DHCP_SETTINGS, DEFAULT_SETTINGS))
+
+
+def off_settings():
+    """
+    DHCP off everywhere (factory reset, uninstall).
+    """
+
+    return {"interfaces": {}, "domain": "", "reservations": []}
+
+
+def is_enabled(settings=None):
+    """
+    Whether DHCP serves at least one interface.
+    """
+
+    settings = settings or get_dhcp_settings()
+
+    return any(scope["enabled"] for scope in settings["interfaces"].values())
+
+
+def suggest_range(network):
+    """
+    A range for a subnet: .100-.200 in a /24, the upper half of
+    smaller ones, the router's address left out.
+    """
+
+    hosts = network.network.num_addresses - 2
+
+    if hosts >= 254:
+        start, end = network.network.network_address + 100, network.network.network_address + 200
+    else:
+        start = network.network.network_address + max(2, hosts // 2)
+        end = network.network.broadcast_address - 1
+
+    if start <= network.ip <= end:
+        start = network.ip + 1
+
+    return str(start), str(end)
+
+
+def get_scope(interface, settings=None):
+    """
+    One interface's DHCP, flat as the DHCP page edits it. An interface
+    without settings gets a range from its subnet.
+    """
+
+    settings = settings or get_dhcp_settings()
+
+    scope = settings["interfaces"].get(interface)
+
+    if scope is None:
+
+        scope = dict(DEFAULT_SCOPE)
+
+        network = get_interface_network(effective_interface(interface))
+
+        if network and network.network.num_addresses > 4:
+            scope["range_start"], scope["range_end"] = suggest_range(network)
+
+    return {**scope, "interface": interface}
+
+
+def served_scopes(settings=None):
+    """
+    The scopes dnsmasq serves now: on, not the WAN, one per actual
+    interface (bridge ports are served through their bridge).
+    """
+
+    settings = settings or get_dhcp_settings()
+
+    scopes = {}
+
+    for name, scope in sorted(settings["interfaces"].items()):
+
+        if not scope["enabled"] or is_wan_interface(name):
+            continue
+
+        served = effective_interface(name)
+
+        # Two ports of one bridge: the bridge is served once.
+        if served not in scopes:
+            scopes[served] = {**scope, "interface": name, "served": served}
+
+    return list(scopes.values())
 
 
 def validate_reservation(reservation, network=None):
@@ -208,36 +347,36 @@ def validate_reservation(reservation, network=None):
     }
 
 
-def validate_dhcp_settings(data):
+def validate_scope(data, settings=None, strict=True):
     """
-    Validates and normalises DHCP settings.
+    Validates and normalises one interface's DHCP (flat, with
+    "interface"). Returns (True, scope) or (False, message).
 
-    Returns (True, settings) or (False, message).
+    strict=False (the other scopes, a backup): a scope whose interface
+    has no address now (radio off, adapter unplugged) or is the WAN is
+    only checked for valid values, not against the live subnet.
     """
 
-    settings = get_dhcp_settings()
-    settings.update(data or {})
+    settings = settings or get_dhcp_settings()
 
-    enabled = settings.get("enabled") is True
-
-    interface = settings.get("interface")
+    interface = str((data or {}).get("interface") or "")
 
     # eth0 is accepted while it is the WAN: DHCP is paused at apply
     # time, so the settings survive switching eth0 back and forth.
     if not is_lan_capable(interface):
         return False, "Unsupported DHCP interface."
 
-    lease_time = settings.get("lease_time")
+    scope = get_scope(interface, settings)
+    scope.update({k: v for k, v in (data or {}).items() if k in SCOPE_FIELDS})
+
+    enabled = scope.get("enabled") is True
+
+    lease_time = scope.get("lease_time")
 
     if lease_time not in LEASE_TIMES:
         return False, "Invalid lease time."
 
-    domain = str(settings.get("domain") or "").strip()
-
-    if domain and not DOMAIN_RE.fullmatch(domain):
-        return False, "Invalid domain."
-
-    dns = settings.get("dns") or []
+    dns = scope.get("dns") or []
 
     if isinstance(dns, str):
         dns = [dns]
@@ -252,24 +391,26 @@ def validate_dhcp_settings(data):
         if not _ipv4(server):
             return False, f"Invalid DNS server: {server}"
 
-    gateway = str(settings.get("gateway") or "").strip()
+    gateway = str(scope.get("gateway") or "").strip()
 
     if gateway and not _ipv4(gateway):
         return False, "Invalid gateway."
 
-    range_start = str(settings.get("range_start") or "").strip()
-    range_end = str(settings.get("range_end") or "").strip()
+    range_start = str(scope.get("range_start") or "").strip()
+    range_end = str(scope.get("range_end") or "").strip()
 
     # Only check the address range against the live interface when
     # the server is enabled. Disabled settings may be incomplete.
     network = get_interface_network(effective_interface(interface))
 
-    if enabled:
+    live = strict or (network is not None and not is_wan_interface(interface))
+
+    if enabled and live:
 
         if not network:
             return False, (
                 f"{interface} has no IPv4 address. "
-                f"Assign a static IP first."
+                f"Give it one first (Network page, or the WiFi page for an access point)."
             )
 
         start = _ipv4(range_start)
@@ -307,19 +448,75 @@ def validate_dhcp_settings(data):
             if value and not _ipv4(value):
                 return False, f"Invalid {name}."
 
+    return True, {
+        "interface": interface,
+        "enabled": enabled,
+        "range_start": range_start,
+        "range_end": range_end,
+        "lease_time": lease_time,
+        "gateway": gateway,
+        "dns": dns
+    }
+
+
+def validate_dhcp_settings(data):
+    """
+    Validates the whole DHCP settings (e.g. from a backup, or a scope
+    merged into the current ones), in the current or the old format.
+
+    Returns (True, settings) or (False, message).
+    """
+
+    data = normalize(data)
+
+    scopes = {}
+
+    for name, scope in sorted(data["interfaces"].items()):
+
+        ok, result = validate_scope({**scope, "interface": name}, data, strict=False)
+
+        if not ok:
+            return False, f"{name}: {result}"
+
+        scopes[name] = {k: result[k] for k in SCOPE_FIELDS}
+
+    domain = str(data.get("domain") or "").strip()
+
+    if domain and not DOMAIN_RE.fullmatch(domain):
+        return False, "Invalid domain."
+
+    # Reservations must be in a subnet DHCP serves (when it serves any).
+    networks = [
+        get_interface_network(effective_interface(name))
+        for name, scope in scopes.items() if scope["enabled"]
+    ]
+    networks = [n for n in networks if n]
+
     reservations = []
     seen_macs = set()
     seen_ips = set()
 
-    for reservation in settings.get("reservations") or []:
+    for reservation in data.get("reservations") or []:
 
-        ok, result = validate_reservation(
-            reservation,
-            network if enabled else None
-        )
+        ok, result = validate_reservation(reservation)
 
         if not ok:
             return False, result
+
+        address = ipaddress.IPv4Address(result["ip"])
+
+        if networks:
+
+            inside = [n for n in networks if address in n.network]
+
+            if not inside:
+                return False, (
+                    f"Reservation {result['ip']} is outside every network DHCP serves "
+                    f"({', '.join(str(n.network) for n in networks)})."
+                )
+
+            if any(address == n.ip for n in inside):
+                return False, f"{result['ip']} is the router's own address."
 
         if result["mac"] in seen_macs:
             return False, f"Duplicate reservation for {result['mac']}."
@@ -333,13 +530,7 @@ def validate_dhcp_settings(data):
         reservations.append(result)
 
     return True, {
-        "enabled": enabled,
-        "interface": interface,
-        "range_start": range_start,
-        "range_end": range_end,
-        "lease_time": lease_time,
-        "gateway": gateway,
-        "dns": dns,
+        "interfaces": scopes,
         "domain": domain,
         "reservations": reservations
     }
@@ -351,46 +542,52 @@ def validate_dhcp_settings(data):
 
 def render_dnsmasq_config(settings):
 
-    # A bridge port (eth0 in br0) is served on its bridge.
-    interface = effective_interface(settings["interface"])
-
-    network = get_interface_network(interface)
-
-    netmask = (
-        str(network.network.netmask)
-        if network else "255.255.255.0"
-    )
-
-    gateway = settings["gateway"] or (
-        str(network.ip) if network else ""
-    )
-
     lines = [
         "# Generated by Chaos Router OS. Do not edit by hand.",
         "# Changes are overwritten from the DHCP page.",
         "",
-        f"interface={interface}",
-        "dhcp-authoritative",
-        (
-            f"dhcp-range={settings['range_start']},"
-            f"{settings['range_end']},"
-            f"{netmask},"
-            f"{settings['lease_time']}"
-        )
+        "dhcp-authoritative"
     ]
 
-    if gateway:
-        lines.append(f"dhcp-option=option:router,{gateway}")
+    for scope in served_scopes(settings):
 
-    # Without explicit servers dnsmasq advertises itself as DNS.
-    if settings["dns"]:
-        lines.append(
-            "dhcp-option=option:dns-server,"
-            + ",".join(settings["dns"])
-        )
+        # A bridge port (eth0 in br0) is served on its bridge.
+        interface = scope["served"]
+
+        network = get_interface_network(interface)
+
+        if not network:
+            lines += ["", f"# {interface}: no IPv4 address yet, not served."]
+            continue
+
+        # Each interface's options go to its own clients only.
+        tag = f"chaos-{interface}"
+
+        gateway = scope["gateway"] or str(network.ip)
+
+        lines += [
+            "",
+            f"# {scope['interface']}" + (f" (through {interface})" if interface != scope["interface"] else ""),
+            f"interface={interface}",
+            (
+                f"dhcp-range=set:{tag},"
+                f"{scope['range_start']},"
+                f"{scope['range_end']},"
+                f"{network.network.netmask},"
+                f"{scope['lease_time']}"
+            ),
+            f"dhcp-option=tag:{tag},option:router,{gateway}"
+        ]
+
+        # Without explicit servers dnsmasq advertises itself as DNS.
+        if scope["dns"]:
+            lines.append(
+                f"dhcp-option=tag:{tag},option:dns-server,"
+                + ",".join(scope["dns"])
+            )
 
     if settings["domain"]:
-        lines.append(f"domain={settings['domain']}")
+        lines += ["", f"domain={settings['domain']}"]
 
     if settings["reservations"]:
         lines.append("")
@@ -495,13 +692,40 @@ def get_dnsmasq_error():
 # Apply
 # -------------------------------------------------------------------
 
+def prepare_change(data):
+    """
+    The whole DHCP settings with a change merged in. data: one
+    interface's scope (with "interface"), and/or "domain" and
+    "reservations". Returns (True, settings) or (False, message).
+    """
+
+    data = data or {}
+
+    settings = get_dhcp_settings()
+
+    if "interface" in data:
+
+        ok, scope = validate_scope(data, settings)
+
+        if not ok:
+            return False, scope
+
+        settings["interfaces"][scope["interface"]] = {k: scope[k] for k in SCOPE_FIELDS}
+
+    for key in ("domain", "reservations"):
+        if key in data:
+            settings[key] = data[key]
+
+    return validate_dhcp_settings(settings)
+
+
 def save_dhcp_settings(data, confirm=None):
     """
-    Validates the settings, then applies them through safe apply.
+    Validates the change, then applies it through safe apply.
     Returns a transaction result dict with the new settings.
     """
 
-    ok, result = validate_dhcp_settings(data)
+    ok, result = prepare_change(data)
 
     if not ok:
         return transaction.result(False, result)
@@ -512,15 +736,66 @@ def save_dhcp_settings(data, confirm=None):
     return outcome
 
 
-def is_paused(settings=None):
+def get_scopes(settings=None):
     """
-    DHCP never serves the internet uplink: while its interface is the
-    WAN (eth0 in WAN mode) the server is paused, not removed.
+    {interface: scope} for every LAN interface there is, and every
+    interface with DHCP settings.
     """
 
     settings = settings or get_dhcp_settings()
 
-    return settings["enabled"] and is_wan_interface(settings["interface"])
+    names = sorted(set(get_lan_interface_names()) | set(settings["interfaces"]))
+
+    return {name: get_scope(name, settings) for name in names}
+
+
+def follow_wifi(interface, address, prefix, confirm=None):
+    """
+    After an access point started on a radio with its own subnet: DHCP
+    serves that radio in that subnet. Nothing changes when it already
+    does. Returns a transaction result, or None for no change.
+    """
+
+    try:
+        network = ipaddress.IPv4Interface(f"{address}/{prefix}")
+    except ValueError:
+        return None
+
+    settings = get_dhcp_settings()
+
+    scope = settings["interfaces"].get(interface)
+
+    if scope and scope["enabled"]:
+
+        start, end = _ipv4(scope["range_start"]), _ipv4(scope["range_end"])
+
+        if start and end and start in network.network and end in network.network \
+                and not start <= network.ip <= end:
+            return None
+
+    range_start, range_end = suggest_range(network)
+
+    return save_dhcp_settings({
+        **DEFAULT_SCOPE,
+        **(scope or {}),
+        "interface": interface,
+        "enabled": True,
+        "range_start": range_start,
+        "range_end": range_end,
+        # The router itself, in the new subnet.
+        "gateway": ""
+    }, confirm=confirm)
+
+
+def is_paused(interface):
+    """
+    DHCP never serves the internet uplink: while its interface is the
+    WAN (eth0 in WAN mode) the scope is paused, not removed.
+    """
+
+    scope = get_dhcp_settings()["interfaces"].get(interface)
+
+    return bool(scope) and scope["enabled"] and is_wan_interface(interface)
 
 
 def apply_dhcp_settings():
@@ -528,19 +803,18 @@ def apply_dhcp_settings():
     Applies the running DHCP settings to dnsmasq.
     """
 
-    settings = dict(get_dhcp_settings())
+    settings = get_dhcp_settings()
 
-    if is_paused(settings):
-        settings["enabled"] = False
+    served = served_scopes(settings)
 
     if not has_dnsmasq():
 
-        if not settings["enabled"]:
+        if not served:
             return True, "DHCP server disabled."
 
         return False, "dnsmasq is not available."
 
-    if settings["enabled"]:
+    if served:
         ok, result = install_dnsmasq_config(
             render_dnsmasq_config(settings)
         )
@@ -555,18 +829,22 @@ def apply_dhcp_settings():
     if not ok:
         return False, f"dnsmasq failed to restart: {result}"
 
-    if settings["enabled"]:
-        return True, "DHCP server applied."
+    paused = [name for name in settings["interfaces"] if is_paused(name)]
 
-    if is_paused():
-        return True, f"DHCP server paused: {settings['interface']} is the WAN."
+    if served:
+        message = "DHCP server applied: " + ", ".join(s["interface"] for s in served) + "."
+    else:
+        message = "DHCP server disabled."
 
-    return True, "DHCP server disabled."
+    if paused:
+        message += f" Paused on {', '.join(paused)} (WAN)."
+
+    return True, message
 
 
 def verify_dhcp_settings():
 
-    if not get_dhcp_settings()["enabled"] or is_paused():
+    if not served_scopes():
         return True, "OK"
 
     ok, message = unit_stays_active("dnsmasq")
@@ -656,7 +934,14 @@ def get_dhcp_leases():
 
     now = int(time.time())
 
-    lease_seconds = LEASE_SECONDS.get(get_dhcp_settings()["lease_time"])
+    # dnsmasq only stores the expiry: the lease time of the subnet the
+    # address is in tells when it was handed out.
+    lease_times = []
+
+    for scope in served_scopes():
+        network = get_interface_network(scope["served"])
+        if network:
+            lease_times.append((network.network, LEASE_SECONDS.get(scope["lease_time"])))
 
     for line in lines:
 
@@ -671,6 +956,13 @@ def get_dhcp_leases():
             continue
 
         mac = parts[1].upper()
+
+        address = _ipv4(parts[2])
+
+        lease_seconds = next(
+            (seconds for network, seconds in lease_times if address and address in network),
+            None
+        )
 
         leases.append({
 
@@ -717,13 +1009,16 @@ def get_dhcp_status():
 
     settings = get_dhcp_settings()
 
+    paused = [name for name in settings["interfaces"] if is_paused(name)]
+
     return {
         "installed": installed,
         "running": installed and is_dnsmasq_running(),
         "config_file": DNSMASQ_CONF_FILE,
+        "served": [scope["interface"] for scope in served_scopes(settings)],
         "paused": (
-            f"Paused: {settings['interface']} is in WAN mode. Switch it back "
-            f"to LAN on the Network page, or serve DHCP on another interface."
-            if is_paused(settings) else None
+            f"Paused on {', '.join(paused)}: in WAN mode. Switch it back to LAN "
+            f"on the Network page, or serve DHCP on another interface."
+            if paused else None
         )
     }

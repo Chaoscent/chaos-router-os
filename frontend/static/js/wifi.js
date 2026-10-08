@@ -6,6 +6,9 @@ window.Page.wifi = {
     data: null,
     securityBefore6: null,
 
+    // The radio whose network the form shows, e.g. "wlan0".
+    selected: null,
+
     selects: [
         "wifiEnabledInput",
         "wifiInterfaceInput",
@@ -76,6 +79,14 @@ window.Page.wifi = {
 
         this.data = res.data;
 
+        const names = Object.keys(this.data.networks);
+
+        // Keep the radio being edited; otherwise the first one that is on.
+        if (!names.includes(this.selected)) {
+            this.selected =
+                names.find(name => this.data.networks[name].enabled) || names[0] || null;
+        }
+
         this.renderSettings();
         this.renderStatus();
 
@@ -84,55 +95,76 @@ window.Page.wifi = {
     },
 
 
+    /** The selected radio's network, or null without radios. */
+    network() {
+
+        return this.data?.networks?.[this.selected] ?? null;
+
+    },
+
+
     renderStatus() {
 
-        const { settings, status } = this.data;
+        const network = this.network();
 
-        wifiState.textContent = !settings.enabled
+        if (!network) {
+            wifiState.textContent = "No radio";
+            wifiServiceState.textContent = "--";
+            wifiChannelState.textContent = "--";
+            return;
+        }
+
+        const running = this.data.status.running?.[this.selected] === true;
+
+        wifiState.textContent = !network.enabled
             ? "Off"
-            : status.running ? "Broadcasting" : "Not running";
+            : running ? "Broadcasting" : "Not running";
 
         wifiServiceState.textContent =
-            status.running ? "Running" : "Stopped";
+            running ? "Running" : "Stopped";
 
         wifiChannelState.textContent =
-            `${settings.band} GHz / ${settings.channel}`;
+            `${network.band} GHz / ${network.channel}`;
 
     },
 
 
     renderSettings() {
 
-        const { settings, interfaces } = this.data;
+        const { networks, interfaces } = this.data;
+        const settings = this.network();
 
-        // Keep the saved interface selectable even if it is missing now.
-        const names = [...interfaces];
-
-        if (!names.includes(settings.interface)) {
-            names.unshift(settings.interface);
-        }
-
+        // Every radio with its network: "wlan0 · Chaos Router (on)".
         wifiInterfaceInput.innerHTML = "";
 
-        names.forEach(name => {
+        Object.values(networks).forEach(network => {
 
             const option = document.createElement("option");
-            option.value = name;
-            option.textContent = interfaces.includes(name)
-                ? name
-                : `${name} (not found)`;
+            option.value = network.interface;
+            option.textContent =
+                `${network.interface} · ` +
+                (network.enabled ? `${network.ssid} (on)` : "off") +
+                (interfaces.includes(network.interface) ? "" : " (not plugged in)");
             wifiInterfaceInput.appendChild(option);
 
         });
 
+        if (!settings) {
+            wifiStatus.textContent = "No Wi-Fi radio found.";
+            wifiSave.disabled = true;
+            return;
+        }
+
+        wifiSave.disabled = false;
+
         wifiEnabledInput.value = String(settings.enabled);
-        wifiInterfaceInput.value = settings.interface;
+        wifiInterfaceInput.value = this.selected;
         wifiHiddenInput.value = String(settings.hidden);
         wifiSsidInput.value = settings.ssid;
         wifiSecurityInput.value = settings.security;
         wifiPasswordInput.value = settings.password || "";
         wifiBandInput.value = settings.band;
-        wifiCountryInput.value = settings.country;
+        wifiCountryInput.value = this.data.country || "";
         wifiIsolateInput.value = String(settings.isolate_clients);
         wifiAddressInput.value = settings.address || "";
         wifiPrefixInput.value = settings.prefix ?? "";
@@ -280,13 +312,16 @@ window.Page.wifi = {
 
         wifiClientCount.textContent = clients.length;
 
+        // One column more than before: the radio.
+        const columns = 6;
+
         wifiClientTable.innerHTML = "";
 
         if (!clients.length) {
 
             wifiClientTable.innerHTML = `
                 <tr class="empty-row">
-                    <td colspan="5">No wireless clients connected.</td>
+                    <td colspan="${columns}">No wireless clients connected.</td>
                 </tr>
             `;
 
@@ -302,6 +337,7 @@ window.Page.wifi = {
                     <strong>${this.escape(client.hostname) || "Unknown"}</strong><br>
                     <small>${this.escape(client.mac)}</small>
                 </td>
+                <td>${this.escape(client.interface || "")}</td>
                 <td>${this.escape(client.ip) || "—"}</td>
                 <td>${client.signal === null ? "—" : `${client.signal} dBm`}</td>
                 <td>${this.formatDuration(client.connected)}</td>
@@ -378,8 +414,8 @@ window.Page.wifi = {
     /** Interface name in the label, live network, bridged state. */
     updateAddressState() {
 
-        const bridged = this.data?.bridged === true;
-        const iface = wifiInterfaceInput.value || "the access point";
+        const bridged = this.data?.bridged?.[this.selected] === true;
+        const iface = this.selected || "the access point";
 
         wifiAddressInterface.textContent = iface;
 
@@ -391,9 +427,9 @@ window.Page.wifi = {
         wifiNetworkInfo.textContent = bridged ? "LAN bridge (br0)" : (network || "--");
 
         wifiAddressHint.textContent = bridged
-            ? "The LAN bridge is on: the access point joins br0 and uses the LAN address from the Network page."
+            ? `${iface} is a port of the LAN bridge: the access point joins br0 and uses the LAN address from the Network page.`
             : network
-                ? `Wi-Fi clients reach the router at ${wifiAddressInput.value.trim()}. Serve DHCP on ${iface} with a range inside ${network} on the DHCP page.`
+                ? `Wi-Fi clients reach the router at ${wifiAddressInput.value.trim()}. When the access point is on, DHCP serves ${iface} in ${network} by itself (DHCP page).`
                 : "Enter the router's address and prefix, e.g. 10.42.0.1 and 24.";
 
     },
@@ -405,7 +441,7 @@ window.Page.wifi = {
 
             enabled: wifiEnabledInput.value === "true",
 
-            interface: wifiInterfaceInput.value,
+            interface: this.selected,
 
             hidden: wifiHiddenInput.value === "true",
 
@@ -439,11 +475,11 @@ window.Page.wifi = {
         // Wireless clients drop briefly while hostapd restarts.
         const confirmed = await ChaosModal.confirm({
 
-            title: "Apply WiFi Settings",
+            title: `Apply WiFi Settings (${settings.interface})`,
 
             subtitle: settings.enabled
-                ? "Wireless devices will disconnect briefly while the access point restarts."
-                : "The access point will be turned off and wireless devices will disconnect.",
+                ? `Devices on ${settings.interface} will disconnect briefly while the access points restart.`
+                : `The access point on ${settings.interface} will be turned off and its devices will disconnect.`,
 
             confirmText: "Apply"
 
@@ -462,9 +498,7 @@ window.Page.wifi = {
 
         const data = res.data;
 
-        if (data.settings) {
-
-            this.data.settings = data.settings;
+        if (data.networks) {
 
             // Status may have changed after restarting hostapd.
             await this.load();
@@ -514,10 +548,14 @@ window.Page.wifi = {
             this.updateSecurityState();
         };
 
+        // Another radio: show its network.
         wifiInterfaceInput.onchange = () => {
-            this.renderBands();
-            this.renderChannels(wifiChannelInput.value);
-            this.updateAddressState();
+            this.selected = wifiInterfaceInput.value;
+            this.securityBefore6 = null;
+            this.renderSettings();
+            this.renderStatus();
+            wifiStatus.textContent = "";
+            wifiConfigPreview.classList.add("hidden");
         };
 
         wifiAddressInput.oninput = () => this.updateAddressState();

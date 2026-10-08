@@ -5,6 +5,9 @@ window.Page.dhcp = {
     timer: null,
     data: null,
 
+    // The interface whose DHCP the form shows, e.g. "eth0".
+    selected: null,
+
 
     // Lease hostnames come from client devices; never trust them as HTML.
     escape(value) {
@@ -79,6 +82,14 @@ window.Page.dhcp = {
 
         this.data = res.data;
 
+        const names = Object.keys(this.data.scopes);
+
+        // Keep the interface being edited; otherwise the first one served.
+        if (!names.includes(this.selected)) {
+            this.selected =
+                names.find(name => this.data.scopes[name].enabled) || names[0] || null;
+        }
+
         this.renderStatus();
         this.renderSettings();
         this.renderReservations();
@@ -90,11 +101,11 @@ window.Page.dhcp = {
 
     renderStatus() {
 
-        const { settings, status } = this.data;
+        const { status } = this.data;
 
         dhcpServerState.textContent =
-            status.paused ? "Paused" :
-            settings.enabled ? "Enabled" : "Disabled";
+            status.served?.length ? status.served.join(", ") :
+            status.paused ? "Paused" : "Off";
 
         dhcpServiceState.textContent =
             status.running ? "Running" : "Stopped";
@@ -111,35 +122,41 @@ window.Page.dhcp = {
 
     renderSettings() {
 
-        const { settings, interfaces } = this.data;
+        const { scopes, interfaces } = this.data;
+        const settings = scopes[this.selected];
 
         dhcpInterfaceInput.innerHTML = "";
 
-        const names = interfaces.map(i => i.name);
-
-        // Keep the saved interface selectable even if it is currently down.
-        if (!names.includes(settings.interface)) {
-            names.unshift(settings.interface);
-        }
-
-        names.forEach(name => {
+        // Every interface with its DHCP: "wlan1 · on (10.42.0.100-200)".
+        Object.values(scopes).forEach(scope => {
 
             const option = document.createElement("option");
-            option.value = name;
-            option.textContent = name;
+            option.value = scope.interface;
+            option.textContent =
+                `${scope.interface} · ` +
+                (scope.enabled ? `on (${scope.range_start} - ${scope.range_end.split(".").pop()})` : "off") +
+                (interfaces.some(i => i.name === scope.interface) ? "" : " (not here now)");
             dhcpInterfaceInput.appendChild(option);
 
         });
 
+        if (!settings) {
+            dhcpSave.disabled = true;
+            this.refreshSelects();
+            return;
+        }
+
+        dhcpSave.disabled = false;
+
         dhcpEnabledInput.value = settings.enabled ? "true" : "false";
-        dhcpInterfaceInput.value = settings.interface;
+        dhcpInterfaceInput.value = this.selected;
         dhcpLeaseTimeInput.value = settings.lease_time;
         dhcpRangeStartInput.value = settings.range_start || "";
         dhcpRangeEndInput.value = settings.range_end || "";
         dhcpGatewayInput.value = settings.gateway || "";
         dhcpDns1Input.value = settings.dns[0] || "";
         dhcpDns2Input.value = settings.dns[1] || "";
-        dhcpDomainInput.value = settings.domain || "";
+        dhcpDomainInput.value = this.data.settings.domain || "";
 
         this.refreshSelects();
 
@@ -331,11 +348,8 @@ window.Page.dhcp = {
 
         if (data.settings) {
 
-            this.data.settings = data.settings;
-
-            this.renderStatus();
-            this.renderReservations();
-            this.loadLeases();
+            // Reload: the interface list shows every interface's state.
+            this.load();
 
         }
 
@@ -456,7 +470,13 @@ window.Page.dhcp = {
 
         dhcpPreview.onclick = () => this.preview();
 
-        dhcpInterfaceInput.onchange = () => this.updateRouterIP();
+        // Another interface: show its DHCP.
+        dhcpInterfaceInput.onchange = () => {
+            this.selected = dhcpInterfaceInput.value;
+            this.renderSettings();
+            dhcpStatus.textContent = "";
+            dhcpConfigPreview.classList.add("hidden");
+        };
 
         dhcpAddReservation.onclick = () => {
 

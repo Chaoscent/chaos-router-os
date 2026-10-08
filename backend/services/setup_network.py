@@ -119,9 +119,11 @@ def pick_interface():
     if not interfaces:
         return None
 
-    configured = wifi.get_wifi_settings()["interface"]
+    # A radio that already has a Wi-Fi network (e.g. after a factory
+    # reset kept the settings file) comes first.
+    configured = [n["interface"] for n in wifi.enabled_networks()]
 
-    candidates = ([configured] if configured in interfaces else []) + sorted(interfaces)
+    candidates = [n for n in configured if n in interfaces] + sorted(interfaces)
 
     for name in candidates:
 
@@ -135,10 +137,8 @@ def pick_interface():
 
 def access_point_settings(interface, credentials):
 
-    defaults = wifi.get_wifi_settings()
-
     return {
-        **defaults,
+        **wifi.get_network(interface),
         "enabled": True,
         "interface": interface,
         "ssid": credentials["ssid"],

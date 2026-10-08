@@ -51,11 +51,15 @@ APPS_ADDON=/opt/chaos-router-apps/install.sh
 
 DNSMASQ_DROPIN=/etc/systemd/system/dnsmasq.service.d/chaos-router-os.conf
 
+# The access points, one instance per radio (chaos-hostapd@wlan0, ...).
+AP_UNIT_FILE=/etc/systemd/system/chaos-hostapd@.service
+
 # The installer's package list (keep in sync with PACKAGES in install.sh).
 ALL_PACKAGES=(
     git python3-venv python3-pip
     network-manager
     dnsmasq hostapd iw rfkill
+    modemmanager
     ufw iptables
     wireguard-tools openvpn easy-rsa openresolv
     qrencode
@@ -330,6 +334,17 @@ remove_packages() {
 remove_files() {
 
     step "Removing files"
+
+    # Normally already stopped with the Wi-Fi settings above.
+    local unit
+    while read -r unit; do
+        [[ -n $unit ]] && run systemctl disable --now "$unit" 2>/dev/null
+    done < <(systemctl list-units --all --plain --no-legend 'chaos-hostapd@*' 2>/dev/null | awk '{print $1}')
+
+    if [[ -f $AP_UNIT_FILE ]]; then
+        run rm -f "$AP_UNIT_FILE"
+        run systemctl daemon-reload
+    fi
 
     local app_user=""
     [[ -d $STATE_DIR ]] && app_user=$(stat -c %U "$STATE_DIR")

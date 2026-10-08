@@ -27,6 +27,7 @@ from services.vpn_common import which
 
 from services.dhcp import (
     get_dhcp_settings,
+    is_enabled as is_dhcp_enabled,
     get_dhcp_leases
 )
 
@@ -246,7 +247,7 @@ def get_client_list(viewer_ip=None):
 
     return {
         "clients": clients,
-        "dhcp_enabled": dhcp["enabled"]
+        "dhcp_enabled": is_dhcp_enabled(dhcp)
     }
 
 

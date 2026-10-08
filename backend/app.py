@@ -114,6 +114,8 @@ from services.network import (
 
         get_network_settings,
 
+        bridges_interface,
+
         get_lan_bridge_status,
 
         get_eth0_role,
@@ -139,6 +141,10 @@ from services.dhcp import (
         render_dnsmasq_config,
 
         validate_dhcp_settings,
+
+        prepare_change as prepare_dhcp_change,
+
+        get_scopes as get_dhcp_scopes,
 
         save_dhcp_settings,
 
@@ -190,7 +196,9 @@ from services.wifi import (
 
         get_wifi_clients,
 
-        validate_wifi_settings,
+        validate_network as validate_wifi_network,
+
+        get_networks as get_wifi_networks,
 
         render_hostapd_config,
 
@@ -296,7 +304,12 @@ from services.backup import (
 
 )
 
-from services.modem import get_modem_data
+from services.modem import (
+        get_modem_data,
+        public_settings as modem_public_settings,
+        save_modem_settings,
+        unlock_sim
+)
 
 from services import transaction
 
@@ -1249,14 +1262,19 @@ def network_apply_api():
 
 def wifi_api():
 
+        networks = get_wifi_networks()
+
         return jsonify({
 
-                "settings": get_wifi_settings(),
+                # One network per radio (flat, with "interface").
+                "networks": networks,
+
+                "country": get_wifi_settings()["country"],
 
                 "status": get_wifi_status(),
 
-                # While the LAN bridge is on, the AP has no own address.
-                "bridged": get_network_settings()["lan"]["bridge"],
+                # Radios that are ports of the LAN bridge have no own address.
+                "bridged": {name: bridges_interface(name) for name in networks},
 
                 "options": get_wifi_options(),
 
@@ -1291,7 +1309,7 @@ def wifi_preview_api():
 
         data = request.get_json(silent=True) or {}
 
-        ok, result = validate_wifi_settings(data)
+        ok, result = validate_wifi_network(data)
 
         if not ok:
 
@@ -1523,6 +1541,9 @@ def dhcp_api():
 
                 "settings": get_dhcp_settings(),
 
+                # Per interface, prefilled for interfaces without DHCP.
+                "scopes": get_dhcp_scopes(),
+
                 "status": get_dhcp_status(),
 
                 "interfaces": get_lan_interfaces()
@@ -1560,7 +1581,9 @@ def dhcp_preview_api():
 
         data = request.get_json(silent=True) or {}
 
-        ok, result = validate_dhcp_settings(data)
+        data.pop("reservations", None)
+
+        ok, result = prepare_dhcp_change(data)
 
         if not ok:
 
@@ -2355,6 +2378,45 @@ def modem_api():
 
 
         return jsonify(get_modem_data())
+
+
+
+
+@app.route("/api/modem/settings")
+
+@login_required
+
+def modem_settings_get_api():
+
+        return jsonify(modem_public_settings())
+
+
+
+
+@app.route("/api/modem/settings", methods=["POST"])
+
+@login_required
+
+def modem_settings_api():
+
+        data = request.get_json(silent=True) or {}
+
+        return safe_apply_response(save_modem_settings(data))
+
+
+
+
+@app.route("/api/modem/unlock", methods=["POST"])
+
+@login_required
+
+def modem_unlock_api():
+
+        data = request.get_json(silent=True) or {}
+
+        outcome = unlock_sim(data.get("pin"), remember=data.get("remember") is not False)
+
+        return jsonify(outcome), 200 if outcome["success"] else 400
 
 
 

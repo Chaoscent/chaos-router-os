@@ -6,6 +6,46 @@
 
     <div id="modemNotice" class="modem-notice hidden" role="status"></div>
 
+    <!-- SIM PIN: only while the SIM asks for it -->
+
+    <div id="simPinCard" class="card sim-pin-card hidden">
+
+        <span>SIM PIN</span>
+
+        <p id="simPinInfo" class="setting-hint"></p>
+
+        <div class="settings-grid">
+
+            <div class="setting-field">
+                <label for="simPinInput">PIN</label>
+                <input
+                    id="simPinInput"
+                    class="setting-input"
+                    type="password"
+                    inputmode="numeric"
+                    maxlength="8"
+                    autocomplete="off"
+                    placeholder="4-8 digits">
+            </div>
+
+            <div class="setting-field">
+                <label>&nbsp;</label>
+                <label class="check-item">
+                    <input id="simPinRemember" type="checkbox" checked>
+                    <span>Unlock at every start</span>
+                </label>
+            </div>
+
+        </div>
+
+        <div class="setting-row">
+            <button id="simPinUnlock" class="save-btn">Unlock</button>
+        </div>
+
+        <div id="simPinStatus" class="setting-status"></div>
+
+    </div>
+
     <div class="card-grid">
 
         <div class="card">
@@ -76,6 +116,90 @@
             </div>
 
         </div>
+
+    </div>
+
+    <div style="height:20px"></div>
+
+    <!-- Mobile data: the modem's internet connection -->
+
+    <div class="card">
+
+        <span>Mobile Data</span>
+
+        <div class="settings-grid">
+
+            <div class="setting-field">
+                <label for="mobileEnabledInput">Mobile data</label>
+                <select id="mobileEnabledInput" class="setting-input">
+                    <option value="false">Off</option>
+                    <option value="true">On</option>
+                </select>
+            </div>
+
+            <div class="setting-field">
+                <label for="mobileApnInput">APN</label>
+                <input
+                    id="mobileApnInput"
+                    class="setting-input"
+                    type="text"
+                    placeholder="Automatic"
+                    autocomplete="off"
+                    spellcheck="false">
+            </div>
+
+            <div class="setting-field">
+                <label for="mobileRoamingInput">Roaming</label>
+                <select id="mobileRoamingInput" class="setting-input">
+                    <option value="false">Off</option>
+                    <option value="true">On</option>
+                </select>
+            </div>
+
+        </div>
+
+        <div class="settings-grid">
+
+            <div class="setting-field">
+                <label for="mobileUsernameInput">Username</label>
+                <input
+                    id="mobileUsernameInput"
+                    class="setting-input"
+                    type="text"
+                    placeholder="Usually not needed"
+                    autocomplete="off"
+                    spellcheck="false">
+            </div>
+
+            <div class="setting-field">
+                <label for="mobilePasswordInput">Password</label>
+                <input
+                    id="mobilePasswordInput"
+                    class="setting-input"
+                    type="password"
+                    placeholder="Usually not needed"
+                    autocomplete="new-password">
+            </div>
+
+            <div class="setting-field">
+                <label>Connection</label>
+                <div id="mobileConnection" class="setting-input setting-readonly">--</div>
+            </div>
+
+        </div>
+
+        <p class="setting-hint">
+            Leave the APN empty to use your carrier's from the built-in list; enter it if mobile data
+            does not connect (your carrier's website lists it).
+            <span id="mobilePinNote"></span>
+        </p>
+
+        <div class="setting-row">
+            <button id="mobileForgetPin" class="secondary-btn hidden">Forget Saved PIN</button>
+            <button id="mobileSave" class="save-btn">Save &amp; Apply</button>
+        </div>
+
+        <div id="mobileStatus" class="setting-status"></div>
 
     </div>
 

@@ -14,9 +14,11 @@
 # code. Safe to run again: an existing install is updated, settings stay.
 #
 # Options (also as environment variables):
-#   --country XX   Wi-Fi country code, e.g. DE      (CHAOS_COUNTRY)
+#   --country XX   Wi-Fi country code, e.g. US      (CHAOS_COUNTRY;
+#                  asked when not given, no default)
 #   --dir PATH     where to clone the app            (CHAOS_DIR, default /opt/chaos-router-os)
-#   --yes          no questions, use the defaults
+#   --yes          no questions, use the defaults (needs --country
+#                  unless the system already has one)
 
 set -euo pipefail
 
@@ -44,6 +46,7 @@ PACKAGES=(
     git python3-venv python3-pip
     network-manager
     dnsmasq hostapd iw rfkill
+    modemmanager
     ufw iptables
     wireguard-tools openvpn easy-rsa openresolv
     qrencode
@@ -53,7 +56,7 @@ PACKAGES=(
 
 # Commands the app runs with `sudo -n` (see README, System Requirements).
 SUDO_COMMANDS=(
-    systemctl journalctl nmcli hostnamectl sysctl ip
+    systemctl journalctl nmcli mmcli hostnamectl sysctl ip
     ufw iptables ip6tables iw rfkill wg openvpn easyrsa
     install mkdir cp rm cat test find
 )
@@ -296,25 +299,96 @@ setup_defaults() {
 }
 
 
+# Country codes with names (tzdata, on every Raspberry Pi OS).
+COUNTRY_LIST=/usr/share/zoneinfo/iso3166.tab
+
+
+is_country() {
+
+    [[ $1 =~ ^[A-Z]{2}$ ]] || return 1
+
+    # Without the list, any two letters are accepted.
+    [[ -r $COUNTRY_LIST ]] || return 0
+
+    grep -q "^$1"$'\t' "$COUNTRY_LIST"
+}
+
+
+# Every country with its code, sorted by name, in columns.
+show_countries() {
+
+    [[ -r $COUNTRY_LIST ]] || return 0
+
+    local width
+    width=$(stty size 2>/dev/null < /dev/tty | awk '{print $2}')
+    [[ $width =~ ^[0-9]+$ ]] || width=100
+
+    # Columns of 30 characters, filled top to bottom.
+    awk -F'\t' '/^[A-Z]/ {print $1 "  " substr($2, 1, 26)}' "$COUNTRY_LIST" \
+        | LC_ALL=C.UTF-8 sort -k2 \
+        | awk -v cols="$(( (width - 4) / 30 > 0 ? (width - 4) / 30 : 1 ))" '
+            { line[NR] = $0 }
+            END {
+                rows = int((NR + cols - 1) / cols)
+                for (r = 1; r <= rows; r++) {
+                    out = "    "
+                    for (c = 0; c < cols; c++) {
+                        i = r + c * rows
+                        if (i <= NR) out = out sprintf("%-30s", line[i])
+                    }
+                    sub(/ +$/, "", out)
+                    print out
+                }
+            }'
+}
+
+
 setup_country() {
 
     step "Wi-Fi country"
 
     if [[ -z $COUNTRY ]]; then
 
+        # No default: the country decides which channels and transmit
+        # power are legal, so it must be the user's own choice. Only a
+        # country already set on this system is used without asking.
         local current=""
 
         if command -v raspi-config >/dev/null; then
             current=$(raspi-config nonint get_wifi_country 2>/dev/null || true)
         fi
 
-        info "Wi-Fi stays off until a country is set (it decides the allowed channels)."
-        COUNTRY=$(ask "Two-letter country code" "${current:-DE}")
+        if [[ $ASSUME_YES -eq 1 || ! -r /dev/tty ]]; then
+
+            is_country "${current^^}" \
+                || die "No Wi-Fi country set. Run again with --country XX (e.g. --country US)."
+
+            COUNTRY=$current
+
+        else
+
+            info "Wi-Fi stays off until a country is set: it decides the allowed channels."
+            info "Country codes:"
+            echo
+            show_countries
+            echo
+
+            while true; do
+
+                read -r -p "    Your country code (two letters, e.g. US): " COUNTRY < /dev/tty || true
+                COUNTRY=${COUNTRY^^}
+                COUNTRY=${COUNTRY//[[:space:]]/}
+
+                is_country "$COUNTRY" && break
+
+                warn "\"$COUNTRY\" is not a country code from the list above."
+            done
+        fi
     fi
 
     COUNTRY=${COUNTRY^^}
 
-    [[ $COUNTRY =~ ^[A-Z]{2}$ ]] || die "Invalid country code: $COUNTRY"
+    is_country "$COUNTRY" || die "Invalid country code: $COUNTRY"
 
     # Sets the regulatory domain and unblocks Wi-Fi on Raspberry Pi OS.
     if command -v raspi-config >/dev/null; then
@@ -490,7 +564,9 @@ wait_for_setup_wifi() {
     local _
 
     for _ in $(seq 1 30); do
-        systemctl is-active --quiet hostapd && return 0
+        # One access point unit per radio: chaos-hostapd@wlan0, ...
+        systemctl list-units --state=active --plain --no-legend 'chaos-hostapd@*' 2>/dev/null \
+            | grep -q . && return 0
         sleep 1
     done
 

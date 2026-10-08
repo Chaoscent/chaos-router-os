@@ -85,15 +85,17 @@ def area_settings():
     """
 
     from services.config import load_defaults
-    from services import wifi, dhcp, firewall
+    from services import wifi, dhcp, firewall, modem
 
     return [
         ("vpn_profiles", {"profiles": []}),
         ("openvpn", {"server": {"enabled": False}, "clients": []}),
         ("wireguard", {"server": {"enabled": False}, "peers": []}),
-        ("wifi", {**load_defaults(wifi.WIFI_SETTINGS, wifi.DEFAULT_SETTINGS), "enabled": False}),
+        ("wifi", wifi.off_settings()),
+        # The modem's connection is removed (and with it the saved PIN).
+        ("modem", dict(modem.DEFAULT_SETTINGS)),
         ("dns", None),
-        ("dhcp", {**load_defaults(dhcp.DHCP_SETTINGS, dhcp.DEFAULT_SETTINGS), "enabled": False}),
+        ("dhcp", dhcp.off_settings()),
         ("blocked_devices", {"devices": []}),
         ("routing", {"forwarding": False, "nat": False}),
         ("firewall", {
@@ -196,7 +198,7 @@ def remove_files():
     paths = [
         *DNSMASQ_FILES,
         CADDY_APPS_DIR,
-        wifi.HOSTAPD_CONF_FILE,
+        *wifi.config_files(),
         wireguard.SERVER_CONF,
         openvpn.SERVER_CONF,
         openvpn.PKI_DIR,

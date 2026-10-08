@@ -101,9 +101,10 @@ def get_dhcp_interfaces():
     DHCP config's interface= line enables both.
     """
 
-    dhcp = get_dhcp_settings()
-
-    return [dhcp["interface"]] if dhcp["enabled"] else []
+    return [
+        name for name, scope in get_dhcp_settings()["interfaces"].items()
+        if scope["enabled"]
+    ]
 
 
 def get_interface_choices():

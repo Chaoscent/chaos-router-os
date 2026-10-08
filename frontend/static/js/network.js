@@ -767,6 +767,12 @@ window.Page.network = {
         this.lan = await res.json();
         this.lanBridgeDraft = this.lan.settings.bridge;
 
+        // null in the settings: every port.
+        this.lanPortsDraft = this.lan.settings.ports
+            ?? this.lan.candidates.map(c => c.name);
+
+        this.renderLanPorts();
+
         this.$("lanIpInput").value = this.lan.settings.ip;
         this.$("lanSubnetInput").value = this.lan.settings.subnet;
 
@@ -783,7 +789,53 @@ window.Page.network = {
             this.lanBridgeDraft !== s.bridge
             || this.$("lanIpInput").value.trim() !== s.ip
             || this.$("lanSubnetInput").value.trim() !== s.subnet
+            || this.portsChanged()
         );
+
+    },
+
+    portsChanged() {
+
+        const saved = this.lan.settings.ports ?? this.lan.candidates.map(c => c.name);
+
+        return [...saved].sort().join() !== [...this.lanPortsDraft].sort().join();
+
+    },
+
+    /** One checkbox per Ethernet and Wi-Fi interface. */
+    renderLanPorts() {
+
+        const list = this.$("lanBridgePorts");
+
+        list.innerHTML = "";
+
+        this.lan.candidates.forEach(candidate => {
+
+            const label = document.createElement("label");
+            label.className = "check-item";
+
+            const input = document.createElement("input");
+            input.type = "checkbox";
+            input.value = candidate.name;
+            input.checked = this.lanPortsDraft.includes(candidate.name);
+
+            input.addEventListener("change", () => {
+                this.lanPortsDraft = [...list.querySelectorAll("input:checked")].map(i => i.value);
+                this.renderLan();
+            });
+
+            const name = document.createElement("span");
+            name.textContent = candidate.name;
+
+            const kind = document.createElement("small");
+            kind.textContent = candidate.name === "eth0" && this.eth0Role === "wan"
+                ? "WAN, never bridged"
+                : candidate.wireless ? "Wi-Fi" : "Ethernet";
+
+            label.append(input, name, kind);
+            list.appendChild(label);
+
+        });
 
     },
 
@@ -799,13 +851,17 @@ window.Page.network = {
         });
 
         this.$("lanBridgeInfo").textContent = this.lanBridgeDraft
-            ? "Ethernet and Wi-Fi share one network and one DHCP range."
+            ? "The chosen ports share one network and one DHCP range."
             : "Each port works on its own; Wi-Fi gets no LAN address.";
 
         const ip = this.$("lanIpInput");
         const subnet = this.$("lanSubnetInput");
 
         ip.disabled = subnet.disabled = !this.lanBridgeDraft;
+
+        this.$("lanBridgePorts").querySelectorAll("input").forEach(input => {
+            input.disabled = !this.lanBridgeDraft;
+        });
 
         const ipOk = this.isIPv4(ip.value.trim());
         const subnetOk = this.isSubnetMask(subnet.value.trim());
@@ -820,7 +876,8 @@ window.Page.network = {
             : this.lan.settings.bridge ? "br0 is not up yet." : "";
 
         this.$("lanBridgeApply").disabled =
-            !this.lanChanged() || (this.lanBridgeDraft && !(ipOk && subnetOk));
+            !this.lanChanged()
+            || (this.lanBridgeDraft && !(ipOk && subnetOk && this.lanPortsDraft.length));
 
     },
 
@@ -832,7 +889,8 @@ window.Page.network = {
         if (!card || !this.lan)
             return;
 
-        const bridged = this.lan.settings.bridge && this.eth0Role === "lan";
+        const bridged = this.lan.settings.bridge && this.eth0Role === "lan"
+            && (this.lan.settings.ports ?? ["eth0"]).includes("eth0");
 
         let note = card.node.querySelector(".bridge-note");
 
@@ -869,7 +927,8 @@ window.Page.network = {
         const lan = {
             bridge: this.lanBridgeDraft,
             ip: this.$("lanIpInput").value.trim(),
-            subnet: this.$("lanSubnetInput").value.trim()
+            subnet: this.$("lanSubnetInput").value.trim(),
+            ports: this.lanPortsDraft
         };
 
         this.pendingLan = lan;
@@ -877,7 +936,8 @@ window.Page.network = {
         this.pendingInterface = null;
 
         const wasOn = this.lan.settings.bridge;
-        const eth0Joins = this.eth0Role === "lan";
+        const eth0Joins = this.eth0Role === "lan" && lan.ports.includes("eth0");
+        const others = this.lan.candidates.map(c => c.name).filter(name => name !== "eth0");
         const eth0Address = this.lan.eth0_address;
 
         this.$("networkModalTitle").textContent =
@@ -893,13 +953,13 @@ window.Page.network = {
                 ["LAN (br0)", `${lan.ip} / ${lan.subnet}`],
                 ["eth0", eth0Joins
                     ? `joins br0${eth0Address && eth0Address !== "Unknown" && !wasOn ? ` (drops ${eth0Address})` : ""}`
-                    : "stays the WAN"],
-                ["Wi-Fi access point", "joins br0"],
+                    : this.eth0Role === "wan" ? "stays the WAN" : "keeps its own connection"],
+                ...others.map(name => [name, lan.ports.includes(name) ? "joins br0" : "keeps its own network"]),
                 ["DHCP / DNS", "served on br0"]
             ]
             : [
                 ["eth0", "gets its own connection back"],
-                ["Wi-Fi access point", "leaves br0"],
+                ["Wi-Fi access points", "leave br0"],
                 ["br0", "removed"]
             ];
 

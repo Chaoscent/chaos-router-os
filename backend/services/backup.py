@@ -510,9 +510,11 @@ def get_validators():
     from services.wifi import validate_wifi_settings
     from services.dns import validate_dns_settings
     from services.routing import validate_routing_settings
+    from services.modem import validate_stored_settings as validate_modem
 
     return {
         "network": _validate_network,
+        "modem": _validate_with(validate_modem),
         "firewall": _validate_firewall,
         "routing": _validate_with(validate_routing_settings),
         "blocked_devices": _validate_blocked,

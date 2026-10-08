@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Callable, Optional, Tuple
 
 from services import (
+    modem,
     network,
     firewall,
     routing,
@@ -66,6 +67,15 @@ AREAS = {area.name: area for area in (
             "wifi", "firewall", "routing", "dhcp", "dns",
             "wireguard", "openvpn", "vpn_profiles"
         )
+    ),
+
+    # Mobile data: the modem's NetworkManager connection (APN, PIN).
+    # Not confirmed: it can cut the internet, not the dashboard.
+    Area(
+        "modem", "Mobile data",
+        apply=modem.apply_modem_settings,
+        baseline=lambda: dict(modem.DEFAULT_SETTINGS),
+        secret=True
     ),
 
     # Ships on (see firewall.DEFAULT_SETTINGS): applied at boot from

@@ -45,7 +45,15 @@ def main():
     payload = qr_payload(credentials)
 
     if shutil.which("qrencode"):
-        subprocess.run(["qrencode", "-t", "ansiutf8", "-m", "2", payload])
+
+        # A quiet zone of 4 modules, as the QR standard asks: with less,
+        # some scanners do not find the code on a dark terminal.
+        subprocess.run(["qrencode", "-t", "ansiutf8", "-m", "4", payload])
+
+        print()
+        print("  Scan it with the phone's Wi-Fi settings (Wi-Fi > add network > QR icon).")
+        print("  Some camera apps only show the text of a Wi-Fi code instead of joining.")
+
     else:
         print("  Install qrencode for a QR code: sudo apt install qrencode")
 

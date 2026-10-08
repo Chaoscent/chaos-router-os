@@ -32,6 +32,7 @@ from services.network import run_command, privileged
 from services import (
     wifi,
     dhcp,
+    modem,
     firewall,
     routing,
     wireguard,
@@ -85,9 +86,11 @@ def factory_settings():
         ("vpn_profiles", {"profiles": []}),
         ("openvpn", {"server": {"enabled": False}, "clients": []}),
         ("wireguard", {"server": {"enabled": False}, "peers": []}),
-        ("wifi", {**load_defaults(wifi.WIFI_SETTINGS, wifi.DEFAULT_SETTINGS), "enabled": False}),
+        ("wifi", wifi.off_settings()),
+        # The modem's connection is removed (and with it the saved PIN).
+        ("modem", dict(modem.DEFAULT_SETTINGS)),
         ("dns", None),
-        ("dhcp", {**load_defaults(dhcp.DHCP_SETTINGS, dhcp.DEFAULT_SETTINGS), "enabled": False}),
+        ("dhcp", dhcp.off_settings()),
         ("blocked_devices", {"devices": []}),
         ("routing", load_defaults(routing.ROUTING, routing.DEFAULT_SETTINGS)),
         # With /etc defaults: on with the essential rules, own rules gone.
@@ -132,7 +135,7 @@ def remove_secrets():
         openvpn.PKI_DIR,
         openvpn.SERVER_CONF,
         wireguard.SERVER_CONF,
-        wifi.HOSTAPD_CONF_FILE
+        *wifi.config_files()
     ):
 
         ok, result = run_command(privileged(["rm", "-rf", path]))
