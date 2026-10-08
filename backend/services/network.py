@@ -904,6 +904,10 @@ def is_lan_capable(name):
 
     name = str(name or "")
 
+    # Docker's networks (Apps Addon) are bridges too: br-<id>.
+    if name.startswith("br-"):
+        return False
+
     return bool(INTERFACE_NAME_RE.fullmatch(name)) and name.startswith(LAN_PREFIXES)
 
 

@@ -502,17 +502,23 @@ def mdns_address():
     it: the router owns all its addresses.
     """
 
-    from services.network import is_lan_name, get_wan_interface
+    from services.network import is_lan_name, get_wan_interface, run
 
-    wan = get_wan_interface()
+    # The internet side: the WAN, and whatever carries the default route
+    # (e.g. a VM's NAT adapter).
+    route = (run(["ip", "route", "show", "default"]) or "").split()
+    internet = {get_wan_interface()} | ({route[route.index("dev") + 1]} if "dev" in route else set())
+
     stats = psutil.net_if_stats()
     addresses = psutil.net_if_addrs()
 
     names = sorted(
-        (n for n in addresses if n == "br0" or (is_lan_name(n) and n != wan)),
-        key=lambda n: (n != "br0", not n.startswith(("eth", "en")), n)
+        (n for n in addresses if n == "br0" or is_lan_name(n)),
+        key=lambda n: (n in internet, n != "br0", not n.startswith(("eth", "en")), n)
     )
 
+    # LAN interfaces first; the internet side only when nothing else has
+    # an address (e.g. before setup, still connected to a home network).
     for name in names:
 
         if not stats.get(name) or not stats[name].isup:

@@ -430,10 +430,31 @@ wait_for_setup_wifi() {
 }
 
 
+# The router's LAN address for messages: br0, Ethernet, then Wi-Fi; not
+# the internet side (default route) unless nothing else has an address.
+# Not `hostname -I`, whose first address may be Docker's (Apps Addon).
+lan_address() {
+
+    local wan candidates
+    wan=$(ip route show default 2>/dev/null | awk '{print $5; exit}')
+
+    candidates=$(
+        ip -4 -o addr show scope global 2>/dev/null \
+            | awk '{print $2, $4}' \
+            | grep -Ev '^(docker|br-|veth|wg|ovpn|tun|tap|virbr|wwan|lo)' \
+            | awk '{ split($2, a, "/"); p = ($1 == "br0") ? 0 : ($1 ~ /^(eth|en)/) ? 1 : 2; print p, $1, a[1] }' \
+            | sort -k1,1n -k2,2
+    )
+
+    { grep -v " $wan " <<< "$candidates" || true; echo "$candidates"; } \
+        | awk 'NF == 3 { print $3; exit }'
+}
+
+
 finish() {
 
     local address
-    address=$(hostname -I | awk '{print $1}')
+    address=$(lan_address)
 
     if is_set_up; then
 

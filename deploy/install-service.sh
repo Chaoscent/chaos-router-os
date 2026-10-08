@@ -114,13 +114,33 @@ install_caddyfile() {
     mkdir -p "$(dirname "$CADDYFILE")/chaos-apps"
 }
 
+# The router's LAN address for messages: br0, Ethernet, then Wi-Fi; not
+# the internet side (default route) unless nothing else has an address.
+# Not `hostname -I`, whose first address may be Docker's (Apps Addon).
+lan_address() {
+
+    local wan candidates
+    wan=$(ip route show default 2>/dev/null | awk '{print $5; exit}')
+
+    candidates=$(
+        ip -4 -o addr show scope global 2>/dev/null \
+            | awk '{print $2, $4}' \
+            | grep -Ev '^(docker|br-|veth|wg|ovpn|tun|tap|virbr|wwan|lo)' \
+            | awk '{ split($2, a, "/"); p = ($1 == "br0") ? 0 : ($1 ~ /^(eth|en)/) ? 1 : 2; print p, $1, a[1] }' \
+            | sort -k1,1n -k2,2
+    )
+
+    { grep -v " $wan " <<< "$candidates" || true; echo "$candidates"; } \
+        | awk 'NF == 3 { print $3; exit }'
+}
+
 if command -v caddy >/dev/null && install_caddyfile; then
     BIND=127.0.0.1
-    DASHBOARD="http://$(hostname -I | awk '{print $1}')/"
+    DASHBOARD="http://$(lan_address)/"
 else
     echo "No Caddy in front: the dashboard stays on port 5000, without HTTPS." >&2
     BIND=0.0.0.0
-    DASHBOARD="http://$(hostname -I | awk '{print $1}'):5000/"
+    DASHBOARD="http://$(lan_address):5000/"
 fi
 
 # --- Service --------------------------------------------------------
