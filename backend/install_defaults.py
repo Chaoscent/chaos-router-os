@@ -9,13 +9,27 @@ Existing files are kept unless --force is given, so local edits to
 the defaults survive updates.
 """
 
+import atexit
 import os
+import shutil
 import sys
+import tempfile
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Only the built-in defaults are needed; do not apply any config.
 os.environ["CHAOS_SKIP_STARTUP"] = "1"
+
+# Importing the app creates its folders and session key. This runs as
+# root: point them at a throwaway folder, so /var/lib/chaos-router-os
+# and /tmp/chaos-router-os are never created as root (the app user
+# could not write them).
+_SCRATCH = tempfile.mkdtemp(prefix="chaos-install-defaults-")
+atexit.register(shutil.rmtree, _SCRATCH, ignore_errors=True)
+
+os.environ["CHAOS_STATE_DIR"] = os.path.join(_SCRATCH, "state")
+os.environ["CHAOS_RUNTIME_DIR"] = os.path.join(_SCRATCH, "run")
+os.environ["SECRET_KEY"] = "install-defaults-only"
 
 import app
 import auth

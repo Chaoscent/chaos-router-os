@@ -83,9 +83,9 @@ if ! sudo -u "$APP_USER" sudo -n true 2>/dev/null; then
     echo "start, but cannot change system settings." >&2
 fi
 
-# Persistent settings belong to the app user.
+# Persistent settings belong to the app user (everything inside too).
 mkdir -p "$STATE_DIR"
-chown "$APP_USER:$APP_GROUP" "$STATE_DIR"
+chown -R "$APP_USER:$APP_GROUP" "$STATE_DIR"
 
 # --- Caddy ----------------------------------------------------------
 

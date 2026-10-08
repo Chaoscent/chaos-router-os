@@ -105,7 +105,7 @@ Neither **Core** nor **Hardware Edition** ships with the Apps Addon.
 
 The sidebar always contains an **Apps** page.
 
-Before installation, it offers a one-click installer for the addon (`deploy/install-apps.sh`, which downloads [Chaos Router Apps](https://github.com/chaoscent/chaos-router-apps) and runs its installer).
+Before installation, it offers a one-click installer for the addon (`deploy/install-apps.sh`, which downloads the addon from this repository's `dev/apps` branch (`release/apps` from v1) and runs its installer).
 
 After installation, it becomes the App Store: install, open, start/stop, update, view logs and remove apps, with the install output shown live.
 

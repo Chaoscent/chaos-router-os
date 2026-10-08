@@ -194,6 +194,14 @@ setup_defaults() {
     # Existing defaults are kept (local edits survive updates).
     "$INSTALL_DIR/.venv/bin/python" "$INSTALL_DIR/backend/install_defaults.py"
 
+    # Everything below belongs to the app user. Repairs installs where an
+    # older installer left root-owned files there (e.g. system/).
+    chown -R "$APP_USER:$APP_GROUP" "$STATE_DIR"
+
+    if [[ -d /tmp/chaos-router-os ]]; then
+        chown -R "$APP_USER:$APP_GROUP" /tmp/chaos-router-os
+    fi
+
     # No longer read since the setup page exists (no default login).
     rm -f /etc/chaos-router-os/users.json
 }
@@ -256,7 +264,9 @@ setup_sudo() {
 
     for cmd in "${SUDO_COMMANDS[@]}"; do
 
-        path=$(PATH=$PATH:/usr/sbin:/sbin command -v "$cmd" || true)
+        # type -P: the program's full path, never a shell built-in
+        # (`command -v test` says "test", which sudoers rejects).
+        path=$(PATH=$PATH:/usr/sbin:/sbin type -P "$cmd" || true)
 
         if [[ -n $path ]]; then
             paths+=("$path")
