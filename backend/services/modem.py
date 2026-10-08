@@ -483,7 +483,12 @@ def network_apn():
 
     apn = parse(r"\|\s+apn:\s+(\S+)", bearer, None)
 
-    return apn if apn and apn != "--" and APN_RE.fullmatch(apn) else None
+    # IMS (calls over LTE) and SOS (emergency calls) carry no internet;
+    # with VoLTE, the modem often attaches with IMS.
+    if not apn or apn == "--" or apn.lower() in ("ims", "sos") or not APN_RE.fullmatch(apn):
+        return None
+
+    return apn
 
 
 def short_error(message):
@@ -542,8 +547,9 @@ def apply_modem_settings():
         return run_command(privileged(["nmcli", "--wait", "25", "connection", "up", CONNECTION]))
 
     # The APNs to try: the one entered; otherwise the carrier's from
-    # NetworkManager's database, then the one the network gave the
-    # modem, then none (the network's default).
+    # NetworkManager's database (can be outdated), then the one the
+    # network gave the modem, then none: the network's default for the
+    # SIM, which works with plans whose APN isn't in the database.
     if settings["apn"]:
         attempts = [("given", settings["apn"])]
     else:
