@@ -91,3 +91,9 @@ install.sh          Installer (also updates and removes)
 bin/chaos-apps      The App Manager (Python 3, standard library only)
 catalog/<app>/      app.json + compose.yaml per app
 ```
+
+## License
+
+Free for noncommercial use under [PolyForm Noncommercial 1.0.0](LICENSE.md), with the copyright notice ("Chaoscent - Chaos Router OS Apps Addon") kept in every copy. Companies and any commercial use need permission first: contact@chaos-software.dev. Documentation: CC BY-NC 4.0.
+
+The apps themselves (Nextcloud, Jellyfin, ...) are separate software under their own licenses. Contributions come under the agreement in Chaos Router OS's [CONTRIBUTING.md](https://github.com/chaoscent/chaos-router-os/blob/dev/core/CONTRIBUTING.md).
