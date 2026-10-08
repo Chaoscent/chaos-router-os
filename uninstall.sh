@@ -49,6 +49,8 @@ CADDY_MARKER="# Chaos Router OS: Caddy in front of the dashboard."
 
 APPS_ADDON=/opt/chaos-router-apps/install.sh
 
+DNSMASQ_DROPIN=/etc/systemd/system/dnsmasq.service.d/chaos-router-os.conf
+
 # The installer's package list (keep in sync with PACKAGES in install.sh).
 ALL_PACKAGES=(
     git python3-venv python3-pip
@@ -226,6 +228,13 @@ stop_services() {
 
     run systemctl disable --now "$SERVICE" "$MDNS_SERVICE" 2>/dev/null
     run rm -f "/etc/systemd/system/$SERVICE.service" "/etc/systemd/system/$MDNS_SERVICE.service"
+
+    # dnsmasq back to its own behaviour (if it stays installed).
+    if [[ -f $DNSMASQ_DROPIN ]]; then
+        run rm -f "$DNSMASQ_DROPIN"
+        run rmdir --ignore-fail-on-non-empty "$(dirname "$DNSMASQ_DROPIN")"
+    fi
+
     run systemctl daemon-reload
 }
 

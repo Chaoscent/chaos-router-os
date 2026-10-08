@@ -33,6 +33,13 @@ SUDOERS_FILE=/etc/sudoers.d/chaos-router-os
 # there): uninstall.sh removes exactly these.
 PACKAGES_RECORD=/etc/chaos-router-os/installed-packages
 
+# dnsmasq serves the LAN only: it must not become the router's own DNS
+# server (see keep_name_resolution).
+DNSMASQ_DROPIN=/etc/systemd/system/dnsmasq.service.d/chaos-router-os.conf
+
+# DNS servers that worked before the install (restored if needed).
+SAVED_NAMESERVERS=""
+
 PACKAGES=(
     git python3-venv python3-pip
     network-manager
@@ -139,6 +146,8 @@ install_packages() {
 
     local pkg new=()
 
+    SAVED_NAMESERVERS=$(awk '$1 == "nameserver" && $2 != "127.0.0.1" {print $2}' /etc/resolv.conf 2>/dev/null)
+
     for pkg in "${PACKAGES[@]}"; do
         dpkg-query -W -f='${Status}' "$pkg" 2>/dev/null | grep -q "install ok installed" || new+=("$pkg")
     done
@@ -155,6 +164,65 @@ install_packages() {
         sort -u -o "$PACKAGES_RECORD" "$PACKAGES_RECORD"
         info "Newly installed: ${new[*]}"
     fi
+}
+
+
+resolves() {
+    getent hosts github.com >/dev/null 2>&1 || getent hosts deb.debian.org >/dev/null 2>&1
+}
+
+
+keep_name_resolution() {
+
+    step "Keeping the router's own name resolution"
+
+    # Installing dnsmasq makes it the system's DNS server (it registers
+    # 127.0.0.1 with openresolv after starting). On a router it serves
+    # the LAN: the router asks its upstream DNS itself, so turning DNS
+    # off on the dashboard (or dnsmasq without upstream servers right
+    # after the install, as on a fresh Debian) never breaks its own
+    # lookups. dnsmasq still answers on 127.0.0.1 (the dashboard's DNS
+    # checks use that); only the registration is switched off.
+    mkdir -p "$(dirname "$DNSMASQ_DROPIN")"
+
+    printf '%s\n' \
+        "# Chaos Router OS: dnsmasq serves the LAN; it does not become the" \
+        "# router's own DNS server (no start-resolvconf)." \
+        "[Service]" \
+        "ExecStartPost=" > "$DNSMASQ_DROPIN"
+
+    systemctl daemon-reload
+
+    if command -v resolvconf >/dev/null; then
+        resolvconf -d lo.dnsmasq 2>/dev/null || true
+    fi
+
+    systemctl restart dnsmasq 2>/dev/null || true
+    sleep 2
+
+    if resolves; then
+        info "OK"
+        return
+    fi
+
+    # The network was set up before openresolv took over resolv.conf:
+    # give it the servers that worked before (until the next reboot,
+    # when the network registers them itself).
+    if [[ -n $SAVED_NAMESERVERS ]] && command -v resolvconf >/dev/null; then
+
+        local servers
+        mapfile -t servers <<< "$SAVED_NAMESERVERS"
+
+        printf 'nameserver %s\n' "${servers[@]}" | resolvconf -a chaos-installer
+        sleep 1
+
+        if resolves; then
+            info "Restored the DNS servers from before the install: ${servers[*]}"
+            return
+        fi
+    fi
+
+    die "Name resolution does not work after installing the packages (see /etc/resolv.conf)."
 }
 
 
@@ -520,6 +588,7 @@ main() {
 
     check_system
     install_packages
+    keep_name_resolution
     get_code
     setup_python
     setup_defaults
