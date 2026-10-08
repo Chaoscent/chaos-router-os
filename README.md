@@ -29,7 +29,7 @@ Running it again updates the addon; installed apps keep running. Remove it with 
 
 ## How apps fit into the router
 
-Every app is reached by its own name: `<app>.<router hostname>.<LAN domain, else "lan">`, e.g. `http://nextcloud.chaos-router.lan/`. Chaos Router OS sets this up when an app is installed:
+Every app is reached by its own name: `<app>.chaos-router.local`, e.g. `http://nextcloud.chaos-router.local/` (the router itself is `chaos-router.local`). Chaos Router OS sets this up when an app is installed:
 
 - **DNS:** dnsmasq answers the name with the router's address.
 - **Caddy:** routes the name to the app over HTTP and HTTPS.
