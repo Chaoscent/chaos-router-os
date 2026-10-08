@@ -245,10 +245,10 @@ With the service, a reboot (including the one after a factory reset) brings the 
 
 When Caddy is installed (`sudo apt install caddy`; the installer does this), `install-service.sh` makes `deploy/Caddyfile` the system's `/etc/caddy/Caddyfile` (an existing one is kept as `Caddyfile.before-chaos` and put back by `--remove`). The app then only listens on `127.0.0.1:5000`, and Caddy serves the dashboard:
 
-- `http://<router>/`: plain HTTP, never redirected. The setup Wi-Fi's captive portal and the connectivity checks of phones need it.
+- `http://<router>/`: redirected to HTTPS once the router is set up. Before that it stays plain HTTP: the setup Wi-Fi's captive portal and the connectivity checks of phones need it. Apps always redirect to HTTPS.
 - `https://<router>/`: HTTPS with a certificate from Caddy's own local certificate authority, made on the first visit for the address or name in the browser. Caddy asks the app first (`/caddy/tls-allowed`), which only allows the router's LAN addresses, its hostname, `<hostname>.local` and `<hostname>.<LAN domain>`. Browsers warn once per device, since they don't know this authority.
 
-Over HTTPS the session cookie is marked Secure. The firewall keeps ports 80 and 443 closed on the internet side. The Caddyfile turns Caddy's admin API off, so apply changes with `sudo systemctl restart caddy` (not `reload`).
+Install the authority's certificate on a device once (System page, "HTTPS Certificate", or `http://<router>/router-ca.crt`) and browsers trust the dashboard and every app without warnings. Over HTTPS the session cookie is marked Secure. No HSTS: with a router's own authority it would make the warning impossible to click through. The firewall keeps ports 80 and 443 closed on the internet side. The Caddyfile turns Caddy's admin API off, so apply changes with `sudo systemctl restart caddy` (not `reload`).
 
 Without Caddy the service falls back to port 5000 on every address, as in development.
 

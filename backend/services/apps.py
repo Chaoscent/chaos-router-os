@@ -354,10 +354,14 @@ def run_action(action, app_id, delete_data=False):
 
 def caddy_snippet(app_id, host, port):
 
+    # Apps are HTTPS only (plain HTTP is redirected).
     return (
         f"# Chaos Router OS: app {app_id}. Written by the dashboard, do not edit.\n"
         f"@app-{app_id} host {host}\n"
         f"handle @app-{app_id} {{\n"
+        f"\t@app-{app_id}-plain protocol http\n"
+        f"\tredir @app-{app_id}-plain https://{{host}}{{uri}} 308\n"
+        f"\n"
         f"\treverse_proxy 127.0.0.1:{int(port)}\n"
         f"}}\n"
     )

@@ -304,7 +304,7 @@ from services import setup_network
 
 from services import shell as web_shell
 
-from services.caddy import tls_allowed
+from services.caddy import tls_allowed, root_certificate, BEHIND_CADDY
 
 from services import apps as router_apps
 
@@ -440,7 +440,7 @@ def setup_gate():
         if (
                 is_setup_path
                 or path.startswith("/static/")
-                or path in ("/favicon.ico", "/caddy/tls-allowed")
+                or path in ("/favicon.ico", "/caddy/tls-allowed", "/router-ca.crt")
         ):
                 return None
 
@@ -467,6 +467,30 @@ def setup_gate():
                 return redirect(f"http://{setup_network.ADDRESS}/setup")
 
         return redirect("/setup")
+
+
+# Once set up, the dashboard is HTTPS only. Before that, plain HTTP must
+# keep working: the setup Wi-Fi's captive portal and the connectivity
+# checks of phones use it. No HSTS: with the router's own CA it would
+# make the browser's warning impossible to click through.
+HTTP_ONLY_PATHS = ("/router-ca.crt", "/caddy/tls-allowed")
+
+
+@app.before_request
+def https_redirect():
+
+        if (
+                not BEHIND_CADDY
+                or request.remote_addr not in LOCALHOST
+                or request.headers.get("X-Forwarded-Proto") != "http"
+                or request.path in HTTP_ONLY_PATHS
+                or not is_setup_complete()
+        ):
+                return None
+
+        # 308 keeps the method and body (for POSTs).
+        return redirect("https://" + request.url.split("://", 1)[1], code=308)
+
 
 
 @app.before_request
@@ -633,6 +657,32 @@ def home():
 def favicon():
 
         return app.send_static_file("favicon.ico")
+
+
+
+
+
+# The local CA's root certificate: installed on a device, the router's
+# HTTPS (dashboard and apps) is trusted without warnings. Public (it is
+# a certificate, not a key) and over plain HTTP too: devices need it
+# before they trust HTTPS.
+@app.route("/router-ca.crt")
+
+def router_ca():
+
+        pem = root_certificate()
+
+        if not pem:
+                return jsonify({
+                        "success": False,
+                        "message": "No certificate yet. Open the dashboard over HTTPS once, then try again."
+                }), 404
+
+        return Response(
+                pem,
+                mimetype="application/x-x509-ca-cert",
+                headers={"Content-Disposition": 'attachment; filename="chaos-router-ca.crt"'}
+        )
 
 
 

@@ -210,8 +210,8 @@ window.Page.apps = {
         apps.forEach(app => appsGrid.appendChild(this.renderApp(app)));
 
         appsNamesHint.textContent =
-            `Apps are reached by name, e.g. http://<app>.${base_domain}/, from every device that uses the router for DNS. ` +
-            `HTTPS works too; browsers warn once per device.`;
+            `Apps are reached by name, e.g. https://<app>.${base_domain}/, from every device in your network. ` +
+            `Install the router's certificate (System page) and browsers trust them without warnings.`;
 
     },
 
@@ -231,8 +231,8 @@ window.Page.apps = {
             ? { text: `${this.jobLabel(this.data.job.action)}...`, css: "" }
             : this.STATES[app.state];
 
-        // Apps that need HTTPS (e.g. Vaultwarden) open over HTTPS.
-        const url = app.https ? app.urls.https : app.urls.http;
+        // Apps are HTTPS only (the router redirects plain HTTP).
+        const url = app.urls.https;
 
         let actions;
 
@@ -283,7 +283,7 @@ window.Page.apps = {
                 </p>
                 ${app.first_steps ? `<p class="setting-hint">${this.escape(app.first_steps)}</p>` : ""}
             ` : `
-                <p class="setting-hint">${this.escape(size)}${app.https ? " Needs HTTPS (works out of the box)." : ""}</p>
+                <p class="setting-hint">${this.escape(size)}</p>
             `}
 
             <div class="app-actions">${actions}</div>

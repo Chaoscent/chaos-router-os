@@ -815,6 +815,11 @@ select.setting-input:disabled{
 /* Save / Apply Buttons      */
 /* ========================= */
 
+/* Links that look like buttons (downloads, "Open"). */
+a.save-btn{
+    text-decoration:none;
+}
+
 .save-btn{
     min-width:120px;
     height:44px;

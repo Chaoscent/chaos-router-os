@@ -211,11 +211,12 @@ Most of what's needed already exists.
 
 ## 8. Caddy and HTTPS
 
-- [x] Caddy in front of the app on ports 80 and 443 (`deploy/Caddyfile`, installed by `install-service.sh`; the installer adds the `caddy` package). Port 80 is never redirected to HTTPS: the captive portal needs plain HTTP.
+- [x] Caddy in front of the app on ports 80 and 443 (`deploy/Caddyfile`, installed by `install-service.sh`; the installer adds the `caddy` package). Caddy itself does not redirect port 80; the app does once set up (the captive portal needs plain HTTP before).
 - [x] Local CA certificate: Caddy's `tls internal` with on-demand certificates for the address or name in the browser, allowed only for the router's LAN addresses and names (`/caddy/tls-allowed`, `services/caddy.py`). Admin API off.
 - [x] `get_viewer_ip()` only trusts `X-Forwarded-For` from localhost (Caddy); the setup gate uses it too, so the captive portal works behind Caddy.
 - [ ] Test on the Pi 5 with Debian's Caddy package: certificates by IP and by hostname, the captive portal on the setup Wi-Fi, the web shell over `wss://`, `--remove` restoring the old Caddyfile. (Tested in WSL with Caddy 2.6.2: HTTP, HTTPS by IP and localhost, foreign names refused, Secure cookie, client address in the logs, WebSocket.)
-- [ ] Offer the local CA's root certificate for download (System page), so devices can trust it and the browser warning goes away. It lives in Caddy's data folder (`/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt`), which the app user cannot read yet.
+- [x] The local CA's root certificate for download (System page, `/router-ca.crt`, public and over HTTP), read from Caddy's data folder with sudo. Installed on a device, the dashboard and all apps are trusted.
+- [x] HTTPS only once set up: the app redirects plain HTTP (308) after setup; apps always (in their Caddy file). Plain HTTP stays during setup for the captive portal.
 
 ---
 

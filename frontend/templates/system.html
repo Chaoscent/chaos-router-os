@@ -309,6 +309,36 @@
 
             </div>
 
+
+            <!-- HTTPS certificate -->
+
+            <div class="card">
+
+                <span>HTTPS Certificate</span>
+
+                <p class="setting-hint">
+                    The dashboard and apps use HTTPS with the router's own
+                    certificate authority. Install its certificate on a
+                    device once, and browsers trust every router address
+                    and app without warnings.
+                </p>
+
+                <div class="setting-row">
+                    <a class="save-btn" href="/router-ca.crt" download>Download Certificate</a>
+                </div>
+
+                <p class="setting-hint">
+                    Windows: open the file, Install Certificate, Local
+                    Machine, "Trusted Root Certification Authorities".
+                    macOS: open it in Keychain Access and set it to Always
+                    Trust. iPhone: install the profile, then turn it on in
+                    Settings, General, About, Certificate Trust Settings.
+                    Android: Settings, Security, Install a certificate, CA
+                    certificate.
+                </p>
+
+            </div>
+
         </div>
 
 

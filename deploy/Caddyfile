@@ -4,10 +4,11 @@
 # file that was there before is kept as Caddyfile.before-chaos).
 #
 # HTTP (80) and HTTPS (443) on every address of the router; the app
-# itself only listens on 127.0.0.1:5000. Port 80 stays plain HTTP with
-# no redirect: the setup Wi-Fi's captive portal and the connectivity
-# checks of phones need it. The firewall keeps both ports closed on the
-# internet side.
+# itself only listens on 127.0.0.1:5000. Caddy doesn't redirect port 80
+# to HTTPS: the app does once the router is set up (before that, the
+# setup Wi-Fi's captive portal and the connectivity checks of phones
+# need plain HTTP), and each app's file does for the apps. The firewall
+# keeps both ports closed on the internet side.
 #
 # HTTPS uses Caddy's own local CA, so no domain is needed. A certificate
 # is made on the first visit for the name or address in the browser,

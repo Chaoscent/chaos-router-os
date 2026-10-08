@@ -28,6 +28,13 @@ LOCALHOST = ("127.0.0.1", "::1")
 # The service binds to localhost only when Caddy is in front.
 BEHIND_CADDY = BIND in LOCALHOST or BIND == "localhost"
 
+# Root certificate of Caddy's local CA (Debian's caddy package keeps its
+# data in /var/lib/caddy). Overridable for development.
+ROOT_CA = os.getenv(
+    "CHAOS_CADDY_CA",
+    "/var/lib/caddy/.local/share/caddy/pki/authorities/local/root.crt"
+)
+
 
 def dashboard_url(address):
     """
@@ -38,6 +45,29 @@ def dashboard_url(address):
         return f"http://{address}/"
 
     return f"http://{address}:{APP_PORT}/"
+
+
+def root_certificate():
+    """
+    The local CA's root certificate (PEM), or None before Caddy made
+    one (it does on the first HTTPS visit). Public by nature: devices
+    install it to trust the router's HTTPS. Caddy's folder is only
+    readable by root, so it is read with sudo when needed.
+    """
+
+    from services.network import run_command, privileged
+
+    try:
+        with open(ROOT_CA) as f:
+            pem = f.read()
+    except PermissionError:
+        ok, pem = run_command(privileged(["cat", ROOT_CA]))
+        if not ok:
+            return None
+    except OSError:
+        return None
+
+    return pem if "BEGIN CERTIFICATE" in pem else None
 
 
 def router_addresses():
