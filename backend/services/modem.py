@@ -437,8 +437,10 @@ def connection_properties(settings, apn_mode="auto", apn=None):
 
     props = [
         "connection.autoconnect", "yes",
-        # Retry for ever: the signal may come and go.
-        "connection.autoconnect-retries", "0",
+        # NetworkManager's default: a few attempts, then a pause of
+        # minutes before the next ones. 0 (for ever) retries without any
+        # pause, hundreds of times a minute, which carriers may punish.
+        "connection.autoconnect-retries", "-1",
         "gsm.home-only", "no" if settings["roaming"] else "yes",
         "gsm.username", settings["username"],
         "gsm.password", settings["password"],
@@ -570,8 +572,8 @@ def apply_modem_settings():
             used = apn if apn_mode == "given" and apn else None
             return True, "Mobile data connected" + (f" (APN {used})." if used else ".")
 
-        # Only a wrong APN is worth another attempt.
-        if "APN" not in str(message):
+        # A SIM or registration problem fails every APN alike.
+        if any(word in str(message) for word in ("SIM", "PIN", "not registered")):
             break
 
     return True, (
