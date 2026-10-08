@@ -2,7 +2,7 @@
 #
 # Chaos Router OS installer for Raspberry Pi OS Lite (64-bit).
 #
-#   curl -fsSL https://raw.githubusercontent.com/chaoscent/chaos-router-os/main/install.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/chaoscent/chaos-router-os/dev/core/install.sh | sudo bash
 #
 # or, from a clone:
 #
@@ -21,7 +21,7 @@
 set -euo pipefail
 
 REPO=${CHAOS_REPO:-https://github.com/chaoscent/chaos-router-os}
-BRANCH=${CHAOS_BRANCH:-main}
+BRANCH=${CHAOS_BRANCH:-dev/core}
 INSTALL_DIR=${CHAOS_DIR:-/opt/chaos-router-os}
 COUNTRY=${CHAOS_COUNTRY:-}
 ASSUME_YES=0

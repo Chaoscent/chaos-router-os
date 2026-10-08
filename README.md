@@ -67,7 +67,7 @@ Networking-first installation.
 
 Install on Raspberry Pi OS Lite (64-bit), logged in as your normal user:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chaoscent/chaos-router-os/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/chaoscent/chaos-router-os/dev/core/install.sh | sudo bash
 ```
 
 The installer sets up the packages, the app, the default settings and the service, asks for your Wi-Fi country, and finishes with a QR code for the setup Wi-Fi. Scan it with your phone and the setup page opens. Running it again updates an existing install; your settings are kept. Options: `--country DE`, `--dir PATH`, `--yes`.

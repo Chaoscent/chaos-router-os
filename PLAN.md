@@ -112,8 +112,9 @@ Without these it isn't a router yet.
 
 ## 4. Installer
 
-`install.sh` in the repo root: `curl -fsSL https://raw.githubusercontent.com/chaoscent/chaos-router-os/main/install.sh | sudo bash` (later also `chaos-software.dev/router-os/core`), or `sudo ./install.sh` from a clone. **Idempotent**: running it again updates, settings stay. Options `--country`, `--dir`, `--yes`.
+`install.sh` in the repo root: `curl -fsSL https://raw.githubusercontent.com/chaoscent/chaos-router-os/dev/core/install.sh | sudo bash` (later also `chaos-software.dev/router-os/core`), or `sudo ./install.sh` from a clone. **Idempotent**: running it again updates, settings stay. Options `--country`, `--dir`, `--yes`.
 
+- [ ] **At the v1 release:** fill `release/core` (empty until then) from `dev/core`, and switch `BRANCH` in `install.sh`, the install URL in README and PLAN, the VPS redirect (`/router-os/core`) and GitHub's default branch from `dev/core` to `release/core`. Same for `release/hardware-edition` and `release/apps`.
 - [x] Check for Raspberry Pi OS (64-bit, Raspberry Pi board); warn on anything else.
 - [x] Install the apt packages (incl. git, python3-venv, NetworkManager, qrencode).
 - [x] Get the code: the clone it runs from, else clone/update `/opt/chaos-router-os` (owned by the app user).
