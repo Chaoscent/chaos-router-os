@@ -1,5 +1,7 @@
+import os
 import subprocess
 import re
+import threading
 
 from services.modem_detector import detect_modem
 from services.config import load_settings
@@ -55,7 +57,8 @@ def parse(pattern, text, default="Unknown"):
 UNKNOWN_FIELDS = (
     "carrier", "network", "signal", "imei", "sim",
     "rsrp", "rsrq", "sinr", "band",
-    "lock", "pin_retries", "modem_state", "connection"
+    "lock", "pin_retries", "modem_state", "connection",
+    "usb_mode", "ipv4", "ipv6", "rx_packets", "rx_errors", "data_dropped"
 )
 
 
@@ -186,7 +189,9 @@ def no_data(hardware, state, model=None):
         "vendor": hardware["vendor"],
         "model": model or hardware["model"],
         "usb_id": hardware["usb_id"],
-        **{field: None for field in UNKNOWN_FIELDS}
+        **{field: None for field in UNKNOWN_FIELDS},
+        # Also while the modem restarts after a USB mode switch.
+        **data_link(hardware)
     }
 
 
@@ -251,7 +256,9 @@ def get_modem_data():
         "lock": field(r"\|\s+lock:\s+(\S+)"),
         "pin_retries": field(r"unlock retries:.*?sim-pin \((\d+)\)"),
         "modem_state": field(r"\|\s+state:\s+'?([a-z-]+)"),
-        "connection": get_connection_state()
+        "connection": get_connection_state(),
+
+        **data_link(hardware)
     }
 
 
@@ -656,3 +663,148 @@ def unlock_sim(pin, remember=True):
             apply_modem_settings()
 
     return {"success": True, "message": "SIM unlocked."}
+
+
+# -------------------------------------------------------------------
+# The data link: USB mode, addresses, received data
+# -------------------------------------------------------------------
+
+USB_MODE_SCRIPT = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    "deploy", "modem-usb-mode.sh"
+)
+
+USB_MODES = {"qmi_wwan": "qmi", "cdc_mbim": "mbim"}
+
+# A switch running in the background: {"running", "target", "message"}.
+usb_switch = {"running": False, "target": None, "message": None}
+
+
+def wwan_interface():
+    """
+    The modem's network interface (wwan0) and its driver, or (None, None).
+    """
+
+    try:
+        names = sorted(os.listdir("/sys/class/net"))
+    except OSError:
+        return None, None
+
+    for name in names:
+
+        if not name.startswith("wwan"):
+            continue
+
+        try:
+            driver = os.path.basename(os.path.realpath(f"/sys/class/net/{name}/device/driver"))
+        except OSError:
+            driver = None
+
+        return name, driver
+
+    return None, None
+
+
+def read_counter(interface, name):
+
+    try:
+        with open(f"/sys/class/net/{interface}/statistics/{name}") as f:
+            return int(f.read().strip())
+    except (OSError, ValueError):
+        return None
+
+
+def interface_addresses(interface):
+    """
+    (IPv4, IPv6) global addresses of an interface, None when it has none.
+    """
+
+    ipv4 = ipv6 = None
+
+    for line in (run(["ip", "-o", "addr", "show", "dev", interface, "scope", "global"]) or "").splitlines():
+
+        parts = line.split()
+
+        if "inet" in parts and ipv4 is None:
+            ipv4 = parts[parts.index("inet") + 1].split("/")[0]
+        elif "inet6" in parts and ipv6 is None:
+            ipv6 = parts[parts.index("inet6") + 1].split("/")[0]
+
+    return ipv4, ipv6
+
+
+def data_link(hardware):
+    """
+    USB mode, addresses and whether received data is being dropped:
+    connected, but the driver counts the replies as errors (Quectel in
+    MBIM mode) while next to nothing arrives.
+    """
+
+    interface, driver = wwan_interface()
+
+    if interface is None:
+        return {
+            "usb_mode": None, "ipv4": None, "ipv6": None,
+            "rx_packets": None, "rx_errors": None, "data_dropped": False,
+            "quectel": str(hardware.get("usb_id") or "").startswith("2c7c:"),
+            "usb_switch": dict(usb_switch)
+        }
+
+    ipv4, ipv6 = interface_addresses(interface)
+
+    rx_packets = read_counter(interface, "rx_packets")
+    rx_errors = read_counter(interface, "rx_errors")
+
+    dropped = (
+        rx_errors is not None and rx_packets is not None
+        and rx_errors >= 3 and rx_errors > rx_packets
+    )
+
+    return {
+        "usb_mode": USB_MODES.get(driver, driver),
+        "ipv4": ipv4,
+        "ipv6": ipv6,
+        "rx_packets": rx_packets,
+        "rx_errors": rx_errors,
+        "data_dropped": dropped,
+        "quectel": str(hardware.get("usb_id") or "").startswith("2c7c:"),
+        "usb_switch": dict(usb_switch)
+    }
+
+
+def switch_usb_mode(target):
+    """
+    Starts switching a Quectel modem's USB mode in the background (the
+    modem restarts, about a minute). Returns {"success", "message"}.
+    """
+
+    if target not in ("qmi", "mbim"):
+        return {"success": False, "message": "Unknown mode."}
+
+    if usb_switch["running"]:
+        return {"success": False, "message": "The modem is already switching."}
+
+    if not os.path.isfile(USB_MODE_SCRIPT):
+        return {"success": False, "message": "The switch script is missing (reinstall Chaos Router OS)."}
+
+    def work():
+
+        ok, output = run_command(privileged([USB_MODE_SCRIPT, target]))
+
+        lines = [l for l in str(output or "").strip().splitlines() if l.strip()]
+
+        usb_switch.update({
+            "running": False,
+            "message": (lines[-1] if lines else ("Done." if ok else "The switch failed.")),
+            "success": ok
+        })
+
+        # The connection comes back by itself; apply once for the new port.
+        if ok and get_modem_settings()["enabled"]:
+            apply_modem_settings()
+
+    usb_switch.update({"running": True, "target": target, "message": None, "success": None})
+
+    threading.Thread(target=work, name="modem-usb-mode", daemon=True).start()
+
+    return {"success": True, "message": f"Switching the modem to {target.upper()} mode. It restarts; this takes about a minute."}

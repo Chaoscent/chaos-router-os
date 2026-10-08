@@ -308,7 +308,8 @@ from services.modem import (
         get_modem_data,
         public_settings as modem_public_settings,
         save_modem_settings,
-        unlock_sim
+        unlock_sim,
+        switch_usb_mode
 )
 
 from services import transaction
@@ -2402,6 +2403,21 @@ def modem_settings_api():
         data = request.get_json(silent=True) or {}
 
         return safe_apply_response(save_modem_settings(data))
+
+
+
+
+@app.route("/api/modem/usb-mode", methods=["POST"])
+
+@login_required
+
+def modem_usb_mode_api():
+
+        data = request.get_json(silent=True) or {}
+
+        outcome = switch_usb_mode(str(data.get("mode") or ""))
+
+        return jsonify(outcome), 200 if outcome["success"] else 400
 
 
 

@@ -231,6 +231,9 @@ Off by default. When on, the chosen ports (Ethernet and Wi-Fi, all by default) s
 - **ModemManager (`mmcli`)** reads the modem: carrier, network type, signal, SIM state.
 - **Mobile data** is the NetworkManager connection `chaos-modem`: APN (automatic from the carrier database `mobile-broadband-provider-info`, falling back to the APN the network gave the modem, or entered by hand), roaming, optional username and password. It reconnects by itself.
 - **SIM PIN:** sent once per click, never retried automatically, so it can't run the SIM into the PUK lock. It is saved for unlocking at startup only after it has worked.
+- **USB data mode:** Quectel modems (e.g. RM520N-GL) in MBIM mode lose every received packet on Linux (`cdc_mbim` counts them as RX errors): the connection is up, but nothing comes back. The installer switches them to QMI (`deploy/modem-usb-mode.sh`, `AT+QCFG="usbnet",0`). The Modem page shows the data mode and the addresses, and offers the switch when received data is being dropped.
+- **APN order when the field is empty:** NetworkManager's carrier database (can be outdated), then the APN the network gave the modem (never `IMS`, which is for calls), then the empty APN (the network's default for the SIM). NetworkManager retries a failing connection a few times, then pauses.
+- **IPv6-only plans:** the Modem page shows "Connected (IPv6 only)". IPv4 through such a plan needs 464XLAT (CLAT), which is not built yet.
 
 ## Firewall, Routing, NAT
 
@@ -328,10 +331,11 @@ The installer is a **bootstrapper**, not the app. It gets the code with git and 
    - The app runs as a normal user and uses `sudo -n` for a fixed list of commands only (systemctl, nmcli, mmcli, ip, ufw, ...).
    - Paths are resolved with `type -P`.
 8. **Ports:** it warns when something else uses 53, 67, 80 or 443.
-9. **Services:**
+9. **Modem mode:** a Quectel modem in MBIM mode is switched to QMI (`CHAOS_MODEM_MODE=keep` skips it).
+10. **Services:**
    - `deploy/install-service.sh` installs `chaos-router-os` (the app), `chaos-router-mdns` and the `chaos-hostapd@` template.
    - It installs the Caddyfile and keeps the previous one as `Caddyfile.before-chaos`.
-10. **Finish:** on a router that is not set up yet, it shows the setup Wi-Fi with its QR code.
+11. **Finish:** on a router that is not set up yet, it shows the setup Wi-Fi with its QR code.
 
 ## Running It Again
 

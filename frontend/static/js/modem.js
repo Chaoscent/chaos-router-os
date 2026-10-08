@@ -43,13 +43,61 @@ async update(){
     imei.textContent=show(d.imei);
 
     this.renderSim(d);
+    this.renderDataLink(d);
 
-    mobileConnection.textContent={
+    const onlyV6=d.connection==="activated"&&d.ipv6&&!d.ipv4;
+
+    mobileConnection.textContent=onlyV6?"Connected (IPv6 only)":{
         activated:"Connected",
         activating:"Connecting...",
         deactivating:"Disconnecting...",
         deactivated:"Not connected"
     }[d.connection]||(this.mobile?.enabled?"Not connected":"Off");
+
+},
+
+renderDataLink(d){
+
+    usbMode.textContent=d.usb_mode?d.usb_mode.toUpperCase():"--";
+
+    mobileAddresses.textContent=[d.ipv4,d.ipv6].filter(Boolean).join(" · ")||"--";
+
+    const sw=d.usb_switch||{};
+    const show=d.data_dropped||sw.running||(sw.message&&sw.success===false);
+
+    modemDataCard.classList.toggle("hidden",!show);
+
+    if(!show)return;
+
+    modemDataInfo.textContent=d.quectel&&d.usb_mode==="mbim"
+        ?`Mobile data is connected, but the modem's received data is discarded: ${d.rx_errors} received packets were dropped as errors. Quectel modems do this in MBIM mode on Linux. QMI mode fixes it; the modem restarts once (about a minute without mobile data).`
+        :`Mobile data is connected, but ${d.rx_errors} received packets were dropped as errors.`;
+
+    modemSwitchQmi.classList.toggle("hidden",!(d.quectel&&d.usb_mode==="mbim"));
+    modemSwitchQmi.disabled=!!sw.running;
+
+    modemDataStatus.textContent=sw.running
+        ?"Switching... the modem restarts, this page updates by itself."
+        :sw.message||"";
+
+},
+
+async switchQmi(){
+
+    modemSwitchQmi.disabled=true;
+    modemDataStatus.textContent="Starting...";
+
+    const res=await fetch("/api/modem/usb-mode",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({mode:"qmi"})
+    });
+
+    const data=await res.json().catch(()=>({message:"Unexpected server response."}));
+
+    modemDataStatus.textContent=data.message;
+
+    await this.update();
 
 },
 
@@ -156,6 +204,8 @@ async saveMobile(extra={}){
 init(){
 
     ["mobileEnabledInput","mobileRoamingInput"].forEach(id=>ChaosSelect.enhance(document.getElementById(id)));
+
+    modemSwitchQmi.onclick=()=>this.switchQmi();
 
     simPinUnlock.onclick=()=>this.unlock();
     simPinInput.onkeydown=event=>{ if(event.key==="Enter")this.unlock(); };

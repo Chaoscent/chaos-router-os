@@ -6,6 +6,22 @@
 
     <div id="modemNotice" class="modem-notice hidden" role="status"></div>
 
+    <!-- Received data is dropped (Quectel in MBIM mode) -->
+
+    <div id="modemDataCard" class="card sim-pin-card hidden">
+
+        <span>Mobile Data Receives Nothing</span>
+
+        <p id="modemDataInfo" class="setting-hint"></p>
+
+        <div class="setting-row">
+            <button id="modemSwitchQmi" class="save-btn">Switch to QMI Mode</button>
+        </div>
+
+        <div id="modemDataStatus" class="setting-status"></div>
+
+    </div>
+
     <!-- SIM PIN: only while the SIM asks for it -->
 
     <div id="simPinCard" class="card sim-pin-card hidden">
@@ -113,6 +129,16 @@
             <div class="info-row">
                 <label>IMEI</label>
                 <strong id="imei">--</strong>
+            </div>
+
+            <div class="info-row">
+                <label>Data Mode</label>
+                <strong id="usbMode">--</strong>
+            </div>
+
+            <div class="info-row">
+                <label>Addresses</label>
+                <strong id="mobileAddresses">--</strong>
             </div>
 
         </div>

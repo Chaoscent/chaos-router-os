@@ -72,7 +72,7 @@ Install on Raspberry Pi OS Lite (64-bit), logged in as your normal user:
 curl -fsSL https://raw.githubusercontent.com/chaoscent/chaos-router-os/dev/core/install.sh | sudo bash
 ```
 
-The installer sets up the packages, the app, the default settings and the service, asks for your Wi-Fi country, and finishes with a QR code for the setup Wi-Fi. Scan it with your phone and the setup page opens. Running it again updates an existing install; your settings are kept. The country has no default: the installer lists every country with its code and you type yours. Options: `--country US`, `--dir PATH`, `--yes` (needs `--country` unless the system already has one).
+The installer sets up the packages, the app, the default settings and the service, asks for your Wi-Fi country, and finishes with a QR code for the setup Wi-Fi. Scan it with your phone and the setup page opens. Running it again updates an existing install; your settings are kept. The country has no default: the installer lists every country with its code and you type yours. A Quectel modem in MBIM mode is switched to QMI mode (in MBIM mode Linux drops all received mobile data); set `CHAOS_MODEM_MODE=keep` to leave it, and switch back with `sudo /opt/chaos-router-os/deploy/modem-usb-mode.sh mbim`. Options: `--country US`, `--dir PATH`, `--yes` (needs `--country` unless the system already has one).
 
 Short form: `curl -fsSL https://chaos-software.dev/router-os/core | sudo bash`.
 
@@ -292,7 +292,7 @@ A ready-made sudoers file will ship with the installer.
 | ✅ | SPA routing (`#/dashboard`) |
 | ✅ | Network page |
 | ✅ | Modem page (`mmcli`) |
-| 🧪 | Mobile data (NetworkManager connection: APN, roaming, SIM PIN unlock) |
+| 🧪 | Mobile data (NetworkManager connection: APN with fallbacks, roaming, SIM PIN unlock, Quectel QMI mode) |
 | ✅ | System |
 | 🧪 | Safe Apply (verify, confirm or auto-revert, recover at boot) |
 | 🧪 | Config layout (`/etc` defaults, `/var/lib` persistent, `/tmp` running) |

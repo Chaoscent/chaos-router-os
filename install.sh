@@ -481,6 +481,9 @@ setup_sudo() {
     # The Apps page's one-click Apps Addon install, without arguments.
     paths+=("$INSTALL_DIR/deploy/install-apps.sh \"\"")
 
+    # The Modem page: the modem's USB data mode (Quectel).
+    paths+=("$INSTALL_DIR/deploy/modem-usb-mode.sh status" "$INSTALL_DIR/deploy/modem-usb-mode.sh qmi" "$INSTALL_DIR/deploy/modem-usb-mode.sh mbim")
+
     local tmp joined
     tmp=$(mktemp)
 
@@ -500,6 +503,32 @@ setup_sudo() {
     fi
 
     rm -f "$tmp"
+}
+
+
+# Quectel modems in MBIM mode can drop every received packet on Linux
+# (cdc_mbim): mobile data "connects" but nothing comes back. QMI is
+# what Quectel recommends for Linux. CHAOS_MODEM_MODE=keep leaves it.
+modem_mode() {
+
+    [[ ${CHAOS_MODEM_MODE:-auto} == keep ]] && return 0
+
+    local mode
+    mode=$("$INSTALL_DIR/deploy/modem-usb-mode.sh" status 2>/dev/null || echo none)
+
+    [[ $mode == mbim ]] || return 0
+
+    grep -qxi 2c7c /sys/bus/usb/devices/*/idVendor 2>/dev/null || return 0
+
+    step "Modem: switching to QMI mode"
+
+    info "Quectel modems lose their received data in MBIM mode on Linux."
+
+    if "$INSTALL_DIR/deploy/modem-usb-mode.sh" qmi | sed 's/^/    /'; then
+        info "Switch back with: sudo $INSTALL_DIR/deploy/modem-usb-mode.sh mbim"
+    else
+        warn "The modem could not be switched; the Modem page offers it again."
+    fi
 }
 
 
@@ -711,6 +740,7 @@ main() {
     setup_defaults
     setup_country
     setup_sudo
+    modem_mode
     check_ports
     finish
 }
