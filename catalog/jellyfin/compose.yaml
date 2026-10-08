@@ -11,4 +11,4 @@ services:
       - "${CHAOS_DATA}/media:/media"
     environment:
       TZ: "${TZ}"
-      JELLYFIN_PublishedServerUrl: "http://${CHAOS_HOST}"
+      JELLYFIN_PublishedServerUrl: "https://${CHAOS_HOST}"

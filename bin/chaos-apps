@@ -430,7 +430,7 @@ def cmd_install(args):
 
         raise
 
-    say(f"==> {app['name']} is installed: http://{host}/")
+    say(f"==> {app['name']} is installed: https://{host}/")
 
 
 def installed_app(app_id):
