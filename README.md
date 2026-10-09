@@ -10,6 +10,8 @@ Built specifically for the Raspberry Pi 5, the Waveshare PCIe TO 4G/5G M.2 USB3.
 
 Chaos Router OS combines a UniFi-inspired interface with MikroTik-style navigation while keeping networking as the primary focus.
 
+**License:** free for noncommercial use; companies need permission first ([PolyForm Noncommercial 1.0.0](LICENSE.md), see [License](#license)).
+
 ---
 
 ## Why?
