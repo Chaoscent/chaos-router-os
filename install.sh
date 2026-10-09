@@ -2,7 +2,7 @@
 #
 # Chardsoft Router OS installer for Raspberry Pi OS Lite (64-bit).
 #
-#   curl -fsSL https://raw.githubusercontent.com/chaoscent/chaos-router-os/dev/core/install.sh | sudo bash
+#   curl -fsSL https://raw.githubusercontent.com/chaoscent/chardsoft-router-os/dev/core/install.sh | sudo bash
 #
 # or, from a clone:
 #
@@ -22,7 +22,7 @@
 
 set -euo pipefail
 
-REPO=${CHAOS_REPO:-https://github.com/chaoscent/chaos-router-os}
+REPO=${CHAOS_REPO:-https://github.com/chaoscent/chardsoft-router-os}
 BRANCH=${CHAOS_BRANCH:-dev/core}
 INSTALL_DIR=${CHAOS_DIR:-/opt/chaos-router-os}
 COUNTRY=${CHAOS_COUNTRY:-}
@@ -289,6 +289,13 @@ get_code() {
 
     if [[ -d $INSTALL_DIR/.git ]]; then
         info "Updating $INSTALL_DIR"
+
+        # Clones of the repository under its old name (chaos-router-os):
+        # GitHub redirects them, but the new address is the real one.
+        if [[ $(git -C "$INSTALL_DIR" remote get-url origin 2>/dev/null) == */chaoscent/chaos-router-os* ]]; then
+            sudo -H -u "$APP_USER" git -C "$INSTALL_DIR" remote set-url origin "$REPO"
+        fi
+
         sudo -H -u "$APP_USER" git -C "$INSTALL_DIR" pull --ff-only
         return
     fi

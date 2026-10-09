@@ -418,7 +418,7 @@ Chardsoft Router OS Hardware Edition
         └── based on Core v2
 ```
 
-**Branches** in the repository `chaoscent/chaos-router-os`:
+**Branches** in the repository `chaoscent/chardsoft-router-os`:
 
 | Branch | Content |
 |---|---|

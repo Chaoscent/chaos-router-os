@@ -6,7 +6,7 @@
 
 [Unit]
 Description=Chardsoft Router OS: Wi-Fi access point on %I
-Documentation=https://github.com/chaoscent/chaos-router-os
+Documentation=https://github.com/chaoscent/chardsoft-router-os
 After=network.target
 Wants=network.target
 

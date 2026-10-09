@@ -13,7 +13,7 @@
 
 set -euo pipefail
 
-REPO=${CHAOS_APPS_REPO:-https://github.com/chaoscent/chaos-router-os.git}
+REPO=${CHAOS_APPS_REPO:-https://github.com/chaoscent/chardsoft-router-os.git}
 
 # release/apps from the v1 release on (empty until then).
 BRANCH=${CHAOS_APPS_BRANCH:-dev/apps}

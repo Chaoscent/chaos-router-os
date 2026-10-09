@@ -5,7 +5,7 @@
 
 [Unit]
 Description=Chardsoft Router OS
-Documentation=https://github.com/chaoscent/chaos-router-os
+Documentation=https://github.com/chaoscent/chardsoft-router-os
 # The app applies the network, Wi-Fi, DHCP and firewall settings at
 # boot, so NetworkManager has to be up first.
 After=network-online.target NetworkManager.service

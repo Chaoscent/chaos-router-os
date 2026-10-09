@@ -1,4 +1,4 @@
-git clone https://github.com/chaoscent/chaos-router-os
+git clone https://github.com/chaoscent/chardsoft-router-os
 
 
 python3 -m venv .venv

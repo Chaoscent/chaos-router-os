@@ -71,7 +71,7 @@ Networking-first installation.
 
 Install on Raspberry Pi OS Lite (64-bit), logged in as your normal user:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chaoscent/chaos-router-os/dev/core/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/chaoscent/chardsoft-router-os/dev/core/install.sh | sudo bash
 ```
 
 The installer sets up the packages, the app, the default settings and the service, asks for your Wi-Fi country, and finishes with a QR code for the setup Wi-Fi. Scan it with your phone and the setup page opens. Running it again updates an existing install; your settings are kept. The country has no default: the installer lists every country with its code and you type yours. A Quectel modem in MBIM mode is switched to QMI mode (in MBIM mode Linux drops all received mobile data); set `CHAOS_MODEM_MODE=keep` to leave it, and switch back with `sudo /opt/chaos-router-os/deploy/modem-usb-mode.sh mbim`. Options: `--country US`, `--dir PATH`, `--yes` (needs `--country` unless the system already has one).
@@ -218,7 +218,7 @@ Services still read their own config files (`/etc/hostapd/chaos-<radio>.conf`, `
 ## Development
 
 ```bash
-git clone https://github.com/chaoscent/chaos-router-os
+git clone https://github.com/chaoscent/chardsoft-router-os
 cd chaos-router-os
 
 python3 -m venv .venv
