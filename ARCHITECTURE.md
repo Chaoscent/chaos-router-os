@@ -551,10 +551,9 @@ Planned: offering a backup download before a reset. Today, download one on the S
 
 # Licensing
 
-- **Software** (Core, Hardware Edition branch, Apps Addon): PolyForm Noncommercial 1.0.0 ([LICENSE.md](LICENSE.md)). Free for noncommercial use; commercial use needs a license from the author. The `Required Notice` line (Chaoscent) must stay in every copy.
-- **Docs, website, images, videos:** CC BY-NC 4.0.
-- **Contributions:** under the agreement in [CONTRIBUTING.md](CONTRIBUTING.md), which lets the author use them in commercial products, e.g. on Chaos Router hardware.
-- **Names and logos:** not licensed. **Chaos Router hardware** (PCB, case): not public.
+- **Software and docs** (Core, Apps Addon): open source, [Apache License 2.0](LICENSE). The [NOTICE](NOTICE) file (Copyright Chaoscent) must stay with every copy; changed files must say they were changed.
+- **Contributions** come under the same license (Apache 2.0, section 5), so they can also be used in commercial products, e.g. on Chaos Router hardware.
+- **Names and logos** ("Chardsoft", "Chardsoft Router OS", "Chaos Router"): not licensed. **Chaos Router hardware** (PCB, case): not public. The Hardware Edition may stay closed: Apache 2.0 allows closed products built on the code.
 - **Third-party code** keeps its license (xterm.js: MIT). Devices sold with Chardsoft Router OS preinstalled must also meet the obligations of the GPL software in the OS image (Linux, dnsmasq, ...): its source code or a written offer for it, and its license texts.
 
 ---

@@ -10,7 +10,7 @@ Built specifically for the Raspberry Pi 5, the Waveshare PCIe TO 4G/5G M.2 USB3.
 
 Chardsoft Router OS combines a UniFi-inspired interface with MikroTik-style navigation while keeping networking as the primary focus.
 
-**License:** free for noncommercial use; companies need permission first ([PolyForm Noncommercial 1.0.0](LICENSE.md), see [License](#license)).
+**License:** open source under the [Apache License 2.0](LICENSE) (see [License](#license)).
 
 ---
 
@@ -352,19 +352,16 @@ These are considered non-negotiable for Chardsoft Router OS.
 
 ## License
 
-Chardsoft Router OS is free for **noncommercial use**: at home, for learning, in schools, clubs and nonprofits. You may use, change and share it, as long as the copyright notice in [LICENSE.md](LICENSE.md) ("Chaoscent - Chardsoft Router OS") stays with every copy.
-
-**Companies and any commercial use need permission first.** That includes selling devices with it, offering it as a service, or using it in a business. Ask at contact@chardsoft.com for a commercial license.
+Chardsoft Router OS is **open source** under the [Apache License 2.0](LICENSE): anyone may use, change and share it, at home or commercially, as long as the license and the [NOTICE](NOTICE) file (Copyright Chaoscent) stay with every copy and changed files say that they were changed.
 
 | Part | License |
 |---|---|
-| Software (this repository, the Apps Addon) | [PolyForm Noncommercial 1.0.0](LICENSE.md) |
-| Documentation, website texts, images, videos | [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/): credit Chaoscent, no commercial use |
+| Software and documentation (this repository, the Apps Addon) | [Apache License 2.0](LICENSE) |
 | xterm.js (`frontend/static/vendor/xterm`) | MIT, its own license files |
-| Names "Chaos Router", "Chardsoft Router OS" and the logos | Not licensed |
+| Names "Chardsoft", "Chardsoft Router OS", "Chaos Router" and the logos | Not licensed (Apache 2.0, section 6) |
 | Chaos Router hardware (PCB, case) | Not public |
 
-Contributions come under the agreement in [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions come under the same license, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ---
 
