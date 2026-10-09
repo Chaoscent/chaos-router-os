@@ -1,6 +1,6 @@
 # Chaos Router Apps
 
-The Apps Addon for [Chaos Router OS](https://github.com/chaoscent/chaos-router-os): run apps like Nextcloud, Jellyfin or Vaultwarden on the router in Docker containers, installed from the dashboard's **Apps** page.
+The Apps Addon for [Chaos Router OS](https://github.com/chaoscent/chardsoft-router-os): run apps like Nextcloud, Jellyfin or Vaultwarden on the router in Docker containers, installed from the dashboard's **Apps** page.
 
 Chaos Router OS never depends on this addon. Without it, the Apps page offers to install it.
 
@@ -19,7 +19,7 @@ Chaos Router OS never depends on this addon. Without it, the Apps page offers to
 From the dashboard: **Apps → Install Apps Addon**. By hand on the router:
 
 ```bash
-git clone --branch dev/apps https://github.com/chaoscent/chaos-router-os chaos-router-apps
+git clone --branch dev/apps https://github.com/chaoscent/chardsoft-router-os chaos-router-apps
 sudo chaos-router-apps/install.sh
 ```
 
@@ -96,4 +96,4 @@ catalog/<app>/      app.json + compose.yaml per app
 
 Free for noncommercial use under [PolyForm Noncommercial 1.0.0](LICENSE.md), with the copyright notice ("Chaoscent - Chaos Router OS Apps Addon") kept in every copy. Companies and any commercial use need permission first: contact@chaos-software.dev. Documentation: CC BY-NC 4.0.
 
-The apps themselves (Nextcloud, Jellyfin, ...) are separate software under their own licenses. Contributions come under the agreement in Chaos Router OS's [CONTRIBUTING.md](https://github.com/chaoscent/chaos-router-os/blob/dev/core/CONTRIBUTING.md).
+The apps themselves (Nextcloud, Jellyfin, ...) are separate software under their own licenses. Contributions come under the agreement in Chaos Router OS's [CONTRIBUTING.md](https://github.com/chaoscent/chardsoft-router-os/blob/dev/core/CONTRIBUTING.md).
