@@ -1,0 +1,15 @@
+Chardsoft Router OS Apps Addon
+Copyright 2026 Chaoscent (https://github.com/chaoscent)
+https://chardsoft.com
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+"Chardsoft", "Chardsoft Router OS", "Chaos Router" and the logos are names
+and marks of Chaoscent / Chardsoft. The license does not grant permission to
+use them (Apache License 2.0, section 6), except to describe where the code
+comes from.
+
+The apps in the catalog (Uptime Kuma, Vaultwarden, Jellyfin, Nextcloud, ...)
+are separate software under their own licenses; the catalog only describes
+how to run them. Their Docker images are downloaded from their publishers when
+an app is installed.

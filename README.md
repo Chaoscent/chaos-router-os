@@ -94,6 +94,6 @@ catalog/<app>/      app.json + compose.yaml per app
 
 ## License
 
-Free for noncommercial use under [PolyForm Noncommercial 1.0.0](LICENSE.md), with the copyright notice ("Chaoscent - Chaos Router OS Apps Addon") kept in every copy. Companies and any commercial use need permission first: contact@chaos-software.dev. Documentation: CC BY-NC 4.0.
+Open source under the [Apache License 2.0](LICENSE): use, change and share it, also commercially, as long as the license and the [NOTICE](NOTICE) file (Copyright Chaoscent) stay with every copy. The names and logos are not licensed.
 
-The apps themselves (Nextcloud, Jellyfin, ...) are separate software under their own licenses. Contributions come under the agreement in Chaos Router OS's [CONTRIBUTING.md](https://github.com/chaoscent/chardsoft-router-os/blob/dev/core/CONTRIBUTING.md).
+The apps themselves (Nextcloud, Jellyfin, ...) are separate software under their own licenses. Contributions come under the same license, see Chardsoft Router OS's [CONTRIBUTING.md](https://github.com/chaoscent/chardsoft-router-os/blob/dev/core/CONTRIBUTING.md).
