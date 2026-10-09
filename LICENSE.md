@@ -1,10 +1,10 @@
-Required Notice: Copyright 2026 Chaoscent (https://github.com/chaoscent) - Chaos Router OS (https://chaos-software.dev)
+Required Notice: Copyright 2026 Chaoscent (https://github.com/chaoscent) - Chardsoft Router OS (https://chardsoft.com)
 
-Free for noncommercial use under the license below. Commercial use, by a company or for any commercial purpose, needs a separate license: contact@chaos-software.dev
+Free for noncommercial use under the license below. Commercial use, by a company or for any commercial purpose, needs a separate license: contact@chardsoft.com
 
 Documentation, images, videos and texts (README, ARCHITECTURE, PLAN, the website and the product video) are licensed under Creative Commons Attribution-NonCommercial 4.0 International (CC BY-NC 4.0): https://creativecommons.org/licenses/by-nc/4.0/
 
-The names "Chaos Router" and "Chaos Router OS" and their logos are not licensed by either license.
+The names "Chaos Router" and "Chardsoft Router OS" and their logos are not licensed by either license.
 
 Third-party code keeps its own license: frontend/static/vendor/xterm (MIT, see the LICENSE files there).
 

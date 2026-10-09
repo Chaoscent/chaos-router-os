@@ -1,5 +1,5 @@
 """
-Where Chaos Router OS keeps its settings. Every file is JSON.
+Where Chardsoft Router OS keeps its settings. Every file is JSON.
 
     /etc/chaos-router-os/      Defaults. Shipped with the OS, never
                                written by the app.

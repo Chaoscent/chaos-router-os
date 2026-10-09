@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Installs Chaos Router OS as a systemd service that starts at boot.
+# Installs Chardsoft Router OS as a systemd service that starts at boot.
 #
 #   sudo deploy/install-service.sh            install (or update) and start
 #   sudo deploy/install-service.sh --remove   stop and remove the service
@@ -33,7 +33,9 @@ AP_UNIT_FILE=/etc/systemd/system/$AP_UNIT
 CADDYFILE=/etc/caddy/Caddyfile
 CADDY_BACKUP=/etc/caddy/Caddyfile.before-chaos
 # First line of deploy/Caddyfile: tells our config from someone else's.
-CADDY_MARKER="# Chaos Router OS: Caddy in front of the dashboard."
+CADDY_MARKER="# Chardsoft Router OS: Caddy in front of the dashboard."
+# Before the product was renamed (Caddyfiles of older installs).
+CADDY_MARKER_OLD="# Chaos Router OS: Caddy in front of the dashboard."
 
 if [[ $EUID -ne 0 ]]; then
     echo "Run with sudo: sudo $0 $*" >&2
@@ -56,7 +58,7 @@ if [[ ${1:-} == "--remove" ]]; then
 
     # Caddy: back to the config it had before, or stopped (ours would
     # only lead to the removed app).
-    if grep -qxF "$CADDY_MARKER" "$CADDYFILE" 2>/dev/null; then
+    if grep -qxF -e "$CADDY_MARKER" -e "$CADDY_MARKER_OLD" "$CADDYFILE" 2>/dev/null; then
 
         if [[ -f $CADDY_BACKUP ]]; then
             mv "$CADDY_BACKUP" "$CADDYFILE"
@@ -64,7 +66,7 @@ if [[ ${1:-} == "--remove" ]]; then
             echo "Restored the previous $CADDYFILE."
         else
             systemctl disable --now caddy 2>/dev/null || true
-            echo "Caddy stopped and disabled (its config was for Chaos Router OS)."
+            echo "Caddy stopped and disabled (its config was for Chardsoft Router OS)."
         fi
 
     fi
@@ -113,7 +115,7 @@ install_caddyfile() {
     mkdir -p "$(dirname "$CADDYFILE")"
 
     # Keep a config that isn't ours, once.
-    if [[ -f $CADDYFILE && ! -f $CADDY_BACKUP ]] && ! grep -qxF "$CADDY_MARKER" "$CADDYFILE"; then
+    if [[ -f $CADDYFILE && ! -f $CADDY_BACKUP ]] && ! grep -qxF -e "$CADDY_MARKER" -e "$CADDY_MARKER_OLD" "$CADDYFILE"; then
         cp -p "$CADDYFILE" "$CADDY_BACKUP"
         echo "Kept the previous Caddy config as $CADDY_BACKUP."
     fi
@@ -198,7 +200,7 @@ fi
 sleep 2
 
 if systemctl is-active --quiet "$SERVICE"; then
-    echo "Chaos Router OS is running and starts at boot."
+    echo "Chardsoft Router OS is running and starts at boot."
     echo "Dashboard: $DASHBOARD (HTTPS works too; browsers warn once per device)"
     echo "Logs:      journalctl -u $SERVICE -f"
 else

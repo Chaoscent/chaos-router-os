@@ -62,7 +62,7 @@ PORT_RE = re.compile(r"^\d{1,5}(:\d{1,5})?$")
 
 COMMENT_RE = re.compile(r"^[A-Za-z0-9 ._:()/+-]{1,64}$")
 
-ESSENTIAL_COMMENT = "Chaos Router OS"
+ESSENTIAL_COMMENT = "Chardsoft Router OS"
 
 # Comment prefix of the rules kept by the "essentials" setting.
 ESSENTIAL_PREFIX = f"{ESSENTIAL_COMMENT}: Essential"
@@ -104,11 +104,11 @@ RULE_LEDGER = "firewall_rules"
 
 # Rules owned by the VPN modules and the essential rules are not
 # imported as user rules.
-VPN_COMMENTS = (
-    f"{ESSENTIAL_COMMENT}: WireGuard",
-    f"{ESSENTIAL_COMMENT}: OpenVPN",
-    f"{ESSENTIAL_COMMENT}: VPN client",
-    ESSENTIAL_PREFIX
+VPN_COMMENTS = tuple(
+    f"{name}: {kind}"
+    # Rules added before the product was renamed carry the old name.
+    for name in (ESSENTIAL_COMMENT, "Chaos Router OS")
+    for kind in ("WireGuard", "OpenVPN", "VPN client", "Essential")
 )
 
 

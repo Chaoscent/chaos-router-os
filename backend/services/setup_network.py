@@ -160,7 +160,7 @@ def access_point_settings(interface, credentials):
 def render_dnsmasq(interface):
 
     return "\n".join([
-        "# Chaos Router OS setup Wi-Fi (captive portal). Removed after setup.",
+        "# Chardsoft Router OS setup Wi-Fi (captive portal). Removed after setup.",
         "",
         f"interface={interface}",
         f"dhcp-range={DHCP_RANGE[0]},{DHCP_RANGE[1]},{NETWORK.netmask},1h",

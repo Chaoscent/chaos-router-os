@@ -1,5 +1,5 @@
 """
-System part of the uninstaller: undoes what Chaos Router OS changed on
+System part of the uninstaller: undoes what Chardsoft Router OS changed on
 the system, before uninstall.sh deletes its files and packages.
 
     sudo .venv/bin/python backend/uninstall.py [--dry-run]
@@ -10,14 +10,14 @@ its own code, but further:
 
 - Wi-Fi, DHCP, DNS, VPN servers and client profiles off, their units,
   configs, keys and certificates removed.
-- Firewall: every rule Chaos Router OS added removed, ufw off.
+- Firewall: every rule Chardsoft Router OS added removed, ufw off.
 - IP forwarding and NAT off; the CHAOS-NAT, CHAOS-SETUP and CHAOS-BLOCK
   iptables chains removed.
-- LAN bridge removed. The WAN/LAN routing properties Chaos Router OS set
+- LAN bridge removed. The WAN/LAN routing properties Chardsoft Router OS set
   on Ethernet connections (never-default, route-metric) go back to
   NetworkManager's defaults. eth0's address settings stay as they are,
   so the router stays reachable.
-- Config files Chaos Router OS wrote: dnsmasq drop-ins, hostapd, Caddy
+- Config files Chardsoft Router OS wrote: dnsmasq drop-ins, hostapd, Caddy
   app routes, the OpenVPN NAT script.
 
 Errors are reported and skipped: an uninstall goes as far as it can.
@@ -34,7 +34,7 @@ os.environ.setdefault("SECRET_KEY", "uninstall-only")
 
 DRY_RUN = "--dry-run" in sys.argv
 
-# Files Chaos Router OS writes outside its own folders.
+# Files Chardsoft Router OS writes outside its own folders.
 DNSMASQ_FILES = (
     "/etc/dnsmasq.d/chaos-router-dhcp.conf",
     "/etc/dnsmasq.d/chaos-router-dns.conf",
@@ -235,7 +235,7 @@ def restart_dnsmasq():
 def reset_route_properties():
     """
     never-default / route-metric back to NetworkManager's defaults on
-    connections where Chaos Router OS set them (LAN: never-default yes;
+    connections where Chardsoft Router OS set them (LAN: never-default yes;
     WAN: route-metric 50). Active connections get them right away.
     """
 

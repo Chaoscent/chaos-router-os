@@ -1,9 +1,9 @@
-# Chaos Router OS: announces chaos-router.local and the app names over
+# Chardsoft Router OS: announces chaos-router.local and the app names over
 # mDNS (deploy/mdns-publish.sh). Installed by deploy/install-service.sh,
 # which fills in @USER@, @APP_DIR@ and @STATE_DIR@.
 
 [Unit]
-Description=Chaos Router OS: .local names over mDNS
+Description=Chardsoft Router OS: .local names over mDNS
 Documentation=https://github.com/chaoscent/chaos-router-os
 After=avahi-daemon.service
 Wants=avahi-daemon.service

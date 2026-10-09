@@ -1,4 +1,4 @@
-# Chaos Router OS: Caddy in front of the dashboard.
+# Chardsoft Router OS: Caddy in front of the dashboard.
 #
 # Installed to /etc/caddy/Caddyfile by deploy/install-service.sh (the
 # file that was there before is kept as Caddyfile.before-chaos).
@@ -16,7 +16,7 @@
 # the app first (on_demand_tls ask). Browsers warn once per device
 # because they don't know the local CA.
 #
-# Apps (Apps Addon): Chaos Router OS writes one file per installed app
+# Apps (Apps Addon): Chardsoft Router OS writes one file per installed app
 # to /etc/caddy/chaos-apps/ (its name -> the app's port on 127.0.0.1)
 # and restarts Caddy. Everything else is the dashboard.
 {

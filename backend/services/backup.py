@@ -32,7 +32,10 @@ from services.logs import log_event
 # Format
 # -------------------------------------------------------------------
 
-FORMAT = "chaos-router-os-backup"
+FORMAT = "chardsoft-router-os-backup"
+
+# Backups made before the product was renamed (Chaos Router OS).
+OLD_FORMATS = ("chaos-router-os-backup",)
 VERSION = 1
 
 MAX_BACKUP_SIZE = 10 * 1024 * 1024
@@ -109,7 +112,7 @@ def create_backup():
 
     log_event("backup", f"Config backup downloaded ({len(config)} areas).")
 
-    return f"chaos-router-backup_{safe_host}_{stamp}.json", backup
+    return f"chardsoft-router-os-backup_{safe_host}_{stamp}.json", backup
 
 
 # -------------------------------------------------------------------
@@ -556,10 +559,10 @@ def parse_backup(raw):
         try:
             raw = json.loads(raw)
         except ValueError:
-            return False, "This is not a Chaos Router OS backup (not JSON)."
+            return False, "This is not a Chardsoft Router OS backup (not JSON)."
 
-    if not isinstance(raw, dict) or raw.get("format") != FORMAT:
-        return False, "This is not a Chaos Router OS backup."
+    if not isinstance(raw, dict) or raw.get("format") not in (FORMAT, *OLD_FORMATS):
+        return False, "This is not a Chardsoft Router OS backup."
 
     if raw.get("version") != VERSION:
         return False, (

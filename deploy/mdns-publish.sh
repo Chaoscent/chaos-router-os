@@ -5,9 +5,9 @@
 # only that way (Apple devices, Linux with nss-mdns). The router's DNS
 # answers the same names for everyone else.
 #
-# Run by chaos-router-mdns.service. Reads a file Chaos Router OS writes,
+# Run by chaos-router-mdns.service. Reads a file Chardsoft Router OS writes,
 # one "name address" per line, and keeps an avahi-publish running for
-# each. Chaos Router OS restarts the service when the file changes.
+# each. Chardsoft Router OS restarts the service when the file changes.
 
 set -u
 

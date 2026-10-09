@@ -222,7 +222,7 @@ def sanitize_wireguard(text):
 def render_wireguard(sections):
 
     lines = [
-        "# Imported by Chaos Router OS. Do not edit by hand.",
+        "# Imported by Chardsoft Router OS. Do not edit by hand.",
         ""
     ]
 
@@ -348,7 +348,7 @@ def sanitize_openvpn(text, interface, has_credentials, auth_file):
         return False, "This profile needs a username and password.", None
 
     header = [
-        "# Imported by Chaos Router OS. Do not edit by hand.",
+        "# Imported by Chardsoft Router OS. Do not edit by hand.",
         f"dev {interface}",
         f"dev-type {dev_type}"
     ]
@@ -555,7 +555,7 @@ def effective_config(profile):
         return wireguard_full_tunnel(config)
 
     return config.rstrip("\n") + (
-        "\n\n# All traffic through the VPN (Chaos Router OS).\n"
+        "\n\n# All traffic through the VPN (Chardsoft Router OS).\n"
         "redirect-gateway def1\n"
     )
 

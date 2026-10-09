@@ -1,10 +1,10 @@
-# Chaos Router OS dashboard and router control.
+# Chardsoft Router OS dashboard and router control.
 #
 # Installed by deploy/install-service.sh, which fills in @USER@,
 # @GROUP@, @APP_DIR@ and @BIND@. Logs: journalctl -u chaos-router-os
 
 [Unit]
-Description=Chaos Router OS
+Description=Chardsoft Router OS
 Documentation=https://github.com/chaoscent/chaos-router-os
 # The app applies the network, Wi-Fi, DHCP and firewall settings at
 # boot, so NetworkManager has to be up first.

@@ -1,7 +1,7 @@
-# Chaos Router OS — Architecture
+# Chardsoft Router OS — Architecture
 
 > [!abstract] Purpose
-> The architecture of Chaos Router OS: what it is made of, where things live, and the rules the code follows.
+> The architecture of Chardsoft Router OS: what it is made of, where things live, and the rules the code follows.
 >
 > When development moves to another chat or another person, start with this document, then README.md (usage) and PLAN.md (what is done and what is next).
 >
@@ -11,11 +11,11 @@
 
 # Project Overview
 
-**Project:** Chaos Router OS
+**Project:** Chardsoft Router OS
 
 **Target:** Raspberry Pi 5 with Raspberry Pi OS Lite (64-bit), a cellular modem (tested: Quectel RM520N-GL) and optional extra Wi-Fi adapters.
 
-Chaos Router OS is not an operating system of its own: it installs **on top of Raspberry Pi OS** and turns the Pi into a router managed from a web dashboard.
+Chardsoft Router OS is not an operating system of its own: it installs **on top of Raspberry Pi OS** and turns the Pi into a router managed from a web dashboard.
 
 - Mobile data through the modem (or Ethernet as the WAN)
 - Ethernet LAN, LAN bridge
@@ -31,7 +31,7 @@ Chaos Router OS is not an operating system of its own: it installs **on top of R
 One command turns a fresh Raspberry Pi OS into a router:
 
 ```bash
-curl -fsSL https://chaos-software.dev/router-os/core | sudo bash
+curl -fsSL https://chardsoft.com/router-os/core | sudo bash
 ```
 
 ---
@@ -44,7 +44,7 @@ curl -fsSL https://chaos-software.dev/router-os/core | sudo bash
 ├─────────────────────────────────────────────┤
 │ Caddy: HTTPS, app names                     │
 ├─────────────────────────────────────────────┤
-│ Chaos Router OS app (Flask, gunicorn)       │
+│ Chardsoft Router OS app (Flask, gunicorn)       │
 ├─────────────────────────────────────────────┤
 │ Settings: defaults, persistent, running     │
 ├─────────────────────────────────────────────┤
@@ -63,7 +63,7 @@ The app never re-implements a network service. It writes the services' own confi
 Optional apps are a separate layer that Core never depends on:
 
 ```text
-Chaos Router OS Core
+Chardsoft Router OS Core
         │ optional
         ▼
    Apps Addon ── Docker ──┬── App
@@ -253,7 +253,7 @@ http(s)://chaos-router.local
    ↓
 Caddy (ports 80, 443)
    ↓
-Chaos Router OS app (127.0.0.1:5000, gunicorn)
+Chardsoft Router OS app (127.0.0.1:5000, gunicorn)
 ```
 
 - **HTTPS** uses Caddy's own local certificate authority (`tls internal`). A certificate is issued on the first visit, but only for the router's own LAN addresses and names: Caddy asks the app first (`/caddy/tls-allowed`).
@@ -296,10 +296,10 @@ There is no default login: without an account the router is in setup mode, and t
 ## Commands
 
 ```bash
-curl -fsSL https://chaos-software.dev/router-os/core | sudo bash
+curl -fsSL https://chardsoft.com/router-os/core | sudo bash
 ```
 
-The URL is a redirect on chaos-software.dev to the installer in the repository (today: branch `dev/core`).
+The URL is a redirect on chardsoft.com to the installer in the repository (today: branch `dev/core`).
 
 ## Philosophy
 
@@ -349,7 +349,7 @@ sudo /opt/chaos-router-os/uninstall.sh
 
 **What it removes:**
 - The Apps Addon with all apps (and Docker, if the addon installed it).
-- Every system change Chaos Router OS made: Wi-Fi, DHCP, DNS, VPNs, mobile data, firewall rules, NAT, the LAN bridge, Caddy routes and the `.local` names.
+- Every system change Chardsoft Router OS made: Wi-Fi, DHCP, DNS, VPNs, mobile data, firewall rules, NAT, the LAN bridge, Caddy routes and the `.local` names.
 - The packages the installer installed, and all of its files.
 
 **What it keeps:** eth0's settings (so SSH stays), the hostname, the Wi-Fi country and the system journal.
@@ -397,23 +397,23 @@ App names (DNS, mDNS, Caddy routes) synced
 
 # Editions and Branches
 
-Chaos Router OS has two editions:
+Chardsoft Router OS has two editions:
 
 - **Core:** the main edition for any Raspberry Pi 5 with a cellular modem. Networking first.
 - **Hardware Edition:** Core plus support for physical switches and OLED displays, made for the author's own Pi 5 router design, **Chaos Router**. Not installable from Core.
 
 ```bash
-curl -fsSL https://chaos-software.dev/router-os/core | sudo bash
-curl -fsSL https://chaos-software.dev/router-os/hardware-edition | sudo bash
+curl -fsSL https://chardsoft.com/router-os/core | sudo bash
+curl -fsSL https://chardsoft.com/router-os/hardware-edition | sudo bash
 ```
 
 The Hardware Edition has its own version and states which Core version it is based on:
 
 ```text
-Chaos Router OS Core
+Chardsoft Router OS Core
     └── Core v2
 
-Chaos Router OS Hardware Edition
+Chardsoft Router OS Hardware Edition
     └── Hardware Edition v1
         └── based on Core v2
 ```
@@ -427,7 +427,7 @@ Chaos Router OS Hardware Edition
 | `dev/apps` | The Apps Addon |
 | `release/core`, `release/hardware-edition`, `release/apps` | Empty until the v1 release; from then on, only the newest full release |
 
-At v1, `VERSION` becomes `1.0.0`, the release branches are filled and the installers, the redirect on chaos-software.dev and GitHub's default branch switch to `release/*` (see PLAN.md).
+At v1, `VERSION` becomes `1.0.0`, the release branches are filled and the installers, the redirect on chardsoft.com and GitHub's default branch switch to `release/*` (see PLAN.md).
 
 **Current version:** `0.1.0-alpha`.
 
@@ -453,9 +453,9 @@ The addon lives on the branch `dev/apps` and installs into `/opt/chaos-router-ap
 
 The catalog is **git-based**: no API, just one folder per app in the addon's repository with a Docker Compose definition and metadata (name, description, version, port, download size). The App Manager reads it, and the dashboard shows it.
 
-Today's official catalog has fixed versions of Uptime Kuma, Vaultwarden, Jellyfin and Nextcloud. The Chaos Router OS project doesn't keep updating these versions.
+Today's official catalog has fixed versions of Uptime Kuma, Vaultwarden, Jellyfin and Nextcloud. The Chardsoft Router OS project doesn't keep updating these versions.
 
-Planned: community-maintained app definitions and additional catalogs. Chaos Router OS maintains the platform and the integration; app maintainers maintain their apps.
+Planned: community-maintained app definitions and additional catalogs. Chardsoft Router OS maintains the platform and the integration; app maintainers maintain their apps.
 
 ## How an App Fits In
 
@@ -468,7 +468,7 @@ chaos-apps install nextcloud (Docker Compose project chaos-nextcloud)
         ↓
 Port published on 127.0.0.1 only (never on the LAN or WAN)
         ↓
-Chaos Router OS adds:
+Chardsoft Router OS adds:
   - dnsmasq:  nextcloud.chaos-router.local → the router
   - Avahi:    the same name over mDNS
   - Caddy:    nextcloud.chaos-router.local → 127.0.0.1:<port>, HTTPS
@@ -520,10 +520,10 @@ A factory reset returns the router to a freshly installed state without reinstal
 
 | Level | Resets | Keeps | Status |
 |---|---|---|---|
-| Router reset | All Chaos Router OS settings, secrets, admin account | The app, Apps Addon, apps and their data | Built (the factory reset) |
+| Router reset | All Chardsoft Router OS settings, secrets, admin account | The app, Apps Addon, apps and their data | Built (the factory reset) |
 | Full reset | Additionally the apps and their data | The app | Planned |
-| Uninstall | Everything Chaos Router OS set up, including Apps and Docker | eth0's settings, hostname, Wi-Fi country | Built (`uninstall.sh`) |
-| Reinstall | Raspberry Pi OS itself | Nothing | Outside Chaos Router OS |
+| Uninstall | Everything Chardsoft Router OS set up, including Apps and Docker | eth0's settings, hostname, Wi-Fi country | Built (`uninstall.sh`) |
+| Reinstall | Raspberry Pi OS itself | Nothing | Outside Chardsoft Router OS |
 
 Planned: offering a backup download before a reset. Today, download one on the System page first.
 
@@ -555,7 +555,7 @@ Planned: offering a backup download before a reset. Today, download one on the S
 - **Docs, website, images, videos:** CC BY-NC 4.0.
 - **Contributions:** under the agreement in [CONTRIBUTING.md](CONTRIBUTING.md), which lets the author use them in commercial products, e.g. on Chaos Router hardware.
 - **Names and logos:** not licensed. **Chaos Router hardware** (PCB, case): not public.
-- **Third-party code** keeps its license (xterm.js: MIT). Devices sold with Chaos Router OS preinstalled must also meet the obligations of the GPL software in the OS image (Linux, dnsmasq, ...): its source code or a written offer for it, and its license texts.
+- **Third-party code** keeps its license (xterm.js: MIT). Devices sold with Chardsoft Router OS preinstalled must also meet the obligations of the GPL software in the OS image (Linux, dnsmasq, ...): its source code or a written offer for it, and its license texts.
 
 ---
 
@@ -577,7 +577,7 @@ On the Pi: run the curl installer again (updates, keeps settings)
 Hardware test
 ```
 
-Git is the source of truth for the code. The online demo (demo.chaos-software.dev/router-os) is built from the frontend by the separate `chaos-router-os-demo` project, with a mock of the API. Changes to the API's format need the mock updated before the next demo build.
+Git is the source of truth for the code. The online demo (demo.chardsoft.com/router-os) is built from the frontend by the separate `chaos-router-os-demo` project, with a mock of the API. Changes to the API's format need the mock updated before the next demo build.
 
 ---
 
@@ -646,4 +646,4 @@ Each of these must pass on a real Pi before a release:
 ```
 
 > [!success] Core Design Rule
-> **Chaos Router OS Core is a stable router platform on top of Raspberry Pi OS. Git supplies the code; settings live apart from it. A change becomes permanent only once it is verified, and a reboot always returns to the last known-good state. Optional apps live outside the router's lifecycle.**
+> **Chardsoft Router OS Core is a stable router platform on top of Raspberry Pi OS. Git supplies the code; settings live apart from it. A change becomes permanent only once it is verified, and a reboot always returns to the last known-good state. Optional apps live outside the router's lifecycle.**

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Chaos Router OS installer for Raspberry Pi OS Lite (64-bit).
+# Chardsoft Router OS installer for Raspberry Pi OS Lite (64-bit).
 #
 #   curl -fsSL https://raw.githubusercontent.com/chaoscent/chaos-router-os/dev/core/install.sh | sudo bash
 #
@@ -124,7 +124,7 @@ check_system() {
     . /etc/os-release
 
     if [[ ${ID:-} != "debian" && ${ID:-} != "raspbian" && ${ID_LIKE:-} != *debian* ]]; then
-        warn "This is ${PRETTY_NAME:-an unknown system}. Chaos Router OS is made for Raspberry Pi OS Lite (64-bit)."
+        warn "This is ${PRETTY_NAME:-an unknown system}. Chardsoft Router OS is made for Raspberry Pi OS Lite (64-bit)."
     else
         info "System: ${PRETTY_NAME:-Debian}"
     fi
@@ -230,7 +230,7 @@ keep_name_resolution() {
     mkdir -p "$(dirname "$DNSMASQ_DROPIN")"
 
     printf '%s\n' \
-        "# Chaos Router OS: dnsmasq serves the LAN; it does not become the" \
+        "# Chardsoft Router OS: dnsmasq serves the LAN; it does not become the" \
         "# router's own DNS server (no start-resolvconf)." \
         "[Service]" \
         "ExecStartPost=" > "$DNSMASQ_DROPIN"
@@ -272,7 +272,7 @@ keep_name_resolution() {
 
 get_code() {
 
-    step "Getting Chaos Router OS"
+    step "Getting Chardsoft Router OS"
 
     local here=""
 
@@ -293,7 +293,7 @@ get_code() {
         return
     fi
 
-    [[ -e $INSTALL_DIR ]] && die "$INSTALL_DIR exists but is not a Chaos Router OS clone."
+    [[ -e $INSTALL_DIR ]] && die "$INSTALL_DIR exists but is not a Chardsoft Router OS clone."
 
     mkdir -p "$INSTALL_DIR"
     chown "$APP_USER:$APP_GROUP" "$INSTALL_DIR"
@@ -491,7 +491,7 @@ setup_sudo() {
     joined=${joined%, }
 
     {
-        echo "# Chaos Router OS: system commands the app runs (sudo -n)."
+        echo "# Chardsoft Router OS: system commands the app runs (sudo -n)."
         echo "$APP_USER ALL=(root) NOPASSWD: $joined"
     } > "$tmp"
 
@@ -673,7 +673,7 @@ finish() {
     if is_set_up; then
 
         step "Done"
-        info "Chaos Router OS is updated and running."
+        info "Chardsoft Router OS is updated and running."
         info "Dashboard: http://$address/"
         return
     fi

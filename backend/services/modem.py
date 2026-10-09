@@ -785,7 +785,7 @@ def switch_usb_mode(target):
         return {"success": False, "message": "The modem is already switching."}
 
     if not os.path.isfile(USB_MODE_SCRIPT):
-        return {"success": False, "message": "The switch script is missing (reinstall Chaos Router OS)."}
+        return {"success": False, "message": "The switch script is missing (reinstall Chardsoft Router OS)."}
 
     def work():
 

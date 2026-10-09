@@ -1,4 +1,4 @@
-# Chaos Router OS
+# Chardsoft Router OS
 
 > **Development in Progress**
 
@@ -8,7 +8,7 @@ A networking-first operating system for Raspberry Pi 5.
 
 Built specifically for the Raspberry Pi 5, the Waveshare PCIe TO 4G/5G M.2 USB3.2 HAT+, and the Quectel RM520N-GL.
 
-Chaos Router OS combines a UniFi-inspired interface with MikroTik-style navigation while keeping networking as the primary focus.
+Chardsoft Router OS combines a UniFi-inspired interface with MikroTik-style navigation while keeping networking as the primary focus.
 
 **License:** free for noncommercial use; companies need permission first ([PolyForm Noncommercial 1.0.0](LICENSE.md), see [License](#license)).
 
@@ -16,7 +16,7 @@ Chaos Router OS combines a UniFi-inspired interface with MikroTik-style navigati
 
 ## Why?
 
-Chaos Router OS exists because of **Chaos Router**.
+Chardsoft Router OS exists because of **Chaos Router**.
 
 My TP-Link M850 got hot enough to warp my SIM card. Instead of accepting that I'd have to replace the SIM every few months,
 or buying another 5G router with Wi-Fi 6E, hoping it wouldn't melt my SIM too,
@@ -76,16 +76,16 @@ curl -fsSL https://raw.githubusercontent.com/chaoscent/chaos-router-os/dev/core/
 
 The installer sets up the packages, the app, the default settings and the service, asks for your Wi-Fi country, and finishes with a QR code for the setup Wi-Fi. Scan it with your phone and the setup page opens. Running it again updates an existing install; your settings are kept. The country has no default: the installer lists every country with its code and you type yours. A Quectel modem in MBIM mode is switched to QMI mode (in MBIM mode Linux drops all received mobile data); set `CHAOS_MODEM_MODE=keep` to leave it, and switch back with `sudo /opt/chaos-router-os/deploy/modem-usb-mode.sh mbim`. Options: `--country US`, `--dir PATH`, `--yes` (needs `--country` unless the system already has one).
 
-Short form: `curl -fsSL https://chaos-software.dev/router-os/core | sudo bash`.
+Short form: `curl -fsSL https://chardsoft.com/router-os/core | sudo bash`.
 
-To remove Chaos Router OS and everything it set up:
+To remove Chardsoft Router OS and everything it set up:
 
 ```bash
 sudo /opt/chaos-router-os/uninstall.sh            # asks for confirmation
 sudo /opt/chaos-router-os/uninstall.sh --dry-run  # only shows what it would do
 ```
 
-It removes the Apps Addon with all apps (and Docker, if the addon installed it), switches off and deletes everything Chaos Router OS set up (Wi-Fi, DHCP, DNS, VPNs, firewall rules, NAT, LAN bridge, Caddy routes, mDNS names), purges the packages the installer installed, and deletes all its files. It keeps eth0's address settings (so SSH over eth0 stays), the hostname, the Wi-Fi country and the system journal. A dropped SSH connection doesn't stop it halfway (log: `/tmp/chaos-router-os-uninstall.log`). Options: `--yes`, `--keep-packages`, `--all-packages` (for installs made before the installer recorded its packages).
+It removes the Apps Addon with all apps (and Docker, if the addon installed it), switches off and deletes everything Chardsoft Router OS set up (Wi-Fi, DHCP, DNS, VPNs, firewall rules, NAT, LAN bridge, Caddy routes, mDNS names), purges the packages the installer installed, and deletes all its files. It keeps eth0's address settings (so SSH over eth0 stays), the hostname, the Wi-Fi country and the system journal. A dropped SSH connection doesn't stop it halfway (log: `/tmp/chaos-router-os-uninstall.log`). Options: `--yes`, `--keep-packages`, `--all-packages` (for installs made before the installer recorded its packages).
 
 ---
 
@@ -107,7 +107,7 @@ Adds:
 Planned Install Command (not recommended if you´re not using Chaos Router Hardware):
 
 ```bash
-curl -fsSL chaos-software.dev/router-os/hardware-edition | sudo bash
+curl -fsSL chardsoft.com/router-os/hardware-edition | sudo bash
 ```
 
 ---
@@ -128,7 +128,7 @@ The Apps Addon installs:
 * Docker Compose
 * App Manager (`chaos-apps`; only installs apps from its catalog)
 
-Chaos Router OS does the integration when an app is installed:
+Chardsoft Router OS does the integration when an app is installed:
 
 * **Name:** `<app>.chaos-router.local`, e.g. `nextcloud.chaos-router.local` (the router itself: `chaos-router.local`)
 * **Local DNS:** dnsmasq answers the name with the router's address (`/etc/dnsmasq.d/chaos-router-apps.conf`)
@@ -197,7 +197,7 @@ A reboot always comes back to the last verified config, because the running conf
 
 ### Configuration Layout
 
-Everything Chaos Router OS writes to these folders is JSON.
+Everything Chardsoft Router OS writes to these folders is JSON.
 
 ```text
 /etc/chaos-router-os/        Defaults. Shipped with the OS, never written by the app.
@@ -337,7 +337,7 @@ A ready-made sudoers file will ship with the installer.
 
 ## Design Principles
 
-These are considered non-negotiable for Chaos Router OS.
+These are considered non-negotiable for Chardsoft Router OS.
 
 * UniFi-inspired visual language (not a clone)
 * MikroTik-style SPA navigation (`/#page`) with no full-page reloads
@@ -352,16 +352,16 @@ These are considered non-negotiable for Chaos Router OS.
 
 ## License
 
-Chaos Router OS is free for **noncommercial use**: at home, for learning, in schools, clubs and nonprofits. You may use, change and share it, as long as the copyright notice in [LICENSE.md](LICENSE.md) ("Chaoscent - Chaos Router OS") stays with every copy.
+Chardsoft Router OS is free for **noncommercial use**: at home, for learning, in schools, clubs and nonprofits. You may use, change and share it, as long as the copyright notice in [LICENSE.md](LICENSE.md) ("Chaoscent - Chardsoft Router OS") stays with every copy.
 
-**Companies and any commercial use need permission first.** That includes selling devices with it, offering it as a service, or using it in a business. Ask at contact@chaos-software.dev for a commercial license.
+**Companies and any commercial use need permission first.** That includes selling devices with it, offering it as a service, or using it in a business. Ask at contact@chardsoft.com for a commercial license.
 
 | Part | License |
 |---|---|
 | Software (this repository, the Apps Addon) | [PolyForm Noncommercial 1.0.0](LICENSE.md) |
 | Documentation, website texts, images, videos | [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/): credit Chaoscent, no commercial use |
 | xterm.js (`frontend/static/vendor/xterm`) | MIT, its own license files |
-| Names "Chaos Router", "Chaos Router OS" and the logos | Not licensed |
+| Names "Chaos Router", "Chardsoft Router OS" and the logos | Not licensed |
 | Chaos Router hardware (PCB, case) | Not public |
 
 Contributions come under the agreement in [CONTRIBUTING.md](CONTRIBUTING.md).

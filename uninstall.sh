@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Chaos Router OS uninstaller: removes Chaos Router OS and everything it
+# Chardsoft Router OS uninstaller: removes Chardsoft Router OS and everything it
 # set up on this system.
 #
 #   sudo /opt/chaos-router-os/uninstall.sh [--yes] [--dry-run] [--keep-packages]
@@ -45,7 +45,9 @@ PACKAGES_RECORD=$DEFAULTS_DIR/installed-packages
 
 CADDYFILE=/etc/caddy/Caddyfile
 CADDY_BACKUP=/etc/caddy/Caddyfile.before-chaos
-CADDY_MARKER="# Chaos Router OS: Caddy in front of the dashboard."
+CADDY_MARKER="# Chardsoft Router OS: Caddy in front of the dashboard."
+# Before the product was renamed (Caddyfiles of older installs).
+CADDY_MARKER_OLD="# Chaos Router OS: Caddy in front of the dashboard."
 
 APPS_ADDON=/opt/chaos-router-apps/install.sh
 
@@ -145,9 +147,9 @@ recorded_packages() {
 
 confirm() {
 
-    step "Uninstall Chaos Router OS"
+    step "Uninstall Chardsoft Router OS"
 
-    info "This removes Chaos Router OS and everything it set up:"
+    info "This removes Chardsoft Router OS and everything it set up:"
     info "  - the Apps Addon with all apps and their data (and Docker, if the addon installed it)"
     info "  - Wi-Fi access point, DHCP, DNS, VPN servers and profiles, firewall rules, NAT, LAN bridge"
     info "  - all settings, the admin account, keys and certificates"
@@ -266,8 +268,8 @@ restore_caddy() {
 
     step "Caddy"
 
-    if ! grep -qxF "$CADDY_MARKER" "$CADDYFILE" 2>/dev/null; then
-        info "Not configured by Chaos Router OS."
+    if ! grep -qxF -e "$CADDY_MARKER" -e "$CADDY_MARKER_OLD" "$CADDYFILE" 2>/dev/null; then
+        info "Not configured by Chardsoft Router OS."
         return
     fi
 
@@ -278,7 +280,7 @@ restore_caddy() {
     else
         run systemctl disable --now caddy 2>/dev/null
         run rm -f "$CADDYFILE"
-        info "Caddy stopped; its config was only for Chaos Router OS."
+        info "Caddy stopped; its config was only for Chardsoft Router OS."
     fi
 }
 
@@ -378,7 +380,7 @@ finish() {
         return
     fi
 
-    info "Chaos Router OS is removed."
+    info "Chardsoft Router OS is removed."
     info "Kept on purpose: eth0's address settings, the hostname, the Wi-Fi country, the system journal."
     info "Reboot to clear anything still held in memory: sudo reboot"
     info "This log: $LOG (gone after the reboot)"

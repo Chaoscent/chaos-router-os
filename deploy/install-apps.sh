@@ -7,7 +7,7 @@
 #   sudo deploy/install-apps.sh
 #
 # Downloads the addon (branch CHAOS_APPS_BRANCH of CHAOS_APPS_REPO) and
-# runs its install.sh for the user Chaos Router OS runs as. The sudoers rule
+# runs its install.sh for the user Chardsoft Router OS runs as. The sudoers rule
 # from the installer allows this script without arguments only, and
 # sudo drops the environment: the dashboard cannot pick another source.
 
@@ -31,7 +31,7 @@ if [[ -z $APP_USER || $APP_USER == root ]]; then
 fi
 
 if [[ -z $APP_USER || $APP_USER == root ]]; then
-    echo "Could not tell which user Chaos Router OS runs as." >&2
+    echo "Could not tell which user Chardsoft Router OS runs as." >&2
     exit 1
 fi
 

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="csrf-token" content="{{ csrf_token() }}">
-<title>Chaos Router OS</title>
+<title>Chardsoft Router OS</title>
 <link rel="icon" sizes="16x16 32x32 48x48" href="{{ asset('favicon.ico') }}">
 <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32.png') }}">
 <link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
@@ -28,6 +28,8 @@ body{
 }
 
 .login-card h1{
+    /* "Chardsoft / Router OS" rather than a lone "OS". */
+    text-wrap:balance;
     margin-bottom:8px;
 }
 
@@ -110,7 +112,7 @@ body{
 
 <div class="login-card">
 
-<h1>Chaos Router OS</h1>
+<h1>Chardsoft Router OS</h1>
 <p>Sign in to manage your router.</p>
 
 <input id="username" value="admin" placeholder="Username">

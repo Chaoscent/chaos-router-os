@@ -1,4 +1,4 @@
-# Chaos Router OS: Plan to v1
+# Chardsoft Router OS: Plan to v1
 
 What is still missing before Core v1, and how the remaining pieces should work.
 The README covers what exists; this file covers what's next.
@@ -115,7 +115,7 @@ Without these it isn't a router yet.
 
 ## 4. Installer
 
-`install.sh` in the repo root: `curl -fsSL https://raw.githubusercontent.com/chaoscent/chaos-router-os/dev/core/install.sh | sudo bash` (later also `chaos-software.dev/router-os/core`), or `sudo ./install.sh` from a clone. **Idempotent**: running it again updates, settings stay. Options `--country`, `--dir`, `--yes`.
+`install.sh` in the repo root: `curl -fsSL https://raw.githubusercontent.com/chaoscent/chaos-router-os/dev/core/install.sh | sudo bash` (later also `chardsoft.com/router-os/core`), or `sudo ./install.sh` from a clone. **Idempotent**: running it again updates, settings stay. Options `--country`, `--dir`, `--yes`.
 
 - [ ] **At the v1 release:** set `VERSION` to `1.0.0`, fill `release/core` (empty until then) from `dev/core`, and switch `BRANCH` in `install.sh`, the install URL in README and PLAN, the VPS redirect (`/router-os/core`) and GitHub's default branch from `dev/core` to `release/core`. Same for `release/hardware-edition` and `release/apps` (`BRANCH` in `deploy/install-apps.sh`).
 - [x] Check for Raspberry Pi OS (64-bit, Raspberry Pi board); warn on anything else.
